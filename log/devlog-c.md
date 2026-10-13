@@ -151,3 +151,11 @@ Open:
 - Manual: right-click → Open on a downloaded (quarantined) DMG needs a human.
 - `release.yml` is unvalidated until the branch is pushed. Its first real run needs a `release` branch, which Abdurahman creates.
 - 12b (Developer ID, notarization, Homebrew cask) stays Blocked on the secrets.
+
+## Phase 12b: Signing, notarization, Homebrew — prepared, still Blocked (2026-10-13)
+
+- `packaging/macos/sign.sh app|dmg`: hardened runtime, timestamped, inside-out signing with `JIDR_SIGNING_IDENTITY`; the DMG is signed, notarized (`notarytool --wait`, app-specific password from secrets) and stapled.
+- `packaging/macos/verify.sh <dmg>`: mounts read-only; checks the DMG signature, stapled ticket and `spctl --type open`, then the app's deep strict signature, hardened runtime and `spctl --type execute`. It always detaches.
+- `packaging/homebrew/jidr.rb`: cask template (arm64, macOS 13+, `jidr` CLI linked from `Contents/Helpers`), for a future `jidr-dev/homebrew-tap`.
+- Checked: `bash -n`, `ruby -c`; `sign.sh` refuses missing input or identity; `verify.sh` correctly fails on today's ad-hoc 12a DMG ("code object is not signed at all") and leaves nothing mounted.
+- Not done (needs the secrets): wiring `sign.sh` into `cargo xtask release` and `release.yml`, then the real `verify.sh` pass and a `brew install --cask` from a tap. Status stays Blocked.

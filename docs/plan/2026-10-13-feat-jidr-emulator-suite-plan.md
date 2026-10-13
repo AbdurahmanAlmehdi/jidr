@@ -376,7 +376,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `cargo xtask release --dry-run --scan`
 
 ### Phase 12b (C): Signing, notarization, Homebrew (blocked on the Apple Developer ID)
-- **Status:** Blocked: needs Abdurahman's Developer ID certificate and notarization credentials as repository secrets.
+- **Status:** Blocked: needs Abdurahman's Developer ID certificate and notarization credentials as repository secrets. Scripts prepared: `packaging/macos/{sign,verify}.sh`, `packaging/homebrew/jidr.rb`.
 - **Scope:** hardened runtime, inside-out signing, `notarytool` + staple for the app and DMG, `packaging/macos/verify.sh`, Homebrew cask.
 - **Files touched:** `packaging/macos/{sign,verify}.sh`, `.github/workflows/release.yml`
 - **Acceptance criteria:** `spctl -a -vv Jidr.app` accepted; `brew install --cask` works from a tap.
