@@ -193,7 +193,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `manual 1. cargo run -p spike-display -- --avd <name> 2. tap Settings and confirm it opens 3. confirm the printed fps ≥ 30 and latency ≤ 80 ms match ADR-0001`
 
 ### Phase 2 (A): Core model + SDK + AVD
-- **Status:** Not started
+- **Status:** Done (installs natively, without sdkmanager or Java; see log/devlog-a.md)
 - **Scope:** `jidr-core` model and error codes; `jidr-sdk`: SDK detection (private SDK, D3; Studio SDK read-only), license text and consent store per hash (D8), sdkmanager wrapper with progress, ABI filter (arm64 on Apple Silicon), API 29–36 catalog (D23), disk-space precheck, HVF check, AVD create/edit (config.ini)/clone/delete/factory reset, built-in generic profiles (D24).
 - **Files touched:** `crates/jidr-core/**`, `crates/jidr-sdk/**`, `assets/profiles/*.toml`, `scripts/e2e-studio-untouched.sh`
 - **Acceptance criteria:** unit tests for config.ini round-trip, consent store and ABI filter; integration test creates/clones/deletes an AVD; Studio SDK checksum is unchanged.

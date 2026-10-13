@@ -64,3 +64,41 @@ Findings that bind later phases:
 
 Skipped / open:
 - Manual "click Settings in the window" check: computer use can't drive a bare (non-.app) binary. Needs Abdurahman: `CARGO_TARGET_DIR=target/agent-a cargo run --release -p spike-display -- --create --gpu host`, then click Settings.
+
+---
+
+## Phase 2: Core model + SDK + AVD — plan
+
+`jidr-core`:
+- `model.rs`: Device, DeviceStatus, HardwareProfile, SystemImage, ImageRef, RootMode/RootState/RootHealth, Snapshot, Job/JobState. All `serde` + `schemars`.
+- `error.rs`: `ErrorCode` (ok 0, unexpected 1, usage 2, not_found 3, busy 4, boot_timeout 5, sdk 6, root_failed 7, daemon_stale 8 = CLI exit codes) + `JidrError { code, message, data }`.
+- `paths.rs`: `JidrPaths` (data / sdk / avd / cache / logs / consent / socket), `JIDR_HOME` override for tests.
+
+`jidr-sdk` (deviation from the plan's "sdkmanager wrapper", recorded here): install natively. Parse Google's repository XMLs (`repository2-3.xml`, `sys-img/<tag>/sys-img2-3.xml`), download archives with progress, verify SHA-1, unzip into the private SDK. Why: sdkmanager needs a Java runtime that a Mac with no Android Studio doesn't have, and its license-hash format (`licenses/<id>`) isn't reproducible from the published XML text (tested: SHA-1 of the raw, trimmed, collapsed and CRLF text never matches the hash sdkmanager writes). Jidr's own consent store (D8) keys consent by SHA-256 of the exact license text shown, re-prompting when it changes.
+- `host.rs`: host ABI (arm64-v8a / x86_64), hypervisor check (`kern.hv_support` / `/dev/kvm`), free disk space.
+- `sdk.rs`: `Sdk { root, kind: Private | StudioReadOnly }`, detection, tool paths; Studio SDK never written.
+- `repo.rs`: XML → `RemotePackage` (path, revision, archives per host, license ref, api/tag/abi) + licenses.
+- `catalog.rs`: image catalog: API 29–36 supported, 28 best-effort (D23), host-ABI filter, installed state.
+- `license.rs`: `ConsentStore` (JSON, per license id + sha256), `pending_licenses(packages)`.
+- `install.rs`: download (https or file:// for tests) → sha1 check → unzip into a staging dir → atomic rename; disk-space precheck; progress callback; cancel flag.
+- `avd.rs`: `ConfigIni` (order- and format-preserving round-trip), create from profile + image, edit, clone (copy minus locks/runtime/snapshots; overlays use relative backing files), delete, factory reset, list. AVDs live in Jidr's own AVD home, never `~/.android/avd`.
+- `profiles.rs` + `assets/profiles/*.toml`: built-in generic profiles (D24). SDK device-definition import is deferred (definitions live inside Studio jars / `~/.android/devices.xml`).
+- Tests: config.ini round-trip, consent store, ABI filter, XML parsing (synthetic fixture), installer against a `file://` fixture zip. Emulator feature: create → clone → delete against `JIDR_TEST_SDK`, boot the clone to prove cloning works.
+- `scripts/e2e-studio-untouched.sh`: fingerprint (path, size, mtime) of the Studio SDK + `~/.android/avd` before/after running a command.
+
+## Phase 2: Core model + SDK + AVD — done (2026-10-13)
+
+Built:
+- `jidr-core`: `ErrorCode` (exit codes 1–8, JSON-RPC codes: usage → -32602, others -3200N), `JidrError`/`JidrResult`/`ResultExt::ctx`, the model (Device, DeviceStatus, DeviceRuntime, HardwareProfile, ImageRef, SystemImage, Support (D23), RootMode/RootState/RootHealth, Snapshot, Job/JobState), `JidrPaths` (`JIDR_HOME` override).
+- `jidr-sdk`: `host` (ABI, HVF/KVM, free space), `sdk` (private vs Studio read-only, complete-image detection, `SdkSet::tools/find_image`), `repo` (repository XML parser), `catalog` (ABI/API/channel filter, offline installed images), `license` (consent store by SHA-256 of the exact text, `accept_hash` for headless), `install` (native installer: https/file:// download with progress + cancel, SHA-1 check, single-root unzip, atomic move, staging cleanup, never into Studio's SDK), `avd` (byte-identical `config.ini` round-trip, create/edit/clone/delete/factory reset/list/disk usage, running-AVD protection via `hardware-qemu.ini.lock` pid), `profiles` (4 generic built-ins in `assets/profiles/`).
+- `examples/catalog.rs`: the live Google listing parses (566 packages; arm64 images for API 28–36 incl. 30/33/35).
+- `scripts/e2e-studio-untouched.sh`: (path, size, mtime) fingerprint of the Studio SDK + `~/.android/avd` around a command.
+
+Validation: `cargo nextest run -p jidr-core -p jidr-sdk` (32 passed) && `--features emulator` (create → clone → **clone boots in 24 s** → delete) && `scripts/e2e-studio-untouched.sh` (296,062 Studio files unchanged).
+
+Deviation (recorded in the plan section above): no sdkmanager wrapper. sdkmanager needs Java, and its `licenses/<id>` hash is not reproducible from the published XML text (raw/trimmed/collapsed/CRLF SHA-1 all differ from what sdkmanager writes), so Jidr's consent is its own (D8 intent kept: real text shown, consent per hash, re-prompt on change).
+
+Skipped / open:
+- SDK device-definition import (D24 "imported as-is"): the definitions live inside Studio's jars; deferred.
+- 16 KB page-size images (`*_ps16k`) appear in the catalog; untested (research summary). Consider hiding them until tested.
+- Found: Studio's `system-images/android-36/google_apis_playstore_ps16k` has `ramdisk.img.backup`, i.e. rootAVD patched that shared image in place. Relevant for Stream C's pristine-hash logic.
