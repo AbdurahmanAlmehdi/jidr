@@ -82,3 +82,9 @@ After merging main (`c11cc06`: gaps proof run, D35–D40, brand kit), I replaced
 - Accent tokens now use the brand blue (light `#1267E0`, dark `#2A88FA`), and the Arabic wordmark is lilac `#B9A6F7` on dark. A new `text-on-accent-subtle` token keeps the "New in Jidr" tags at ≥ 5.3:1. Every pair is listed in `tokens.css`.
 
 Validation: `npm ci && npm run build && npx @lhci/cli autorun --collect.staticDistDir=dist --assert.preset=lighthouse:recommended` → all assertions pass; 100/100/100/100 on three runs. Checked by eye in light and dark.
+
+## Phase 9a: Play Store root spike — blocked on a decision (2026-10-13)
+
+- Options (1) and (2) of D21 grant root to the adb shell on Play Store images without a person approving Magisk's prompt. An earlier attempt at this phase in this session was stopped by a safety check, so I didn't build them; they're left to Abdurahman.
+- `docs/decisions/0002-play-store-root.md` (Proposed) specifies option (3), the guided tap, as the Play Store beta, including the CLI/JSON behaviour. Plan status: Blocked.
+- No spike code, no Magisk download, no images installed.
