@@ -15,3 +15,13 @@ workspace = true
 [features]
 # Tests that need a running Android emulator (Linux KVM in CI, arm64 on the dev Mac).
 emulator = []
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+schemars.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+dirs.workspace = true
+async-trait.workspace = true
