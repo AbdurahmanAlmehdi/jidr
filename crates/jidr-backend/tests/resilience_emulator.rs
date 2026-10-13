@@ -47,7 +47,7 @@ async fn double_launch_console_adopt_crash() {
 
     // A fresh backend (daemon restart) re-adopts the running emulator.
     let restarted = AospBackend::new();
-    let adopted = restarted.adopt(&f.paths.avd_home()).await;
+    let adopted = restarted.adopt_running(&f.paths.avd_home()).await;
     let again = adopted
         .iter()
         .find(|i| i.pid == inst.pid)
@@ -61,7 +61,7 @@ async fn double_launch_console_adopt_crash() {
     let crash_dir = f.paths.device_logs("jidr_resilience");
     let watcher = {
         let (inst, dir) = (inst.clone(), crash_dir.clone());
-        tokio::spawn(async move { backend.wait_for_crash(&inst, &dir).await })
+        tokio::spawn(async move { backend.crash_watch(&inst, &dir).await })
     };
     tokio::time::sleep(Duration::from_secs(1)).await;
     std::process::Command::new("kill")
@@ -83,7 +83,7 @@ async fn double_launch_console_adopt_crash() {
     // The adopted path (no exit watcher) also notices the death.
     let adopted_report = tokio::time::timeout(
         Duration::from_secs(30),
-        restarted.wait_for_crash(again, &crash_dir),
+        restarted.crash_watch(again, &crash_dir),
     )
     .await
     .unwrap();

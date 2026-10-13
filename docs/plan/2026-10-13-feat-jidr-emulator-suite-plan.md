@@ -221,7 +221,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `cargo nextest run -p jidr-backend --features emulator`
 
 ### Phase 4a (A): Daemon core
-- **Status:** Not started
+- **Status:** Done
 - **Scope:** `CommandProvider` trait in `jidr-core`; `jidr-daemon` registry, JSON-RPC 2.0 NDJSON server on the Unix socket, `hello` stale check, the eight error codes, per-device locks; core `device.*`, `sdk.*`, `image.*`, `profile.*`, `file.*`, `logcat.*`, `device.connect_info` commands.
 - **Files touched:** `crates/jidr-core/src/provider.rs`, `crates/jidr-daemon/**`
 - **Acceptance criteria:** conformance tests: bad JSON → -32700, unknown param → -32602 naming the key, busy lock, stale daemon.

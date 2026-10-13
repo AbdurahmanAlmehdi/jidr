@@ -6,10 +6,11 @@ pub mod aosp;
 pub mod console;
 pub mod crash;
 pub mod discovery;
+pub mod fake;
 pub mod grpc;
 pub mod ports;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -160,6 +161,12 @@ pub trait Backend: Send + Sync + std::fmt::Debug {
 
     /// True if the instance's process is still running.
     async fn is_alive(&self, instance: &InstanceInfo) -> bool;
+
+    /// Emulators still running Jidr AVDs under `avd_home` (daemon restart).
+    async fn adopt(&self, avd_home: &Path) -> Vec<InstanceInfo>;
+
+    /// Resolves when the instance crashes (D9: report, never restart).
+    async fn wait_for_crash(&self, instance: &InstanceInfo, log_dir: &Path) -> CrashReport;
 }
 
 #[cfg(test)]

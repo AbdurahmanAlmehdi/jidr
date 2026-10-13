@@ -376,6 +376,14 @@ impl Backend for AospBackend {
             None => process_alive(instance.pid).await,
         }
     }
+
+    async fn adopt(&self, avd_home: &Path) -> Vec<InstanceInfo> {
+        self.adopt_running(avd_home).await
+    }
+
+    async fn wait_for_crash(&self, instance: &InstanceInfo, log_dir: &Path) -> crate::CrashReport {
+        self.crash_watch(instance, log_dir).await
+    }
 }
 
 pub async fn process_alive(pid: u32) -> bool {

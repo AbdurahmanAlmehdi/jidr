@@ -8,6 +8,8 @@ A stream that needs a hook, command or change in another stream's files adds a r
 
 | # | Needs | From stream | Blocking phase | Owner | Status |
 |---|---|---|---|---|---|
+| A1 | `jidr-widgets` exports `pub fn provider() -> std::sync::Arc<dyn jidr_core::provider::CommandProvider>` (contract in `crates/jidr-core/src/provider.rs`). A then registers it in `jidr daemon` (`apps/jidr`). | A | none (A wires it when it lands) | B | Open |
+| A2 | `jidr-root` exports the same `pub fn provider()`; use `CommandProvider::on_booted` for `adb root` after each boot, and `Device.launch` (`ramdisk`, `force_cold_boot`) + `DaemonContext::stop_device/start_device` for Magisk. | A | none (A wires it when it lands) | C | Open |
 
 ## 🔎 Research gaps (D11)
 

@@ -165,3 +165,42 @@ Built: `console` (telnet client: banner + `auth` from `~/.emulator_console_auth_
 Validation `cargo nextest run -p jidr-backend --features emulator`: 17 passed, also with both emulator tests in parallel (`--test-threads 4`). Emulator test: double launch → busy; console commands on the real emulator; a fresh backend re-adopts the instance (same pid/ports/token/serial); `kill -9` → `Exited` report + crash log, seen by both the owning and the adopting backend.
 
 Bug found (regression test `discovery::tests::actual_ports_come_from_the_discovery_file`): two emulators launched at once by different processes both asked for console 5554; the loser silently bound another port and we talked to the wrong emulator's console. The discovery file (matched by pid or our reserved gRPC port) is now the source of truth for ports.
+
+---
+
+## Phase 4a: Daemon core — plan
+
+Gaps: only C1 (FYI).
+
+Provider contract (`jidr-core::provider`), what B and C build on:
+- `CommandSpec { id, label, params (JSON Schema), destructive, longRunning, locksDevice }` (camelCase on the wire).
+- `#[async_trait] trait CommandProvider { fn commands(); async fn call(&CallCtx, method, params) -> JidrResult<Value>; async fn on_booted(&CallCtx, &Device) {} }`. `on_booted` lets the root engine run `adb root` after every boot.
+- `CallCtx { daemon: Arc<dyn DaemonContext>, progress, cancel }`; `DaemonContext` exposes paths, adb path, device lookup by name/id, `connect_info`, `update_device`, `start_device(cold_boot)`, `stop_device`, and (4b) events.
+- `Device.launch: LaunchPrefs { ramdisk, extra_args, gpu, force_cold_boot }` is persisted. The root engine sets `ramdisk` + `force_cold_boot` and restarts (D29); the daemon applies them on every start.
+- `parse_params::<T>()`: serde with `deny_unknown_fields` → `usage` (-32602) naming the key.
+- B and C each export `pub fn provider() -> Arc<dyn CommandProvider>` from `jidr-widgets` / `jidr-root`; A wires them into `jidr daemon` when they land (gap rows A1/A2 filed for B and C).
+
+`jidr-daemon`:
+- `rpc`: JSON-RPC 2.0 types; -32700 parse, -32600 invalid request, -32601 unknown method, -32602 params, -3200N for Jidr codes with `data.code`.
+- `server`: NDJSON over a Unix socket (0600, stale-socket cleanup, 104-byte path check), `hello {version}` required first, mismatch → `daemon_stale` (-32008); requests on one connection run concurrently.
+- `registry`: providers → command table, duplicate ids rejected; `commands.list`.
+- `locks`: per-device single writer; a conflict → `busy` with `{holder, op}`.
+- `store`: `devices.json` registry (atomic writes, unique names, AVD id from the name).
+- `state`: implements `DaemonContext`, owns the backend, instances and crash watchers, re-adopts running emulators at startup.
+- `core_provider`: `daemon.status`, `sdk.status|licenses|accept_license|install`, `image.list|install`, `profile.list`, `device.create|edit|clone|start|stop|reset|delete|list|details|connect_info`, `file.install|push|pull`, `logcat.dump|clear`. `file.flash` is 🔎 (gaps). Long-running commands run inline until jobs land in 4b.
+- `jidr-backend::fake::FakeBackend` (gated start, crash trigger) for daemon/client/CLI tests; `Backend` gains `adopt` and `wait_for_crash`.
+- Conformance tests over a real socket with the fake backend: bad JSON → -32700, unknown param → -32602 naming it, busy lock, stale daemon, hello required, unknown method, device lifecycle.
+
+## Phase 4a: Daemon core — done (2026-10-13)
+
+Built:
+- `jidr-core::provider`: `CommandSpec` (camelCase on the wire), `CommandProvider` (+ `on_booted` hook), `CallCtx`, `DaemonContext`, `DeviceUpdate`, `parse_params`, `DeviceParams`/`NoParams`. Model: `Device.launch: LaunchPrefs`, `ConnectInfo`.
+- `jidr-backend`: `Backend::adopt` + `wait_for_crash` on the trait; `fake::FakeBackend` (start gate, crash trigger, launch log, fail-next).
+- `jidr-daemon`: `rpc` (codes, `RpcError::from_jidr/to_jidr` with `data.code`/`exit_code`/`details`), `server` (NDJSON over a 0600 Unix socket, stale-socket replace, single instance, 4 MB line cap, `hello` required, concurrent requests per connection), `validate` (JSON-Schema check before locking: unknown/missing keys, primitive types), `locks`, `registry` (duplicate ids rejected), `store` (`devices.json`, runtime state not persisted), `state` (`DaemonContext`, start/stop, crash watchers → `Crashed` without restart, re-adopt on startup, boot hooks, events via broadcast), `core_provider` (23 commands: daemon/sdk/image/profile/device/file/logcat).
+- Gaps filed: A1 (B) / A2 (C), to export `provider()`.
+
+Validation `cargo nextest run -p jidr-daemon`: 17 passed. Conformance: bad JSON → -32700 (connection survives), `jsonrpc != 2.0` → -32600, hello required, stale → -32008 `daemon_stale`, unknown method → -32601, unknown/missing/mistyped param → -32602 naming the key, `commands.list` shape, full device lifecycle on the fake backend (create/details/start/connect_info/install/logcat/edit/clone/reset/delete), busy lock with holder `op`, crash → `crashed` with no restart, socket 0600 + single instance + removed on shutdown.
+
+Bug caught by the conformance test: locked commands resolved the device before validating params, so a type error surfaced as `not_found`. Params are now validated against the schema first (`validate::tests`).
+
+Deferred to 4b: long-running commands still run inline (jobs + `{job, pending}` come next), `events.subscribe`, idle exit.

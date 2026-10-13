@@ -40,7 +40,7 @@ pub fn instance_from(d: &Discovery, avd_home: &Path) -> Option<InstanceInfo> {
 
 impl aosp::AospBackend {
     /// Finds live emulators running Jidr AVDs and claims their ports.
-    pub async fn adopt(&self, avd_home: &Path) -> Vec<InstanceInfo> {
+    pub async fn adopt_running(&self, avd_home: &Path) -> Vec<InstanceInfo> {
         let mut out = Vec::new();
         for d in discovery::scan() {
             let Some(info) = instance_from(&d, avd_home) else {

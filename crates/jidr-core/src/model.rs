@@ -224,10 +224,46 @@ pub struct Device {
     #[serde(default)]
     pub agent_owned: bool,
     pub created_at: DateTime<Utc>,
+    /// Persistent launch settings applied on every start.
+    #[serde(default)]
+    pub launch: LaunchPrefs,
     #[serde(default)]
     pub status: DeviceStatus,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub runtime: Option<DeviceRuntime>,
+}
+
+/// Per-device launch settings. The root engine sets `ramdisk` (Magisk) and
+/// `force_cold_boot` (root changes force a cold boot, D29).
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct LaunchPrefs {
+    /// `-ramdisk <path>`: a patched per-device ramdisk.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ramdisk: Option<PathBuf>,
+    /// Extra emulator arguments.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub extra_args: Vec<String>,
+    /// `-gpu` override.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gpu: Option<String>,
+    /// The next start ignores the quick-boot snapshot; cleared after a boot.
+    #[serde(default)]
+    pub force_cold_boot: bool,
+}
+
+/// How to reach a running device directly (the player streams frames from
+/// the emulator itself, not through the daemon).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ConnectInfo {
+    pub device: Uuid,
+    /// `127.0.0.1:<port>`.
+    pub grpc_endpoint: String,
+    pub grpc_port: u16,
+    /// Bearer token for `authorization: Bearer <token>`.
+    pub grpc_token: String,
+    pub adb_serial: String,
+    pub adb_path: PathBuf,
+    pub console_port: u16,
 }
 
 /// An emulator snapshot, tagged with the root mode it was taken under (D29).
