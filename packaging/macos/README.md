@@ -5,6 +5,9 @@
 | File | What |
 |---|---|
 | `Info.plist.in` | bundle metadata; `@VERSION@` becomes the workspace version |
+| `sign.sh` | 12b: Developer ID signing (hardened runtime, inside-out) and DMG notarization + staple. Prepared, not wired in. |
+| `verify.sh` | 12b validation: Gatekeeper, hardened runtime and the stapled ticket. Fails on today's ad-hoc builds, as expected. |
+| `../homebrew/jidr.rb` | 12b: cask template for the future tap |
 
 Bundle layout:
 
