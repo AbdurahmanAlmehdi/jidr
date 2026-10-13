@@ -75,12 +75,23 @@ impl TestDaemon {
         let paths = JidrPaths::under(root.join("j"));
         let studio = fake_studio(&root.join("studio"))
             .map_err(|e| jidr_core::JidrError::unexpected(format!("fake SDK: {e}")))?;
+        // An empty local SDK repository: no test ever reaches the network.
+        let repo = root.join("repo");
+        std::fs::create_dir_all(&repo)
+            .and_then(|()| {
+                std::fs::write(
+                    repo.join("repository2-3.xml"),
+                    "<sdk:sdk-repository xmlns:sdk=\"x\"/>",
+                )
+            })
+            .map_err(|e| jidr_core::JidrError::unexpected(format!("fake repo: {e}")))?;
         let backend = Arc::new(FakeBackend::new());
         let daemon = Daemon::builder(
             DaemonConfig {
                 paths: paths.clone(),
                 studio_sdk: Some(studio.clone()),
                 idle_timeout: None,
+                sdk_repo: Some(format!("file://{}/", repo.display())),
             },
             backend.clone(),
         )

@@ -6,6 +6,7 @@ pub mod core_provider;
 pub mod jobs;
 pub mod lifecycle;
 pub mod locks;
+pub mod protocol_doc;
 pub mod registry;
 pub use jidr_core::rpc;
 pub mod server;

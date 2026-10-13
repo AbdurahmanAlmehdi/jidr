@@ -26,11 +26,27 @@ pub struct DaemonConfig {
     pub studio_sdk: Option<PathBuf>,
     /// Exit after this long idle (D4: 10 min). `None` = never.
     pub idle_timeout: Option<std::time::Duration>,
+    /// SDK repository base URL (mirrors, tests). `None` = `$JIDR_SDK_REPO`
+    /// or Google's.
+    pub sdk_repo: Option<String>,
+}
+
+impl DaemonConfig {
+    /// Product defaults: auto-detected Studio SDK, 10-minute idle exit (D4).
+    pub fn new(paths: JidrPaths) -> Self {
+        Self {
+            paths,
+            studio_sdk: None,
+            idle_timeout: Some(crate::lifecycle::IDLE_TIMEOUT),
+            sdk_repo: None,
+        }
+    }
 }
 
 pub struct State {
     pub(crate) paths: JidrPaths,
     studio_sdk: Option<PathBuf>,
+    pub(crate) sdk_repo: Option<String>,
     pub(crate) backend: Arc<dyn Backend>,
     store: Mutex<DeviceStore>,
     instances: Mutex<HashMap<Uuid, InstanceInfo>>,
@@ -61,6 +77,7 @@ impl State {
         Ok(Arc::new_cyclic(|me| Self {
             paths: config.paths,
             studio_sdk: config.studio_sdk,
+            sdk_repo: config.sdk_repo,
             backend,
             store: Mutex::new(store),
             instances: Mutex::new(HashMap::new()),

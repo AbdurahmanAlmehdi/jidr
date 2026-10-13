@@ -42,16 +42,22 @@ pub struct CreateParams {
     /// Hardware profile id (`profile.list`); default `phone-6.1-fhd`.
     #[serde(default)]
     pub profile: Option<String>,
+    /// RAM in MB (overrides the profile).
     #[serde(default)]
     pub ram_mb: Option<u32>,
+    /// Virtual CPU cores (overrides the profile).
     #[serde(default)]
     pub cpus: Option<u32>,
+    /// Screen width in pixels (overrides the profile).
     #[serde(default)]
     pub width: Option<u32>,
+    /// Screen height in pixels (overrides the profile).
     #[serde(default)]
     pub height: Option<u32>,
+    /// Screen density in dpi (overrides the profile).
     #[serde(default)]
     pub density: Option<u32>,
+    /// Data partition size in MB (overrides the profile).
     #[serde(default)]
     pub data_mb: Option<u32>,
     /// Default: `adb` where the image allows it, else `none` (D7).
@@ -70,14 +76,19 @@ pub struct EditParams {
     /// New name.
     #[serde(default)]
     pub name: Option<String>,
+    /// RAM in MB (overrides the profile).
     #[serde(default)]
     pub ram_mb: Option<u32>,
+    /// Virtual CPU cores (overrides the profile).
     #[serde(default)]
     pub cpus: Option<u32>,
+    /// Screen width in pixels (overrides the profile).
     #[serde(default)]
     pub width: Option<u32>,
+    /// Screen height in pixels (overrides the profile).
     #[serde(default)]
     pub height: Option<u32>,
+    /// Screen density in dpi (overrides the profile).
     #[serde(default)]
     pub density: Option<u32>,
     #[serde(default)]
@@ -274,7 +285,8 @@ impl CoreProvider {
     }
 
     async fn repository(&self) -> JidrResult<Repository> {
-        Fetcher::new()?.repository(&repo::repo_base()).await
+        let base = self.state.sdk_repo.clone().unwrap_or_else(repo::repo_base);
+        Fetcher::new()?.repository(&base).await
     }
 
     fn consent(&self) -> JidrResult<ConsentStore> {
