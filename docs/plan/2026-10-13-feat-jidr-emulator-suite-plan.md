@@ -207,7 +207,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `cargo nextest run -p jidr-proto -p jidr-adb`
 
 ### Phase 3b (A): Backend launch
-- **Status:** Not started
+- **Status:** Done (API 31 arm64 locally; see devlog)
 - **Scope:** `Backend` trait + `aosp` module: dynamic port allocation (console/adb pairs + gRPC; `adb connect` past 5585, D9), spawn with `-no-window -grpc -grpc-use-token -no-boot-anim`, `LaunchOptions { extra_args, ramdisk, cold_boot, wipe }` (the hook stream C needs for Magisk), discovery-file parsing, token auth, boot wait (`sys.boot_completed`), quick-boot snapshot on stop by default (D29).
 - **Files touched:** `crates/jidr-backend/**`
 - **Acceptance criteria:** integration test boots API 35, reads the battery over gRPC, stops, and cold boots with a custom `-ramdisk` path passed through `LaunchOptions`.

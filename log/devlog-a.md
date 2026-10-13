@@ -114,3 +114,34 @@ Skipped / open:
 
 Validation `cargo nextest run -p jidr-proto -p jidr-adb`: 15 passed; also passes with `JIDR_PROTO_VENDORED=1`.
 Notes: the generated code addresses `emulator_snapshot` as `super::super::super::…`, so modules mirror the proto packages (`android::emulation::control`, re-exported as `control`).
+
+---
+
+## Phase 3b: Backend launch — plan
+
+Gaps check: Stream C (branch `claude/trusting-grothendieck-401ea9`) filed C1, FYI only: `jidr-cpio` deps change `Cargo.lock`; regenerate on merge. Nothing blocking.
+
+- `jidr-core`: move the cancel flag type here (`Cancel = Arc<AtomicBool>`), shared by SDK installs, boots and jobs.
+- `jidr-backend`:
+  - `Backend` trait (async-trait, object-safe so the daemon can use a fake): `start(spec, opts, progress, cancel) -> InstanceInfo`, `stop(info)`, `is_alive(info)`.
+  - `LaunchSpec { avd, avd_home, sdk_root, emulator, adb, log_dir }`, `LaunchOptions { extra_args, ramdisk, cold_boot, wipe, gpu, audio, snapshot_save, boot_timeout }` (`ramdisk` is Stream C's Magisk hook).
+  - `ports`: allocator with an in-process reservation set; console/adb pairs 5554–5584 first (adb auto-discovers them), then higher pairs with `adb connect 127.0.0.1:<adb>` (D9); gRPC port from the OS.
+  - `discovery`: find the emulator's `pid_<pid>.ini` (macOS caches dir; Linux `$XDG_RUNTIME_DIR`/tmp candidates), match by pid or `port.serial`, read `grpc.token`.
+  - `aosp`: spawn `-no-window -grpc <p> -grpc-use-token -no-boot-anim -port <c> -gpu host|swiftshader_indirect` (+ `-no-snapshot-load` for cold boot, `-wipe-data`, `-ramdisk`, `-no-snapshot-save`, `-no-audio`), env `ANDROID_AVD_HOME`/`ANDROID_SDK_ROOT`, stdout/stderr to a per-boot log; boot stages Spawned → GrpcReady → AdbOnline → Booted (`getStatus.booted` + `sys.boot_completed`); early exit / timeout / cancel kill the process and report the log path.
+  - Stop: gRPC `setVmState(SHUTDOWN)` (same as closing the window: saves the quick-boot snapshot unless launched with `-no-snapshot-save`, D29), wait, then SIGKILL fallback.
+  - `grpc::connect(info)`: authenticated `Controller`/`Snapshots` clients.
+- Emulator test: boot API 31 (local image), read battery over gRPC, stop, then cold boot with `-ramdisk` = a copy of the pristine ramdisk and check the emulator's `hardware-qemu.ini` points at it; quick-boot snapshot exists after the first stop.
+
+## Phase 3b: Backend launch — done (2026-10-13)
+
+Built: `jidr-core::Cancel` (shared cancel flag; jidr-sdk switched to it); `jidr-backend`: object-safe `Backend` trait, `LaunchSpec`, `LaunchOptions` (ramdisk/cold_boot/wipe/gpu/audio/snapshot_save/extra_args/boot_timeout), `BootStage`, `InstanceInfo` (+ `runtime()`), `PortAllocator` (reservations, TCP serial past 5584), `discovery` (scan/parse/match), `grpc::connect`, `AospBackend` (spawn with a per-boot log, exit watcher per pid, staged boot wait, failure/timeout/cancel kill + port release, graceful stop via `setVmState(SHUTDOWN)` with SIGKILL fallback).
+
+Validation `cargo nextest run -p jidr-backend --features emulator`: 11 passed. Emulator test (API 31 arm64): first boot 24 s → battery over gRPC → stop saves `snapshots/default_boot` → cold boot with a copied ramdisk via `LaunchOptions.ramdisk` (verified `disk.ramdisk.path` in the emulator's `hardware-qemu.ini`) → quick boot 13.5 s.
+
+Bugs found by the emulator test (each has a regression test):
+1. Discovery matched by console port alone, so a stale `pid_*.ini` (Studio's leftover, or the previous boot) supplied a wrong gRPC token and boot never completed → match pid, or console + our gRPC port; an Unauthenticated `getStatus` now fails immediately (`discovery::tests::stale_file_with_same_console_is_ignored`).
+2. Emulator lock files are NUL-padded after the pid; `jidr-sdk` treated them as unparseable = held, so every stopped AVD looked busy (`avd::tests::nul_padded_lock_files`).
+
+Open:
+- Quick boot is 13.5 s vs the ≤ 5 s metric: gRPC is up at 1.0 s, adb online at 7.3 s (adb server's emulator scan interval), `Booted` at 13.5 s (`getStatus.booted` lags after a snapshot restore). Tune later (e.g. trust `sys.boot_completed` alone after a snapshot load, nudge adb discovery).
+- Stop without saving the snapshot is only a launch-time choice (`snapshot_save=false`); a per-stop "don't save" needs another mechanism.

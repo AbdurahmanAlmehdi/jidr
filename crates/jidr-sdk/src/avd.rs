@@ -454,17 +454,29 @@ impl AvdManager {
     }
 }
 
-/// The emulator holds `hardware-qemu.ini.lock` (containing its pid) while running.
+/// The emulator holds `hardware-qemu.ini.lock` (containing its pid) while
+/// running. The file stays behind after exit, so the pid must be alive.
 fn is_locked(dir: &Path) -> bool {
-    let lock = dir.join("hardware-qemu.ini.lock");
-    let Ok(pid) = std::fs::read_to_string(&lock) else {
+    let Ok(bytes) = std::fs::read(dir.join("hardware-qemu.ini.lock")) else {
         return false;
     };
-    match pid.trim().parse::<u32>() {
-        Ok(pid) => process_alive(pid),
-        // Unreadable pid: be safe and assume it's held.
-        Err(_) => lock.exists(),
+    match lock_pid(&bytes) {
+        Some(pid) => process_alive(pid),
+        // An empty or garbled lock can't name a live process.
+        None => false,
     }
+}
+
+/// The pid in a lock file: leading ASCII digits (the emulator pads the file
+/// with NUL bytes).
+fn lock_pid(bytes: &[u8]) -> Option<u32> {
+    let digits: String = bytes
+        .iter()
+        .skip_while(|b| b.is_ascii_whitespace())
+        .take_while(|b| b.is_ascii_digit())
+        .map(|b| *b as char)
+        .collect();
+    digits.parse().ok()
 }
 
 pub fn process_alive(pid: u32) -> bool {
@@ -653,6 +665,25 @@ odd=no-spaces
             m.clone_avd("busy", "b2", "x").unwrap_err().code,
             ErrorCode::Busy
         );
+    }
+
+    /// Regression: real emulator lock files are NUL-padded after the pid;
+    /// parsing failed and every stopped AVD looked busy.
+    #[test]
+    fn nul_padded_lock_files() {
+        assert_eq!(lock_pid(b"12345\0\0\0\0"), Some(12345));
+        assert_eq!(lock_pid(b" 42\n"), Some(42));
+        assert_eq!(lock_pid(b"\0\0"), None);
+        let dir = tempfile::tempdir().unwrap();
+        let m = AvdManager::new(dir.path());
+        m.create(&spec("pad")).unwrap();
+        let lock = m.dir("pad").join("hardware-qemu.ini.lock");
+        std::fs::write(&lock, b"999999\0\0\0").unwrap();
+        assert!(!m.is_running("pad"), "dead pid");
+        let mut own = std::process::id().to_string().into_bytes();
+        own.extend([0, 0, 0]);
+        std::fs::write(&lock, own).unwrap();
+        assert!(m.is_running("pad"), "live pid");
     }
 
     #[test]
