@@ -1,0 +1,17 @@
+[package]
+name = "jidr-adb"
+description = "Async wrapper around the adb binary."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+# Tests that need a running Android emulator (Linux KVM in CI, arm64 on the dev Mac).
+emulator = []

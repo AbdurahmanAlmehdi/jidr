@@ -1,0 +1,23 @@
+Jidr (جذر)
+Copyright 2026 Jidr contributors
+
+Licensing (decision D18):
+- Everything in this repository is licensed under the Apache License 2.0
+  (LICENSE-APACHE), except:
+- crates/jidr-ui and apps/jidr-gui, which are licensed under the GNU General
+  Public License v3.0 only (see their LICENSE-GPL files), because they link
+  the Slint GUI toolkit under its GPLv3 option.
+
+The CLI, daemon and MCP server never link GPL code; `cargo xtask license-check`
+enforces this.
+
+Jidr does not bundle or redistribute the Android SDK, the Android Emulator,
+Android system images or Magisk. They are downloaded on the user's machine,
+from their official sources, after the user accepts their licenses.
+
+Jidr is not affiliated with or endorsed by Google, the Android Open Source
+Project, Genymobile/Genymotion or the Magisk project. Android is a trademark
+of Google LLC; Genymotion is a trademark of Genymobile SAS.
+
+Third-party attributions:
+(none yet; ported MIT/Apache code must be listed here with its copyright notice)
