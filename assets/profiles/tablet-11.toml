@@ -1,0 +1,12 @@
+id = "tablet-11"
+name = "Tablet 11″"
+form_factor = "tablet"
+width = 1600
+height = 2560
+density = 320
+ram_mb = 4096
+cpus = 4
+data_mb = 8192
+
+[config]
+"hw.initialOrientation" = "landscape"

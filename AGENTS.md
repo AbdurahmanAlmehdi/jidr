@@ -33,7 +33,7 @@ See [docs/clean-room.md](docs/clean-room.md). In short: use only Genymotion's pu
 ## Code rules
 
 - Rust edition 2024, toolchain pinned in `rust-toolchain.toml`.
-- Never crash: `unwrap`, `expect`, `panic!`, `todo!`, `unimplemented!` and `dbg!` are denied outside tests (workspace lints + `clippy.toml`). Return typed errors.
+- Never crash: `unwrap`, `expect`, `panic!`, `todo!`, `unimplemented!` and `dbg!` are denied outside tests (workspace lints + `clippy.toml`). Return typed errors (`jidr_core::JidrError`). Integration-test files (`tests/*.rs`) start with `#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]`, because clippy's test allowance only covers `#[test]` fns and `#[cfg(test)]` modules.
 - `unsafe` is denied by default. A crate that truly needs it allows it locally with a comment explaining why.
 - Every bug fix gets a regression test.
 - Emulators launch with `-gpu host` on macOS (ADR-0001: `auto` falls back to software rendering under `-no-window`); CI on Linux KVM uses `swiftshader_indirect`.
