@@ -123,3 +123,31 @@ Open issues:
 - API 30/33/35 (x86_64) are covered by the Linux KVM CI matrix, which can't run until the branch is pushed. The push was denied by this session's permission check; it waits for Abdurahman.
 - Snapshot root tags are Stream B's `snapshot.*` (10b): filed as G9.
 - Stream A wires `jidr_root::provider()` into `jidr daemon` (G8); the CLI's `root set/verify/status` already target these method names.
+
+---
+
+## Phase 12a: Unsigned release pipeline — plan
+
+`cargo xtask release [--dry-run] [--scan] [--out <dir>]` in `xtask/src/release.rs`, the only xtask file Stream C owns. So no new xtask deps: hashing, signing and DMG work go through the system's `shasum`, `codesign`, `hdiutil` and `plutil`.
+1. `cargo build --release --locked -p jidr -p jidr-gui` (host arm64 on the dev Mac and the `macos-15` runner).
+2. `Jidr.app`: `Contents/MacOS/Jidr` (GUI), `Contents/Helpers/jidr` (CLI + daemon; not `MacOS/jidr`, which collides with `Jidr` on the case-insensitive APFS default), `Contents/Resources/Jidr.icns` (D39), the licences + NOTICE, and `Info.plist` from `packaging/macos/Info.plist.in` (bundle id `ly.jidr.Jidr`, `@VERSION@` from the workspace version). `plutil -lint`.
+3. Ad-hoc signature (`codesign -s -`, inside-out), so the bundle is valid on Apple Silicon. Developer ID signing and notarization are 12b. Without the signing secrets, CI gets a `::warning::` (D32).
+4. `Jidr-<version>-arm64.dmg` (UDZO, with an `/Applications` link), then mounted read-only to prove it mounts.
+5. `--scan`: walks the bundle and the mounted DMG and fails on anything Jidr must never ship. Checks file names (emulator, qemu, adb, fastboot, sdkmanager/avdmanager, `*.img` system/vendor/ramdisk/userdata images, kernels, anything named magisk) and content magic (ELF, ext4, Android sparse and boot images, lz4-legacy/cpio ramdisks, dex, APKs). Pure classifier with unit tests.
+6. `SHA256SUMS.txt` and `VERSION` next to the DMG.
+7. `.github/workflows/release.yml`: on push to `release` (and manual dispatch), `macos-15` arm64 runner, `cargo xtask release --scan --out dist`, then `gh release create v<version> --draft` with the DMG and `SHA256SUMS.txt`. Nothing is published without a human promoting the draft.
+
+## Phase 12a: Unsigned release pipeline — done (2026-10-13)
+
+Built:
+- `xtask/src/release.rs`: `cargo xtask release [--dry-run] [--scan] [--out DIR]` (release build → `Jidr.app` → ad-hoc signature → UDZO DMG → read-only mount check → optional scan → `SHA256SUMS.txt` + `VERSION`). On CI without signing secrets it prints `::warning::` (D32); a set identity also warns, since Developer ID signing is 12b.
+- The scan rejects by name (SDK tools, qemu, kernels, system/vendor/ramdisk/userdata images, SDK package metadata, anything named magisk) and by content (ELF, Android boot/sparse/ext4 images, lz4-legacy/cpio ramdisks, dex, APKs). It runs on the bundle and on the mounted DMG and doesn't follow the `/Applications` link. 5 unit tests.
+- `packaging/macos/Info.plist.in` (bundle id `ly.jidr.Jidr`, arm64, macOS 13+, developer-tools category) and `packaging/macos/README.md`.
+- `.github/workflows/release.yml`: push to `release` (or manual dispatch) on `macos-15` → `cargo xtask release --scan --out dist` → `gh release create v<version> --draft` with the DMG and `SHA256SUMS.txt`. Drafts only: a human publishes.
+
+Validation: `cargo xtask release --dry-run --scan` → exit 0; `Jidr-0.1.0-arm64.dmg` (0.8 MB), `shasum -c` OK. Mounted by hand: `Jidr.app/Contents/{MacOS/Jidr, Helpers/jidr, Resources/Jidr.icns, Resources/licenses}`; both binaries are Mach-O arm64 and run (`jidr-gui 0.1.0`, `jidr 0.1.0`); `codesign -dv` → ad-hoc, `ly.jidr.Jidr`; `open` launches the app (today's GUI is the Phase 0 stub, so it exits at once); `spctl` rejects it, the expected unsigned path. `cargo xtask ci` passes.
+
+Open:
+- Manual: right-click → Open on a downloaded (quarantined) DMG needs a human.
+- `release.yml` is unvalidated until the branch is pushed. Its first real run needs a `release` branch, which Abdurahman creates.
+- 12b (Developer ID, notarization, Homebrew cask) stays Blocked on the secrets.

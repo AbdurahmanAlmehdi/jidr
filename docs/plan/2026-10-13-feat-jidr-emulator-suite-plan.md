@@ -369,7 +369,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `cd site && npm ci && npm run build`
 
 ### Phase 12a (C): Unsigned release pipeline
-- **Status:** Not started
+- **Status:** Done (validation passes on the dev Mac; the right-click → Open check on a downloaded, quarantined DMG needs a human run, and `release.yml` runs once the branch is pushed)
 - **Scope:** `.app` bundle + DMG (arm64) with `apps/jidr-gui/assets/macos/Jidr.icns` as `CFBundleIconFile` (D39); release on a push to the `release` branch → draft GitHub Release + `SHA256SUMS.txt`; artifact scan for Google SDK binaries, system images and Magisk; unsigned build with a `::warning::` when the signing secrets are missing (D32).
 - **Files touched:** `.github/workflows/release.yml`, `packaging/macos/**`, `xtask/src/release.rs`
 - **Acceptance criteria:** **unsigned path** = `cargo xtask release --dry-run --scan` produces a DMG that mounts, and the app launches after a right-click → Open.
