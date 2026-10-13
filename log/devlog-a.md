@@ -228,3 +228,28 @@ Built:
 Validation `cargo nextest run -p jidr-daemon -p jidr-client`: 30 passed (3 runs). Covered: cancelling a gated boot → job `cancelled`, device `stopped`, nothing running, lock released; a subscriber gets `spawned → grpc_ready → adb_online → booted` then `job.finished`; topic filters; logcat streaming; failed job carries `boot_timeout`; idle exit after 10 virtual minutes with paused time (activity resets the clock); client calls/jobs/errors/events, stale daemon detected and shut down, spawn path invokes `jidr daemon`, closed daemon → calls fail instead of hanging.
 
 Notes: the spawn test polls for its marker (the spawned process can lag under parallel load).
+
+---
+
+## Phase 4c: Protocol v0.1 freeze — plan
+
+Gaps: A1/A2 open (B/C, not blocking), C1 FYI.
+
+- `jidr_daemon::protocol_doc::render(&[CommandSpec])`: per-command Markdown (label, flags, params table from the JSON Schema with types, required markers and doc-comment descriptions).
+- `docs/control-protocol.md`: transport, framing, hello/stale, error codes, jobs, events and topics, connection-scoped methods, commands (the generated section between `<!-- commands:begin/end -->` markers), changelog. A test fails when the generated section drifts from `commands.list`; `JIDR_UPDATE_DOCS=1` rewrites it.
+- `tests/fuzz_params.rs`: 10,000 proptest-generated cases through the real socket: random raw lines, structurally broken requests, and requests for every real method with random JSON params. Each must get exactly one well-formed JSON-RPC answer with the right id (a panic shows up as a missing answer); the daemon still answers `daemon.status` at the end. Plus a direct fuzz of `validate::validate` against every command schema.
+- Then commit and tag `protocol-v0.1`.
+
+## Phase 4c: Protocol v0.1 freeze — done (2026-10-13)
+
+Built:
+- `docs/control-protocol.md`: transport, handshake, errors table, locks, jobs, events and topics, connection-scoped methods, generated command reference (`protocol_doc::render` from `commands.list`, kept in sync by `tests/protocol_doc.rs`; `JIDR_UPDATE_DOCS=1` rewrites it), changelog.
+- `tests/fuzz_params.rs`: 10,000 deterministic proptest cases through the socket (garbage lines, non-request JSON, wrong `jsonrpc`, missing method, unknown methods, every real method incl. connection-scoped ones with schema-shaped random params). Every case gets exactly one well-formed answer with the right id; daemon healthy afterwards (3.3 s). Plus 2,000 cases of `validate` against every schema.
+- `DaemonConfig::new` (product defaults) and `DaemonConfig.sdk_repo`; `TestDaemon` uses an empty `file://` repository so no test touches the network.
+- HTTP timeouts in `Fetcher` (connect 15 s, read 60 s, listing 60 s).
+
+Validation `cargo nextest run -p jidr-daemon && git rev-parse protocol-v0.1`: passes after tagging.
+
+Finding: the first fuzz run hung on a case. The test daemon was fetching Google's live listings (`image.list`, `sdk.*`) with no HTTP timeout. Fixed both: tests run offline, and the fetcher can no longer hang forever.
+
+Tag `protocol-v0.1` created on this commit: streams B and C are unblocked (B also needs ADR-0001, done in Phase 1).

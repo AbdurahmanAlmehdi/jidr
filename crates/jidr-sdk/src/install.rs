@@ -46,6 +46,9 @@ impl Fetcher {
     pub fn new() -> JidrResult<Self> {
         let http = reqwest::Client::builder()
             .user_agent(concat!("jidr/", env!("CARGO_PKG_VERSION")))
+            // A stalled network fails instead of hanging a command forever.
+            .connect_timeout(std::time::Duration::from_secs(15))
+            .read_timeout(std::time::Duration::from_secs(60))
             .build()
             .ctx(ErrorCode::Unexpected, "building HTTP client")?;
         Ok(Self { http })
@@ -59,6 +62,7 @@ impl Fetcher {
         }
         self.http
             .get(url)
+            .timeout(std::time::Duration::from_secs(60))
             .send()
             .await
             .and_then(|r| r.error_for_status())

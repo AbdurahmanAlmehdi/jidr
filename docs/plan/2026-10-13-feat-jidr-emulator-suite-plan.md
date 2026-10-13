@@ -235,7 +235,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `cargo nextest run -p jidr-daemon -p jidr-client`
 
 ### Phase 4c (A): Protocol v0.1 freeze
-- **Status:** Not started
+- **Status:** Done (tag `protocol-v0.1`)
 - **Scope:** `docs/control-protocol.md` (written from `commands.list` output); fuzz test of the JSON-RPC parser and params validation (not every command); git tag `protocol-v0.1`, which unblocks streams B and C.
 - **Files touched:** `docs/control-protocol.md`, `crates/jidr-daemon/tests/fuzz_params.rs`
 - **Acceptance criteria:** fuzz test runs 10k cases with no panic; tag exists.

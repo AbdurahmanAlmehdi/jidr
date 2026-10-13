@@ -99,6 +99,7 @@ async fn stale_daemon_is_detected_and_can_be_stopped() {
             paths: paths.clone(),
             studio_sdk: Some(studio),
             idle_timeout: None,
+            sdk_repo: None,
         },
         Arc::new(jidr_backend::fake::FakeBackend::new()),
     )
