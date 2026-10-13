@@ -1,0 +1,28 @@
+[package]
+name = "spike-display"
+description = "Phase 1 throwaway spike: emulator gRPC frames into a Slint window, input back, fps/latency numbers."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+# Links Slint, so GPLv3 like the GUI (D18). Never shipped.
+license = "GPL-3.0-only"
+repository.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+tonic.workspace = true
+tonic-prost.workspace = true
+prost.workspace = true
+slint.workspace = true
+dirs.workspace = true
+png.workspace = true
+
+[build-dependencies]
+tonic-prost-build.workspace = true
+
+[lints]
+workspace = true

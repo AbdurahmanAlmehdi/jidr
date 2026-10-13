@@ -580,6 +580,8 @@ Streams: **A** core (daemon, CLI, MCP, backend, SDK) · **B** player and widgets
 | G4 | Confirm the guest kernel's cgroup version, network interface names and block devices on our target images (R2, R6) | A | A | before R2/R6 build | an "image facts" table in `docs/research/` per API level | In progress: API 31 done | `docs/research/2026-10-13-image-facts-api31-arm64.md` |
 | G5 | Generated gRPC stubs from pinned AOSP emulator protos | B | A | before 7c | SDK proto + vendored fallback in `jidr-proto` | Planned | Phase 3a |
 | G6 | FYI: `jidr-cpio` adds `lz4` 1.28 (bundled liblz4), `flate2` 1.1 (`zlib` backend) and `liblzma` 0.4 (`static`) in its own manifest, so `Cargo.lock` changes on Stream C's branch. Regenerate the lockfile when merging; promote them to `[workspace.dependencies]` only if another crate needs them. | C | A | none | — | Open (info) | |
+| G7 | `jidr-widgets` exports `pub fn provider() -> Arc<dyn jidr_core::provider::CommandProvider>` (contract in `crates/jidr-core/src/provider.rs`); A registers it in `jidr daemon`. Was A1 on `stream/a-core`. | A | B | none (A wires it when it lands) | — | Open | |
+| G8 | `jidr-root` exports the same `pub fn provider()`; `CommandProvider::on_booted` runs `adb root` after each boot; Magisk uses `Device.launch` (`ramdisk`, `force_cold_boot`) + `DaemonContext::stop_device/start_device`. Was A2 on `stream/a-core`. | A | C | none (A wires it when it lands) | — | In progress (9c) | |
 
 **Status:** Open → Planned → In progress → Done (link the commit) / Won't do (with reason).
 

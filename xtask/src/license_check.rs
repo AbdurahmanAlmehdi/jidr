@@ -9,8 +9,9 @@ use std::collections::{BTreeSet, HashMap, VecDeque};
 use anyhow::{Context, Result, bail};
 use serde::Deserialize;
 
-/// Workspace crates licensed GPL-3.0-only.
-pub const GPL_CRATES: &[&str] = &["jidr-ui", "jidr-gui"];
+/// Workspace crates licensed GPL-3.0-only (`spike-display` is a throwaway
+/// Phase 1 spike that links Slint and never ships).
+pub const GPL_CRATES: &[&str] = &["jidr-ui", "jidr-gui", "spike-display"];
 const GPL_LICENSE: &str = "GPL-3.0-only";
 const APACHE_LICENSE: &str = "Apache-2.0";
 

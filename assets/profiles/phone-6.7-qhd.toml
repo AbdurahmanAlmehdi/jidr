@@ -1,0 +1,9 @@
+id = "phone-6.7-qhd"
+name = "Phone 6.7″ QHD+"
+form_factor = "phone"
+width = 1440
+height = 3120
+density = 560
+ram_mb = 4096
+cpus = 4
+data_mb = 8192

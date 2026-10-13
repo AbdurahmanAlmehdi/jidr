@@ -1,0 +1,9 @@
+id = "small-phone-5"
+name = "Small phone 5″"
+form_factor = "phone"
+width = 720
+height = 1280
+density = 320
+ram_mb = 2048
+cpus = 2
+data_mb = 4096

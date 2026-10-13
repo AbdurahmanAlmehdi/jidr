@@ -186,7 +186,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `cargo xtask ci`
 
 ### Phase 1 (A): Display + input spike (go/no-go)
-- **Status:** Not started
+- **Status:** Done (pass: 59.9 fps, ~13.5 ms touch → frame; see ADR-0001). Manual step 2 (a mouse click opens Settings) still needs a human run.
 - **Prior data (2026-10-13 proof run, `docs/research/2026-10-13-image-facts-api31-arm64.md`):** inline RGBA `streamScreenshot` reached ~30 fps at 540×1170 from Python. Downscaling requires both `width` and `height`. The gRPC max receive size must be raised above 10 MB.
 - **Scope:** Throwaway `spikes/display`: boot an existing arm64 AVD headless with `-grpc`, read the discovery file, stream inline RGBA into a Slint window via `SharedPixelBuffer`, send touches back, print fps / CPU / input latency. If the budget is missed, try MMAP, then the wgpu import. Record the numbers in `docs/decisions/0001-frame-transport.md`.
 - **Files touched:** `spikes/display/**`, `docs/decisions/0001-frame-transport.md`
@@ -194,49 +194,49 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `manual 1. cargo run -p spike-display -- --avd <name> 2. tap Settings and confirm it opens 3. confirm the printed fps ≥ 30 and latency ≤ 80 ms match ADR-0001`
 
 ### Phase 2 (A): Core model + SDK + AVD
-- **Status:** Not started
+- **Status:** Done (installs natively, without sdkmanager or Java; see log/devlog-a.md)
 - **Scope:** `jidr-core` model and error codes; `jidr-sdk`: SDK detection (private SDK, D3; Studio SDK read-only), license text and consent store per hash (D8), sdkmanager wrapper with progress, ABI filter (arm64 on Apple Silicon), API 29–36 catalog (D23), disk-space precheck, HVF check, AVD create/edit (config.ini)/clone/delete/factory reset, built-in generic profiles (D24).
 - **Files touched:** `crates/jidr-core/**`, `crates/jidr-sdk/**`, `assets/profiles/*.toml`, `scripts/e2e-studio-untouched.sh`
 - **Acceptance criteria:** unit tests for config.ini round-trip, consent store and ABI filter; integration test creates/clones/deletes an AVD; Studio SDK checksum is unchanged.
 - **Validation:** `cargo nextest run -p jidr-core -p jidr-sdk && cargo nextest run -p jidr-sdk --features emulator && scripts/e2e-studio-untouched.sh`
 
 ### Phase 3a (A): gRPC bindings + adb
-- **Status:** Not started
+- **Status:** Done
 - **Scope:** `jidr-proto` build.rs (generate from the installed SDK proto, with a vendored fallback copy); `jidr-adb` wrapper (devices, shell, install, push/pull, logcat, root/unroot, connect).
 - **Files touched:** `crates/jidr-proto/**`, `crates/jidr-adb/**`
 - **Acceptance criteria:** proto builds with and without an SDK present; adb wrapper unit tests with a fake `adb` binary.
 - **Validation:** `cargo nextest run -p jidr-proto -p jidr-adb`
 
 ### Phase 3b (A): Backend launch
-- **Status:** Not started
+- **Status:** Done (API 31 arm64 locally; see devlog)
 - **Scope:** `Backend` trait + `aosp` module: dynamic port allocation (console/adb pairs + gRPC; `adb connect` past 5585, D9), spawn with `-no-window -grpc -grpc-use-token -no-boot-anim`, `LaunchOptions { extra_args, ramdisk, cold_boot, wipe }` (the hook stream C needs for Magisk), discovery-file parsing, token auth, boot wait (`sys.boot_completed`), quick-boot snapshot on stop by default (D29).
 - **Files touched:** `crates/jidr-backend/**`
 - **Acceptance criteria:** integration test boots API 35, reads the battery over gRPC, stops, and cold boots with a custom `-ramdisk` path passed through `LaunchOptions`.
 - **Validation:** `cargo nextest run -p jidr-backend --features emulator`
 
 ### Phase 3c (A): Backend resilience
-- **Status:** Not started
+- **Status:** Done
 - **Scope:** crash detection (process exit, gRPC drop) with logs auto-saved and no auto-restart (D9); re-adopting running emulators after a daemon restart; refusing an AVD already running elsewhere (Android Studio lock); telnet console client (network speed/delay, gsm, power).
 - **Files touched:** `crates/jidr-backend/src/{crash,adopt,console}.rs`
 - **Acceptance criteria:** fault-injection test (kill the emulator process) reports `Crashed` with a log path; re-adopt test; double-launch refused.
 - **Validation:** `cargo nextest run -p jidr-backend --features emulator`
 
 ### Phase 4a (A): Daemon core
-- **Status:** Not started
+- **Status:** Done
 - **Scope:** `CommandProvider` trait in `jidr-core`; `jidr-daemon` registry, JSON-RPC 2.0 NDJSON server on the Unix socket, `hello` stale check, the eight error codes, per-device locks; core `device.*`, `sdk.*`, `image.*`, `profile.*`, `file.*`, `logcat.*`, `device.connect_info` commands.
 - **Files touched:** `crates/jidr-core/src/provider.rs`, `crates/jidr-daemon/**`
 - **Acceptance criteria:** conformance tests: bad JSON → -32700, unknown param → -32602 naming the key, busy lock, stale daemon.
 - **Validation:** `cargo nextest run -p jidr-daemon`
 
 ### Phase 4b (A): Jobs, events, lifecycle, client
-- **Status:** Not started
+- **Status:** Done
 - **Scope:** jobs with progress and cancel; `events.subscribe` (device state, boot progress, job progress, logcat); auto-start on first client and idle exit 10 min after the last device stops (D4); `jidr-client` library.
 - **Files touched:** `crates/jidr-daemon/src/{jobs,events,lifecycle}.rs`, `crates/jidr-client/**`
 - **Acceptance criteria:** job cancel leaves the state unchanged; subscriber receives boot progress; the daemon exits after idle (time-mocked test).
 - **Validation:** `cargo nextest run -p jidr-daemon -p jidr-client`
 
 ### Phase 4c (A): Protocol v0.1 freeze
-- **Status:** Not started
+- **Status:** Done (tag `protocol-v0.1`)
 - **Scope:** `docs/control-protocol.md` (written from `commands.list` output); fuzz test of the JSON-RPC parser and params validation (not every command); git tag `protocol-v0.1`, which unblocks streams B and C.
 - **Files touched:** `docs/control-protocol.md`, `crates/jidr-daemon/tests/fuzz_params.rs`
 - **Acceptance criteria:** fuzz test runs 10k cases with no panic; tag exists.

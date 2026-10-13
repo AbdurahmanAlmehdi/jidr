@@ -33,15 +33,20 @@ See [docs/clean-room.md](docs/clean-room.md). In short: use only Genymotion's pu
 ## Code rules
 
 - Rust edition 2024, toolchain pinned in `rust-toolchain.toml`.
-- Never crash: `unwrap`, `expect`, `panic!`, `todo!`, `unimplemented!` and `dbg!` are denied outside tests (workspace lints + `clippy.toml`). Return typed errors.
+- Never crash: `unwrap`, `expect`, `panic!`, `todo!`, `unimplemented!` and `dbg!` are denied outside tests (workspace lints + `clippy.toml`). Return typed errors (`jidr_core::JidrError`). Integration-test files (`tests/*.rs`) start with `#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]`, because clippy's test allowance only covers `#[test]` fns and `#[cfg(test)]` modules.
 - `unsafe` is denied by default. A crate that truly needs it allows it locally with a comment explaining why.
 - Every bug fix gets a regression test.
+- Emulators launch with `-gpu host` on macOS (ADR-0001: `auto` falls back to software rendering under `-no-window`); CI on Linux KVM uses `swiftshader_indirect`.
 - Tests that need a running emulator go behind the crate's `emulator` feature. They read:
   - `JIDR_TEST_SDK`: the SDK root (default: Android Studio's SDK at `~/Library/Android/sdk`, used **read-only**)
-  - `JIDR_TEST_IMAGE`: the sdkmanager package of the image (default on Apple Silicon: `system-images;android-36;google_apis;arm64-v8a`)
+  - `JIDR_TEST_IMAGE`: the sdkmanager package of the image (default on Apple Silicon: `system-images;android-31;google_apis;arm64-v8a`, the only complete arm64 `google_apis` image on the dev Mac today)
   - `JIDR_TEST_API`: its API level
 - The Android Studio SDK and AVDs are read-only (D3). Tests create AVDs in temp dirs, never in `~/.android/avd`.
 - The private SDK lives in `~/Library/Application Support/Jidr/sdk`. Never accept a Google SDK license on the user's behalf outside a test context.
+
+## Protocol
+
+The control protocol is frozen at the git tag `protocol-v0.1` ([docs/control-protocol.md](docs/control-protocol.md)). Any change to the wire format, an existing command's params or result, error codes or event topics needs a row in that file's changelog. New commands from providers are additive; the generated command reference is kept in sync by `cargo nextest run -p jidr-daemon protocol_doc` (`JIDR_UPDATE_DOCS=1` rewrites it). Providers implement `jidr_core::provider::CommandProvider`; tests can run against `jidr_daemon::testing::TestDaemon` (fake backend, fake SDK, offline).
 
 ## Finish checklist (every phase)
 
