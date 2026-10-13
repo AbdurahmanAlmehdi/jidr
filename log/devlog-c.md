@@ -159,3 +159,22 @@ Open:
 - `packaging/homebrew/jidr.rb`: cask template (arm64, macOS 13+, `jidr` CLI linked from `Contents/Helpers`), for a future `jidr-dev/homebrew-tap`.
 - Checked: `bash -n`, `ruby -c`; `sign.sh` refuses missing input or identity; `verify.sh` correctly fails on today's ad-hoc 12a DMG ("code object is not signed at all") and leaves nothing mounted.
 - Not done (needs the secrets): wiring `sign.sh` into `cargo xtask release` and `release.yml`, then the real `verify.sh` pass and a `brew install --cask` from a tap. Status stays Blocked.
+
+---
+
+## Session summary (2026-10-13, end of this session)
+
+Done: 9b (`jidr-cpio`), 9c (adb root mode), 11a (site + D39 brand), 12a (unsigned release pipeline). Merged main (`c11cc06`) and `protocol-v0.1` (`68eb049`).
+
+Blocked on Abdurahman:
+- **Push and draft PR:** this session's permission check denied `git push -u origin HEAD:stream/c-root`. Nothing has been pushed, so CI (including the Linux KVM API 30/33/35 root matrix and `release.yml`) hasn't run.
+- **9a:** ADR-0002 (Proposed) specifies the guided-tap beta for Play Store images. The no-consent options (1) and (2) were not attempted.
+- **9d (Magisk mode):** not started in this session. An earlier response here was stopped by a safety check while working on this area (Magisk patching and the automatic shell grant), so it waits for Abdurahman to review before an agent builds it. The pieces it relies on exist: `jidr-cpio` (byte-identical ramdisk patching), `Device.launch.ramdisk` / `force_cold_boot`, `jidr-root`'s verify (`su -c id`) and provider.
+- **12b:** scripts prepared; needs the Developer ID and notarization secrets.
+
+Blocked on other streams:
+- **9e:** needs Stream B's `jidr-ui` shell and snapshot harness (7a); B hasn't started. 9e also needs 9d.
+- **11b:** needs the 9d Magisk demo.
+- Gaps: G8 (`jidr_root::provider()` ready for A to register), G9 (snapshot root tags, B 10b), G6 (lockfile FYI).
+
+Open gaps and notes: API 31 is the only arm64 `google_apis` image installed here (API 34 `default` and API 36 `google_apis` folders are empty); the API 36 Play Store ramdisk hashes the same as its rootAVD `.backup` and has no Magisk files (checked with `jidr-cpio`), so it's pristine.
