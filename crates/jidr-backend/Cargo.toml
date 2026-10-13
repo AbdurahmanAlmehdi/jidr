@@ -22,7 +22,7 @@ schemars.workspace = true
 chrono.workspace = true
 tracing.workspace = true
 dirs.workspace = true
-async-trait = "0.1"
+async-trait.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

@@ -39,7 +39,7 @@ pub struct CrashReport {
 impl AospBackend {
     /// Resolves when the instance crashes. The daemon aborts this future
     /// before stopping a device on purpose.
-    pub async fn wait_for_crash(&self, info: &InstanceInfo, log_dir: &Path) -> CrashReport {
+    pub async fn crash_watch(&self, info: &InstanceInfo, log_dir: &Path) -> CrashReport {
         let (kind, exit_code) = self.watch(info).await;
         let reason = match (&kind, exit_code) {
             (CrashKind::Exited, Some(c)) => format!("emulator exited with status {c}"),
