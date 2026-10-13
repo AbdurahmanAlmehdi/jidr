@@ -347,7 +347,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `cargo run -p jidr-ui --example snapshot -- --check`
 
 ### Phase 11a (C): Coming-soon site (day 1)
-- **Status:** Not started
+- **Status:** Done
 - **Scope:** Astro site in `site/`: pitch, root showcase, feature grid ("Genymotion's paid features, free"; text only, no logos), Star on GitHub button, Sponsors link, no email capture (D34). Uses the brand kit and design tokens when available.
 - **Files touched:** `site/**`
 - **Acceptance criteria:** builds; Lighthouse performance and accessibility ≥ 95.

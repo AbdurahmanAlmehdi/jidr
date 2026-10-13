@@ -1,0 +1,38 @@
+---
+import { links } from "../config";
+---
+
+<footer class="footer">
+  <div class="container inner">
+    <p class="cta">
+      Jidr is in development. <a href={links.repo}>Follow along on GitHub</a> or
+      <a href={links.sponsors}>sponsor the work</a>.
+    </p>
+    <p class="fine">
+      Apache-2.0, with the desktop app under GPL-3.0. Jidr is not affiliated with or endorsed by
+      Google, the Android Open Source Project, Genymobile or the Magisk project. Android is a
+      trademark of Google LLC. Genymotion is a trademark of Genymobile SAS.
+    </p>
+  </div>
+</footer>
+
+<style>
+  .footer {
+    border-top: var(--jidr-border-width) solid var(--jidr-color-border-subtle);
+    background: var(--jidr-color-surface-sunken);
+  }
+  .inner {
+    display: grid;
+    gap: var(--jidr-space-4);
+    padding-block: var(--jidr-space-12);
+  }
+  .cta {
+    font-size: var(--jidr-text-title);
+    font-weight: 600;
+  }
+  .fine {
+    max-width: 48rem;
+    font-size: var(--jidr-text-caption);
+    color: var(--jidr-color-text-tertiary);
+  }
+</style>

@@ -1,0 +1,32 @@
+---
+import RootModes from "./RootModes.vue";
+---
+
+<section id="root" class="section" aria-labelledby="root-title">
+  <div class="container">
+    <p class="eyebrow">The headline feature</p>
+    <h2 id="root-title" class="section-title">Root is a setting, not a weekend project.</h2>
+    <p class="section-lede">
+      Choose a root mode when you create a device. Jidr patches its own copy of the image, boots
+      it, checks the result and shows a verified badge. Switching back is one click, and the shared
+      images in your Android SDK are never modified.
+    </p>
+    <RootModes client:visible />
+    <p class="integrity">
+      Rooted emulators can't pass Play Integrity, and no emulator can. Magisk's hiding features only
+      affect local root checks.
+    </p>
+  </div>
+</section>
+
+<style>
+  .integrity {
+    margin-top: var(--jidr-space-6);
+    padding: var(--jidr-space-3) var(--jidr-space-4);
+    border-inline-start: 3px solid var(--jidr-color-warning);
+    background: var(--jidr-color-warning-subtle);
+    border-radius: var(--jidr-radius-sm);
+    font-size: var(--jidr-text-label);
+    max-width: 44rem;
+  }
+</style>

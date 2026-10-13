@@ -44,3 +44,32 @@ Notes and open issues:
 - A property test found a real bug before commit: 1–3 bytes of zero padding after an lz4 stream were reported as a truncated block. Fixed, with a regression test.
 - Limitation, documented in code: an lz4 legacy frame has no end marker, so it can only be followed by another lz4 frame (as AOSP does). The kernel's own unpacker has the same rule.
 - xz preset and lz4 level aren't stored in the streams, so they default to Android's (`-9` crc32, `-l -12`). Uppercase hex headers parse but are written lowercase (mkbootfs and libarchive both write lowercase).
+
+---
+
+## Phase 11a: Coming-soon site — plan
+
+`docs/design/` has only PRODUCT.md (no brand kit, tokens or landing designs yet), so this is the token-driven placeholder the brief asks for.
+
+1. `site/`: Astro 5.18 + `@astrojs/vue` 5.1 (Astro 7 needs Node ≥ 22.12; the dev shell and many CI images are on Node 20), static output for Cloudflare Pages (D16). Not deployed: deploying and domains wait for Abdurahman.
+2. Tokens: `src/styles/tokens.css` holds every colour, type, space and radius value as `--jidr-*` custom properties (named to map 1:1 onto the future `tokens.json` / Slint `Theme`), light and dark. Components use tokens only, so restyling is one file.
+3. Content (D34): pitch, root showcase, "Genymotion's paid features, free" grid (text only, no logos), the honest Play Integrity note, Star on GitHub, Sponsors link, trademark notice. No email capture, no analytics (D17), no web fonts, no tracking.
+4. One Vue island (`client:visible`): the root-mode picker in the showcase (None / Shell root / Full root, with what each does). Everything else is static HTML.
+5. Links live in `src/config.ts` (`jidr-dev/jidr`, `github.com/sponsors/jidr-dev`) because the org and Sponsors don't exist yet (D26: nothing created without asking).
+6. Validation: `npm ci && npm run build`, then Lighthouse CI on `dist/` (performance and accessibility ≥ 95).
+
+## Phase 11a: Coming-soon site — done (2026-10-13)
+
+Built (`site/`, Astro 5.18.2 + `@astrojs/vue` 5.1.4 + Vue 3.5.44, exact pins, `package-lock.json` committed):
+- Sections: header (wordmark "Jidr جذر", Star on GitHub), hero (pitch + a "planned CLI" terminal preview using the PRODUCT.md §7 snippet), root showcase, "Genymotion's paid features, free" (text only; 7 paid-tier features in the MVP plan + 2 new in Jidr), "How it works, and what it won't do" (SDK downloaded under the user's license, Magisk never bundled, Studio untouched, no telemetry), footer (licences, Sponsors link, trademark and non-affiliation notice).
+- The Play Integrity note is on the page, next to the root picker.
+- One Vue island (`RootModes.vue`, `client:visible`, native radio inputs): None / Shell root / Full root, with steps, the verify command and supported images. Everything else is static. The page ships ~31 kB of gzipped JS.
+- Tokens: `src/styles/tokens.css` (light + dark, every text pair ≥ 5.4:1, listed in the file), system fonts only, `prefers-reduced-motion` respected, skip link, visible focus rings, no horizontal scroll at 375 px.
+
+Validation: `cd site && npm ci && npm run build && npx @lhci/cli autorun --collect.staticDistDir=dist --assert.preset=lighthouse:recommended` → all assertions pass; three runs scored performance 100, accessibility 100, best practices 100, SEO 100. Checked by eye in the browser pane in dark (desktop) and light (375 px); the island hydrates and switches modes.
+
+Notes and open issues:
+- Lighthouse caught one issue that I fixed: the wordmark link's `aria-label` didn't match its visible text.
+- Astro 7 needs Node ≥ 22.12; the default shell here is Node 20.20, so the site uses Astro 5 (`engines: >=20.3`). Moving to Astro 7 later is a version bump plus Node 22 on Cloudflare Pages.
+- Placeholders waiting on Abdurahman: the brand kit and design tokens (D34; `docs/design/` has only PRODUCT.md), the favicon (a plain root-into-phone stroke, not a logo), and the links in `src/config.ts` (`github.com/jidr-dev/jidr`, `github.com/sponsors/jidr-dev`: the org, repo and Sponsors profile don't exist yet, D26).
+- Not deployed (needs Abdurahman's go-ahead, D16/D34).
