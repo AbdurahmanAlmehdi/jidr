@@ -253,3 +253,32 @@ Validation `cargo nextest run -p jidr-daemon && git rev-parse protocol-v0.1`: pa
 Finding: the first fuzz run hung on a case. The test daemon was fetching Google's live listings (`image.list`, `sdk.*`) with no HTTP timeout. Fixed both: tests run offline, and the fetcher can no longer hang forever.
 
 Tag `protocol-v0.1` created on this commit: streams B and C are unblocked (B also needs ADR-0001, done in Phase 1).
+
+---
+
+## Phase 5a: CLI — plan
+
+Gaps: A1/A2 open (B/C), C1 FYI; nothing blocking. Tag `protocol-v0.1` done; Stream C notified, Stream B proposed.
+
+`apps/jidr` (hand-written clap derive over `jidr-client`):
+- Globals: `--json` (versioned envelope `{"jidr_json": 1, "ok": …, "result"|"error": …}`), `-q/--quiet`, `--restart-stale` (`JIDR_RESTART_STALE`; else a TTY prompt, else exit 8).
+- `daemon [run|stop|status]`: `run` serves with `AospBackend` + `DaemonConfig::new` (idle exit D4), logs to stderr (`JIDR_LOG`).
+- `device create|start|stop|list|details|clone|reset|delete|edit|connect-info` (`start/stop/delete` take several names or `--all`; `start` waits for boot by default, `--no-wait`, `--timeout` cancels the job and exits 5; destructive ones need `--yes` off a TTY).
+- `install|push|pull|logcat [--follow|--clear|--lines|--filter]`; `flash` → usage error pointing at the 🔎 gap.
+- `image list|install`, `profile list`, `sdk status|licenses|install` with `--accept-licenses` (prints each license id + SHA-256, records consent, retries; a TTY asks; otherwise exit 6 listing what to accept).
+- `root set|verify|status`, `snapshot list|save|load|delete`: thin calls to Stream C/B commands ("not available in this build" until registered).
+- `jobs list|wait|cancel`, `commands` (lists `commands.list`), `call <method> [params]` (raw protocol access: full parity with GUI/MCP), `completions <shell>`.
+- Exit codes = Jidr error codes (clap usage errors are already 2).
+- Tests: `assert_cmd` against `TestDaemon` (fake backend) via `JIDR_HOME`: JSON envelopes, exit codes 2/3/4/6, lifecycle, `--all`, install/logcat, `--timeout`, flash, completions, `call`.
+- `scripts/e2e-cli.sh`: real emulator, temp `JIDR_HOME`: create → start → wait-boot → install → stop → delete → `daemon stop`, all `--json`, non-interactive.
+- `docs/cli.md`.
+
+## Phase 5a: CLI — done (2026-10-13)
+
+Built: `apps/jidr` (`cli.rs` clap derive, `output.rs` human tables + versioned JSON envelope, `main.rs`): every command in the plan, plus `commands`, `call` (raw protocol access), `daemon run|stop|status` (`run` = `AospBackend` + `DaemonConfig::new`, SIGINT/SIGTERM shutdown), `--timeout` (cancels the job → exit 5), `--no-wait`, `--all`, `--yes` confirmations, license flow (`--accept-licenses` / TTY prompt / exit 6 with the pending list), stale daemon prompt or `--restart-stale`, thin `root.*`/`snapshot.*` calls with a clear "not available in this build" until providers land. `docs/cli.md`, `scripts/e2e-cli.sh`.
+
+Validation `cargo nextest run -p jidr && scripts/e2e-cli.sh`: 9 tests passed; e2e on a real emulator passed in 48 s (auto-spawned daemon, API 31 arm64 from the read-only Studio SDK, boot 26 s, APK install, logcat, stop, delete, daemon stop).
+
+Bug found (regression test `cli::tests::cli_definition_is_valid`): `logcat` gave `-f` to both `--filter` and `--follow`; clap panics on that at runtime in debug builds. `--filter` has no short form now.
+
+Notes: the e2e APK defaults to an AOSP sample app found in the SDK's images (`JIDR_TEST_APK` to override); CI x86_64 images may need `JIDR_TEST_APK` set.

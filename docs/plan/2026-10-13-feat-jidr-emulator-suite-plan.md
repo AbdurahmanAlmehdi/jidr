@@ -242,7 +242,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `cargo nextest run -p jidr-daemon && git rev-parse protocol-v0.1`
 
 ### Phase 5a (A): CLI
-- **Status:** Not started
+- **Status:** Done
 - **Scope:** hand-written clap CLI over `jidr-client`: `device create/start/stop/list/details/clone/reset/delete`, `install/push/pull/flash/logcat`, `image list/install`, `profile list`, `sdk install --accept-licenses`, `root set/verify/status` and `snapshot *` (thin calls; the handlers come from streams B/C), `--json` everywhere (versioned), `--wait-boot --timeout`, `--name/--all`, exit codes = error codes, clap completions.
 - **Files touched:** `apps/jidr/src/**`, `docs/cli.md`, `scripts/e2e-cli.sh`
 - **Acceptance criteria:** `assert_cmd` tests against a fake daemon; `scripts/e2e-cli.sh` does create → start → wait-boot → install → stop → delete non-interactively.
