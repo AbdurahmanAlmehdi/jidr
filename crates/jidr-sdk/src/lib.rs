@@ -12,7 +12,8 @@ pub mod sdk;
 
 pub use avd::{AvdInfo, AvdManager, AvdSpec, ConfigIni};
 pub use catalog::{CatalogFilter, image_catalog};
-pub use install::{Cancel, Fetcher, Phase, Progress, install};
+pub use install::{Fetcher, Phase, Progress, install};
+pub use jidr_core::Cancel;
 pub use license::{ConsentStore, PendingLicense};
 pub use repo::{RemotePackage, Repository};
 pub use sdk::{Sdk, SdkKind, SdkSet};

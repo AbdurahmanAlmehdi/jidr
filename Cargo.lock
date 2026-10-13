@@ -2654,6 +2654,22 @@ dependencies = [
 [[package]]
 name = "jidr-backend"
 version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "dirs",
+ "jidr-adb",
+ "jidr-core",
+ "jidr-proto",
+ "jidr-sdk",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tonic",
+ "tracing",
+]
 
 [[package]]
 name = "jidr-client"

@@ -2,14 +2,11 @@
 //! directory → atomic move into the private SDK. No Java, no sdkmanager.
 //! Only runs after the package's license has been accepted (D8).
 
-use std::io::Write;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
-
-use jidr_core::{ErrorCode, JidrError, JidrResult, ResultExt};
+use jidr_core::{Cancel, ErrorCode, JidrError, JidrResult, ResultExt};
 use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
+use std::io::Write;
+use std::path::{Path, PathBuf};
 
 use crate::license::ConsentStore;
 use crate::repo::{RemotePackage, Repository};
@@ -35,15 +32,8 @@ pub struct Progress {
     pub total: u64,
 }
 
-/// Cancellation flag shared with the job system.
-pub type Cancel = Arc<AtomicBool>;
-
 fn check_cancel(cancel: &Cancel) -> JidrResult<()> {
-    if cancel.load(Ordering::Relaxed) {
-        return Err(JidrError::new(ErrorCode::Sdk, "cancelled")
-            .with_data(serde_json::json!({"cancelled": true})));
-    }
-    Ok(())
+    cancel.check()
 }
 
 /// Fetches small documents (repository XML) over https or `file://`.
@@ -417,7 +407,8 @@ mod tests {
         let sdk = Sdk::private(&paths);
         let mut consent = ConsentStore::load(paths.consent_file()).unwrap();
         consent.accept(repo.license("l").unwrap()).unwrap();
-        let cancel = Cancel::new(AtomicBool::new(true));
+        let cancel = Cancel::new();
+        cancel.cancel();
         let pkg = repo.latest("emulator", 0).unwrap();
         let err = rt()
             .block_on(install(
