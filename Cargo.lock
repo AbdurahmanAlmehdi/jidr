@@ -2642,6 +2642,14 @@ version = "0.1.0"
 [[package]]
 name = "jidr-adb"
 version = "0.1.0"
+dependencies = [
+ "jidr-core",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+]
 
 [[package]]
 name = "jidr-backend"
@@ -2683,6 +2691,13 @@ version = "0.1.0"
 [[package]]
 name = "jidr-proto"
 version = "0.1.0"
+dependencies = [
+ "prost",
+ "tempfile",
+ "tonic",
+ "tonic-prost",
+ "tonic-prost-build",
+]
 
 [[package]]
 name = "jidr-root"
