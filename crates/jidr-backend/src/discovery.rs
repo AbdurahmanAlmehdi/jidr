@@ -40,6 +40,16 @@ impl Discovery {
     pub fn avd_dir(&self) -> Option<PathBuf> {
         self.get("avd.dir").map(PathBuf::from)
     }
+
+    /// The ports the emulator actually bound.
+    pub fn ports(&self) -> Option<crate::Ports> {
+        let console = self.console_port()?;
+        Some(crate::Ports {
+            console,
+            adb: self.adb_port().unwrap_or(console + 1),
+            grpc: self.grpc_port()?,
+        })
+    }
 }
 
 pub fn parse(path: &Path, text: &str) -> Option<Discovery> {
@@ -99,16 +109,17 @@ pub fn scan() -> Vec<Discovery> {
 }
 
 /// The discovery file of the emulator we launched: same pid, or (if the
-/// launcher forked) the same console *and* gRPC port. The console port alone
-/// is not enough: stale files from crashed or foreign emulators reuse it.
-pub fn find(pid: u32, console: u16, grpc: u16) -> Option<Discovery> {
-    select(scan(), pid, console, grpc)
+/// launcher forked) the gRPC port we reserved for it. The console port is not
+/// enough: stale files from crashed or foreign emulators reuse it, and the
+/// emulator may not even get the console port it asked for.
+pub fn find(pid: u32, grpc: u16) -> Option<Discovery> {
+    select(scan(), pid, grpc)
 }
 
-fn select(found: Vec<Discovery>, pid: u32, console: u16, grpc: u16) -> Option<Discovery> {
-    found.into_iter().find(|d| {
-        d.pid == pid || (d.console_port() == Some(console) && d.grpc_port() == Some(grpc))
-    })
+fn select(found: Vec<Discovery>, pid: u32, grpc: u16) -> Option<Discovery> {
+    found
+        .into_iter()
+        .find(|d| d.pid == pid || d.grpc_port() == Some(grpc))
 }
 
 #[cfg(test)]
@@ -148,15 +159,31 @@ mod tests {
         )
         .unwrap();
         let both = || vec![stale.clone(), ours.clone()];
+        assert_eq!(select(both(), 200, 9100).unwrap().grpc_token(), Some("new"));
+        // Launcher forked (pid differs): our gRPC port still identifies it.
+        assert_eq!(select(both(), 999, 9100).unwrap().grpc_token(), Some("new"));
+        assert!(select(vec![stale.clone()], 999, 9100).is_none());
+    }
+
+    /// Regression: two emulators launched concurrently by different processes
+    /// both asked for console 5554; the loser silently bound 5556 and we
+    /// talked to the wrong emulator's console. The discovery file's ports win.
+    #[test]
+    fn actual_ports_come_from_the_discovery_file() {
+        let d = parse(
+            Path::new("/r/pid_5.ini"),
+            "port.serial=5556\nport.adb=5557\ngrpc.port=9100\n",
+        )
+        .unwrap();
         assert_eq!(
-            select(both(), 200, 5554, 9100).unwrap().grpc_token(),
-            Some("new")
+            d.ports(),
+            Some(crate::Ports {
+                console: 5556,
+                adb: 5557,
+                grpc: 9100
+            })
         );
-        // Launcher forked (pid differs): console + gRPC port still identify it.
-        assert_eq!(
-            select(both(), 999, 5554, 9100).unwrap().grpc_token(),
-            Some("new")
-        );
-        assert!(select(vec![stale.clone()], 999, 5554, 9100).is_none());
+        let partial = parse(Path::new("/r/pid_6.ini"), "port.serial=5558\n").unwrap();
+        assert_eq!(partial.ports(), None, "no gRPC port, no instance");
     }
 }
