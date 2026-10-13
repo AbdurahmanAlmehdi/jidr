@@ -187,6 +187,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 
 ### Phase 1 (A): Display + input spike (go/no-go)
 - **Status:** Not started
+- **Prior data (2026-10-13 proof run, `docs/research/2026-10-13-image-facts-api31-arm64.md`):** inline RGBA `streamScreenshot` reached ~30 fps at 540×1170 from Python. Downscaling requires both `width` and `height`. The gRPC max receive size must be raised above 10 MB.
 - **Scope:** Throwaway `spikes/display`: boot an existing arm64 AVD headless with `-grpc`, read the discovery file, stream inline RGBA into a Slint window via `SharedPixelBuffer`, send touches back, print fps / CPU / input latency. If the budget is missed, try MMAP, then the wgpu import. Record the numbers in `docs/decisions/0001-frame-transport.md`.
 - **Files touched:** `spikes/display/**`, `docs/decisions/0001-frame-transport.md`
 - **Acceptance criteria:** **pass** = ≥30 fps at 1080×2400 downscaled to a 400 px-wide window and median input latency ≤80 ms on the dev Mac; otherwise the ADR records the fallback decision (MMAP / wgpu / egui).
@@ -264,7 +265,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 
 ### Phase 7a (B): UI shell
 - **Status:** Not started
-- **Scope:** Slint app shell, theme tokens from `docs/design/tokens.json` (Slint default style until it exists), light/dark, `@tr` for every string, RTL mirroring check (D33), offscreen snapshot harness with golden PNGs per theme, daemon connection + reconnect.
+- **Scope:** Slint app shell, theme tokens from `docs/design/tokens.json` (Slint default style until it exists), app/window icon `apps/jidr-gui/assets/icons/app-icon-256.png` and the in-app symbol `apps/jidr-gui/assets/icons/symbol.svg` (tint with `colorize`; see `assets/brand/README.md`, D39), light/dark, `@tr` for every string, RTL mirroring check (D33), offscreen snapshot harness with golden PNGs per theme, daemon connection + reconnect.
 - **Files touched:** `crates/jidr-ui/**`, `apps/jidr-gui/**`
 - **Acceptance criteria:** the snapshot harness renders the shell in light, dark and RTL and matches the goldens.
 - **Validation:** `cargo nextest run -p jidr-ui && cargo run -p jidr-ui --example snapshot -- --check`
@@ -278,14 +279,14 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 
 ### Phase 7c (B): Player window
 - **Status:** Not started
-- **Scope:** direct gRPC frame stream from `device.connect_info` (ADR-0001 transport), input (mouse, keyboard, multitouch via modifiers), right toolbar (volume, rotate, pixel-perfect, back/home/recents, power, screenshot, record), drag-drop (apk → install with signature-mismatch prompt; zip → flash; other → `/sdcard/Download`), shared clipboard toggle, widget panel host.
+- **Scope:** direct gRPC frame stream from `device.connect_info` (ADR-0001 transport), input (mouse, keyboard, multitouch via modifiers), right toolbar (volume, rotate, pixel-perfect, back/home/recents, power, screenshot, record), drag-drop (apk → install with signature-mismatch prompt; zip → Magisk module install + reboot on Full-root devices, otherwise pushed to `/sdcard/Download` with a note (D35); other → `/sdcard/Download`), shared clipboard toggle, widget panel host.
 - **Files touched:** `crates/jidr-ui/src/player/**`
 - **Acceptance criteria:** player hits the ADR-0001 budget on the dev Mac; drag-drop installs an APK; golden snapshots of the chrome.
 - **Validation:** `manual 1. start "Pixel-ish 6.1" 2. scroll Settings 30 s with the debug overlay on (≥30 fps) 3. drag an APK onto the screen and confirm it launches`
 
 ### Phase 8a (B): Core widgets
 - **Status:** Not started
-- **Scope:** `jidr-widgets` `CommandProvider` + panels: battery, rotation + motion sensors, network (Wi-Fi/mobile toggles, speed/delay profiles), phone/SMS + gsm baseband, Android controls, dev tools (show taps, pointer location, layout bounds, animation scales), clipboard. Identifiers, audio injection and biometrics are post-MVP.
+- **Scope:** `jidr-widgets` `CommandProvider` + panels: battery, rotation + motion sensors, network (Wi-Fi/mobile toggles, speed/delay profiles), phone/SMS + gsm baseband, Android controls, dev tools (show taps, pointer location, layout bounds, animation scales), clipboard, plus three single-command extras (D36): fingerprint recognised/unrecognised (`finger touch`/`remove`, R8), mobile signal bars (`gsm signal-profile`, R3), host webcam as camera (`-camera-back webcam0` via `LaunchOptions`, R7). Identifiers, audio injection, rich biometric scenarios and every other `docs/gaps.md` 🟠 item are post-MVP.
 - **Files touched:** `crates/jidr-widgets/**`, `crates/jidr-ui/src/widgets/**`
 - **Acceptance criteria:** every widget command has an adb-observable assertion (`dumpsys battery`, `settings get`, etc.) in an emulator test.
 - **Validation:** `cargo nextest run -p jidr-widgets --features emulator`
@@ -334,10 +335,17 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 
 ### Phase 9d (C): Magisk mode ★ headline
 - **Status:** Not started
-- **Scope:** pinned Magisk release (`assets/magisk-pins.toml`: version, URL, SHA-256), download through the 5b cache, host-side patch with `jidr-cpio` into `<avd>/jidr/ramdisk.magisk-<ver>.img`, launch via `LaunchOptions.ramdisk` + cold boot, app install + env setup + reboot, shell su auto-grant (D22; Play Store path per ADR-0002), verify, revert, re-patch when the pristine hash or the pin changes, Play Integrity notice, `docs/root.md`.
+- **Scope:** pinned Magisk release (`assets/magisk-pins.toml`: version, URL, SHA-256), download through the 5b cache, host-side patch with `jidr-cpio` into `<avd>/jidr/ramdisk.magisk-<ver>.img`, launch via `LaunchOptions.ramdisk` + cold boot, app install + env setup + reboot, shell su auto-grant (D22; Play Store path per ADR-0002), verify, revert, re-patch when the pristine hash or the pin changes, Play Integrity notice, `docs/root.md`, and `root.module.install {path}` (`magisk --install-module` + reboot) used by the player's zip drop (D35, R12).
 - **Files touched:** `crates/jidr-root/src/magisk/**`, `assets/magisk-pins.toml`, `docs/root.md`, `scripts/e2e-root.sh`
 - **Acceptance criteria:** `scripts/e2e-root.sh` cycles none → adb → magisk → none on API 30/33/35 `google_apis` and checks `su -c id` = uid=0 in magisk mode; the SDK `ramdisk.img` hash is unchanged at the end. Linux KVM (x86_64) on PRs; arm64 in `xtask e2e-mac` before release.
 - **Validation:** `scripts/e2e-root.sh`
+
+### Phase 9f (C, MVP+ — after the MVP, not part of the current goal): Build-prop spoofing
+- **Status:** Not started (MVP+)
+- **Scope:** `device.props.set {model, brand, manufacturer, device, fingerprint, securityPatch}` for Full-root devices, applied by a `resetprop` step in the per-device ramdisk's `overlay.d` boot hook from 9d (R5; `-prop` was disproven in the proof run). Identity properties only; never hardware/HAL properties.
+- **Files touched:** `crates/jidr-root/src/props.rs`, `crates/jidr-ui/src/root/props/**`
+- **Acceptance criteria:** after a cold boot, `getprop ro.product.model` returns the configured value on API 30/33/35 `google_apis`; un-patching restores the stock value.
+- **Validation:** `cargo nextest run -p jidr-root --features emulator -- props`
 
 ### Phase 9e (C): Root UX
 - **Status:** Not started
@@ -348,7 +356,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 
 ### Phase 11a (C): Coming-soon site (day 1)
 - **Status:** Not started
-- **Scope:** Astro site in `site/`: pitch, root showcase, feature grid ("Genymotion's paid features, free"; text only, no logos), Star on GitHub button, Sponsors link, no email capture (D34). Uses the brand kit and design tokens when available.
+- **Scope:** Astro site in `site/`. Replace the placeholder favicon and logo with `assets/brand/web/*` copied into `site/public/` (favicon.svg/.ico/-32.png, apple-touch-icon, og-image.png for `og:image`/`twitter:image`, symbol.svg for the header; D39): pitch, root showcase, feature grid ("Genymotion's paid features, free"; text only, no logos), Star on GitHub button, Sponsors link, no email capture (D34). Uses the brand kit and design tokens when available.
 - **Files touched:** `site/**`
 - **Acceptance criteria:** builds; Lighthouse performance and accessibility ≥ 95.
 - **Validation:** `cd site && npm ci && npm run build && npx @lhci/cli autorun --collect.staticDistDir=dist --assert.preset=lighthouse:recommended`
@@ -362,7 +370,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 
 ### Phase 12a (C): Unsigned release pipeline
 - **Status:** Not started
-- **Scope:** `.app` bundle + DMG (arm64); release on a push to the `release` branch → draft GitHub Release + `SHA256SUMS.txt`; artifact scan for Google SDK binaries, system images and Magisk; unsigned build with a `::warning::` when the signing secrets are missing (D32).
+- **Scope:** `.app` bundle + DMG (arm64) with `apps/jidr-gui/assets/macos/Jidr.icns` as `CFBundleIconFile` (D39); release on a push to the `release` branch → draft GitHub Release + `SHA256SUMS.txt`; artifact scan for Google SDK binaries, system images and Magisk; unsigned build with a `::warning::` when the signing secrets are missing (D32).
 - **Files touched:** `.github/workflows/release.yml`, `packaging/macos/**`, `xtask/src/release.rs`
 - **Acceptance criteria:** **unsigned path** = `cargo xtask release --dry-run --scan` produces a DMG that mounts, and the app launches after a right-click → Open.
 - **Validation:** `cargo xtask release --dry-run --scan`
@@ -412,6 +420,12 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 | D32 | Signing with Abdurahman's personal Apple Developer ID; unsigned DMG with a CI warning until secrets exist. |
 | D33 | English-only MVP, all strings via `@tr`, RTL-checked; Arabic UI post-MVP; Arabic landing page at launch. |
 | D34 | Pre-launch "coming soon" site without email capture; brand kit via the `brandkit` skill: root → phone outline, جذر + Latin wordmark. |
+| D35 | Dropped `.zip`: Magisk module install + reboot on Full-root devices; otherwise pushed to `/sdcard/Download` with a note. No image flashing (R12). |
+| D36 | Phase 8a adds fingerprint touch/remove (R8), mobile signal bars (R3) and host webcam camera (R7); all other `docs/gaps.md` 🟠 work is post-MVP. |
+| D37 | `docs/gaps.md` findings accepted with their stated targets; R10 Device Link rejected. MVP+ queue after the MVP: R5 build props (Magisk `resetprop`), R12 modules. R6 disk I/O moved to Post-MVP after the proof run (the emulator kernel has no block throttling). |
+| D38 | Gaps proofs run on a throwaway arm64 AVD; results recorded in `docs/gaps.md`. |
+| D39 | Brand assets live in `assets/brand/` (shared, read-only for streams; regenerated by `assets/brand/build.sh` from the approved symbol). App icons in `apps/jidr-gui/assets/` (`Jidr.icns`, in-app `symbol.svg`, menu-bar template); web set in `assets/brand/web/`, copied into `site/public/` by Stream C. Colours sampled from the board until `docs/design/tokens.json` exists. |
+| D40 | R15 WebRTC not needed: ADR-0001 passed with inline RGBA frames. Phase 9d adds `root.module.install` (D35). R5 becomes Phase 9f (MVP+). Repo made public (CI on standard runners is free). |
 
 ## Alternative Approaches Considered
 
