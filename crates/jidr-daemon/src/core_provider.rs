@@ -198,6 +198,33 @@ pub struct ImageParams {
     pub image: String,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CacheImportParams {
+    /// A local file to add to the download cache (e.g. a Magisk APK for offline use).
+    pub path: PathBuf,
+    /// Its expected SHA-256; the import fails if the file doesn't match.
+    #[serde(default)]
+    pub sha256: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CachePruneParams {
+    /// Only remove downloads older than this many days (default: all).
+    #[serde(default)]
+    pub older_than_days: Option<u64>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct LogsParams {
+    pub device: String,
+    /// Where to write the zip (default: Jidr's logs folder).
+    #[serde(default)]
+    pub output: Option<PathBuf>,
+}
+
 #[derive(Debug, Serialize, JsonSchema)]
 pub struct DeviceDetails {
     pub device: Device,
@@ -287,6 +314,10 @@ impl CoreProvider {
     async fn repository(&self) -> JidrResult<Repository> {
         let base = self.state.sdk_repo.clone().unwrap_or_else(repo::repo_base);
         Fetcher::new()?.repository(&base).await
+    }
+
+    fn cache(&self) -> jidr_sdk::DownloadCache {
+        jidr_sdk::DownloadCache::new(self.state.paths.downloads())
     }
 
     fn consent(&self) -> JidrResult<ConsentStore> {
@@ -720,6 +751,19 @@ impl CommandProvider for CoreProvider {
             CommandSpec::new::<PullParams>("file.pull", "Copy a file from a running device"),
             CommandSpec::new::<LogcatDumpParams>("logcat.dump", "Dump the device log"),
             CommandSpec::new::<DeviceParams>("logcat.clear", "Clear the device log"),
+            CommandSpec::new::<LogsParams>(
+                "device.logs",
+                "Zip a device's settings, emulator and crash logs and logcat for a bug report",
+            ),
+            CommandSpec::new::<NoParams>("cache.list", "Files in the download cache (by SHA-256)"),
+            CommandSpec::new::<CacheImportParams>(
+                "cache.import",
+                "Add a local file to the download cache (offline Magisk, D30)",
+            ),
+            CommandSpec::new::<CachePruneParams>(
+                "cache.prune",
+                "Delete cached downloads (they're downloaded again when needed)",
+            ),
         ]
     }
 
@@ -853,6 +897,46 @@ impl CommandProvider for CoreProvider {
                 args.extend(p.filter.iter().map(String::as_str));
                 let text = self.adb(&d).await?.logcat_dump(&args).await?;
                 Ok(json!({ "text": text }))
+            }
+            "device.logs" => {
+                let p: LogsParams = parse_params(params)?;
+                let d = self.state.device(&p.device).await?;
+                let logcat = match self.adb(&d).await {
+                    Ok(adb) => adb
+                        .with_timeout(Duration::from_secs(30))
+                        .logcat_dump(&[])
+                        .await
+                        .ok(),
+                    Err(_) => None,
+                };
+                let out = p.output.unwrap_or_else(|| {
+                    self.state.paths.logs.join(format!(
+                        "{}-logs-{}.zip",
+                        d.avd,
+                        chrono::Utc::now().format("%Y%m%d-%H%M%S")
+                    ))
+                });
+                let files = crate::bundle::write_bundle(
+                    &out,
+                    &d,
+                    &self.state.avds().dir(&d.avd),
+                    &self.state.paths.device_logs(&d.avd),
+                    logcat.as_deref(),
+                )?;
+                Ok(json!({ "path": out, "files": files }))
+            }
+            "cache.list" => {
+                parse_params::<NoParams>(params)?;
+                json(self.cache().list())
+            }
+            "cache.import" => {
+                let p: CacheImportParams = parse_params(params)?;
+                json(self.cache().import(&p.path, p.sha256.as_deref())?)
+            }
+            "cache.prune" => {
+                let p: CachePruneParams = parse_params(params)?;
+                let age = p.older_than_days.map(|d| Duration::from_secs(d * 86_400));
+                json(self.cache().prune(age))
             }
             "logcat.clear" => {
                 let p: DeviceParams = parse_params(params)?;

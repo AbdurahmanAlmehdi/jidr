@@ -1,95 +1,9 @@
 //! The `jidr` binary against an in-process fake daemon (`TestDaemon`).
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use std::path::PathBuf;
+mod common;
 
-use assert_cmd::Command;
-use jidr_daemon::testing::TestDaemon;
-use serde_json::Value;
-
-struct Env {
-    _tmp: tempfile::TempDir,
-    rt: tokio::runtime::Runtime,
-    daemon: Option<TestDaemon>,
-    home: PathBuf,
-}
-
-impl Env {
-    fn new() -> Self {
-        let tmp = tempfile::tempdir().unwrap();
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        let daemon = rt.block_on(TestDaemon::start(tmp.path())).unwrap();
-        let home = tmp.path().join("j");
-        Self {
-            _tmp: tmp,
-            rt,
-            daemon: Some(daemon),
-            home,
-        }
-    }
-
-    fn backend(&self) -> &jidr_backend::fake::FakeBackend {
-        &self.daemon.as_ref().unwrap().backend
-    }
-
-    fn jidr(&self, args: &[&str]) -> std::process::Output {
-        Command::cargo_bin("jidr")
-            .unwrap()
-            .args(args)
-            .env("JIDR_HOME", &self.home)
-            // Never spawn a real daemon from tests.
-            .env("JIDR_DAEMON_BIN", "/nonexistent/jidr")
-            .env_remove("JIDR_RESTART_STALE")
-            .timeout(std::time::Duration::from_secs(30))
-            .output()
-            .unwrap()
-    }
-
-    /// Runs with --json; returns (exit code, envelope).
-    fn json(&self, args: &[&str]) -> (i32, Value) {
-        let mut all = vec!["--json"];
-        all.extend_from_slice(args);
-        let o = self.jidr(&all);
-        let stdout = String::from_utf8_lossy(&o.stdout);
-        let v: Value = serde_json::from_str(stdout.lines().last().unwrap_or("null"))
-            .unwrap_or_else(|e| {
-                panic!(
-                    "{args:?}: bad JSON {stdout:?} ({e}); stderr {}",
-                    String::from_utf8_lossy(&o.stderr)
-                )
-            });
-        assert_eq!(
-            v["jidr_json"],
-            1,
-            "{args:?}: stdout {stdout:?} stderr {}",
-            String::from_utf8_lossy(&o.stderr)
-        );
-        (o.status.code().unwrap_or(-1), v)
-    }
-
-    fn ok(&self, args: &[&str]) -> Value {
-        let (code, v) = self.json(args);
-        assert_eq!(code, 0, "{args:?} → {v}");
-        assert_eq!(v["ok"], true);
-        v["result"].clone()
-    }
-
-    fn fail(&self, args: &[&str], exit: i32) -> Value {
-        let (code, v) = self.json(args);
-        assert_eq!(code, exit, "{args:?} → {v}");
-        assert_eq!(v["ok"], false);
-        assert_eq!(v["error"]["exit_code"], exit);
-        v["error"].clone()
-    }
-}
-
-impl Drop for Env {
-    fn drop(&mut self) {
-        if let Some(d) = self.daemon.take() {
-            self.rt.block_on(d.stop());
-        }
-    }
-}
+use common::Env;
 
 #[test]
 fn device_lifecycle_json() {

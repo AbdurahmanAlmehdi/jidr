@@ -107,6 +107,22 @@ pub enum Cmd {
         #[command(subcommand)]
         cmd: SnapshotCmd,
     },
+    /// The download cache (Magisk APKs and other pinned files, by SHA-256).
+    Cache {
+        #[command(subcommand)]
+        cmd: CacheCmd,
+    },
+    /// Remove Jidr's daemon, MCP entries, caches and logs; `--purge` also
+    /// deletes every Jidr device and its private SDK. Never touches Android
+    /// Studio's SDK or devices.
+    Uninstall {
+        /// Also delete all Jidr data: devices, private SDK, settings.
+        #[arg(long)]
+        purge: bool,
+        /// Don't ask for confirmation.
+        #[arg(long, short)]
+        yes: bool,
+    },
     /// Long-running operations.
     Jobs {
         #[command(subcommand)]
@@ -257,6 +273,32 @@ pub enum DeviceCmd {
     },
     /// gRPC endpoint, token and adb serial of a running device.
     ConnectInfo { device: String },
+    /// Zip a device's settings, emulator and crash logs and logcat (for bug reports).
+    Logs {
+        device: String,
+        /// Where to write the zip (default: Jidr's logs folder).
+        #[arg(long)]
+        zip: Option<PathBuf>,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum CacheCmd {
+    /// Cached downloads.
+    List,
+    /// Add a local file (e.g. a Magisk APK) for offline use.
+    Import {
+        path: PathBuf,
+        /// Expected SHA-256 of the file.
+        #[arg(long)]
+        sha256: Option<String>,
+    },
+    /// Delete cached downloads.
+    Prune {
+        /// Only those older than this many days.
+        #[arg(long)]
+        older_than_days: Option<u64>,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -304,6 +346,9 @@ pub enum RootCmd {
         device: String,
         #[arg(value_enum)]
         mode: RootModeArg,
+        /// Use this Magisk APK instead of downloading the pinned release (offline, D30).
+        #[arg(long)]
+        magisk: Option<PathBuf>,
     },
     /// Check that root works.
     Verify { device: String },

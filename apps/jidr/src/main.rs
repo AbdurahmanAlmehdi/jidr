@@ -2,6 +2,7 @@
 
 mod cli;
 mod output;
+mod uninstall;
 
 use std::io::{BufRead, IsTerminal, Write};
 use std::process::ExitCode;
@@ -10,8 +11,8 @@ use std::time::Duration;
 
 use clap::{CommandFactory, Parser};
 use cli::{
-    Cli, Cmd, DaemonCmd, DeviceCmd, Hardware, ImageCmd, JobsCmd, ProfileCmd, RootCmd, SdkCmd,
-    Selection, SnapshotCmd,
+    CacheCmd, Cli, Cmd, DaemonCmd, DeviceCmd, Hardware, ImageCmd, JobsCmd, ProfileCmd, RootCmd,
+    SdkCmd, Selection, SnapshotCmd,
 };
 use jidr_client::{Client, SpawnOptions};
 use jidr_core::{ErrorCode, JidrError, JidrPaths, JidrResult, Job, JobState};
@@ -273,6 +274,13 @@ fn state_of(d: &Value) -> &str {
     d["status"]["state"].as_str().unwrap_or("")
 }
 
+fn dirs_home() -> JidrResult<std::path::PathBuf> {
+    std::env::var_os("HOME")
+        .map(std::path::PathBuf::from)
+        .filter(|h| h.is_absolute())
+        .ok_or_else(|| JidrError::unexpected("HOME is not set"))
+}
+
 fn parse_job(s: &str) -> JidrResult<Uuid> {
     Uuid::parse_str(s).map_err(|_| JidrError::usage(format!("{s:?} is not a job id")))
 }
@@ -294,6 +302,35 @@ async fn run(cli: Cli, out: Out) -> JidrResult<()> {
         out.ok(&json!({ "stopped": true }), |_| "Daemon stopped.".into());
         return Ok(());
     }
+    if let Cmd::Uninstall { purge, yes } = &cli.cmd {
+        let what = if *purge {
+            "Remove Jidr's daemon, MCP entries, caches, logs AND all Jidr devices and its private SDK"
+        } else {
+            "Remove Jidr's daemon, MCP entries, caches and logs (devices are kept)"
+        };
+        confirm(out, *yes, what)?;
+        let home = dirs_home()?;
+        let report = uninstall::run(&paths, &home, *purge).await?;
+        let v = serde_json::to_value(&report).unwrap_or(Value::Null);
+        out.ok(&v, |_| {
+            let mut lines = Vec::new();
+            if !report.stopped_devices.is_empty() {
+                lines.push(format!("Stopped {}.", report.stopped_devices.join(", ")));
+            }
+            for m in &report.mcp {
+                lines.push(format!("Removed MCP entries {:?} from {} (backup: {}).", m.removed, m.file.display(), m.backup.display()));
+            }
+            for p in &report.removed {
+                lines.push(format!("Deleted {}.", p.display()));
+            }
+            for p in &report.kept {
+                lines.push(format!("Kept {} (use --purge to delete devices and the private SDK).", p.display()));
+            }
+            lines.push("Android Studio's SDK and devices were not touched. Remove the app itself with `brew uninstall --cask jidr` or by moving Jidr.app to the Trash.".into());
+            lines.join("\n")
+        });
+        return Ok(());
+    }
     if let Cmd::Flash { .. } = &cli.cmd {
         return Err(JidrError::usage(
             "flash isn't available yet: Genymotion's flash semantics are an open research item (docs/gaps.md)",
@@ -304,6 +341,7 @@ async fn run(cli: Cli, out: Out) -> JidrResult<()> {
     match cli.cmd {
         Cmd::Completions { .. }
         | Cmd::Flash { .. }
+        | Cmd::Uninstall { .. }
         | Cmd::Daemon {
             action: None | Some(DaemonCmd::Run | DaemonCmd::Stop),
         } => {}
@@ -478,12 +516,71 @@ async fn run(cli: Cli, out: Out) -> JidrResult<()> {
             .await?;
             out.ok(&v, |_| "Installed.".into());
         }
+        Cmd::Cache {
+            cmd: CacheCmd::List,
+        } => {
+            let v = c.call("cache.list", json!({})).await?;
+            out.ok(&v, |v| {
+                output::table(
+                    &["SHA256", "SIZE", "PATH"],
+                    v.as_array()
+                        .into_iter()
+                        .flatten()
+                        .map(|e| {
+                            vec![
+                                e["sha256"].as_str().unwrap_or_default().to_string(),
+                                format!("{:.1} MB", e["size"].as_f64().unwrap_or(0.0) / 1e6),
+                                e["path"].as_str().unwrap_or_default().to_string(),
+                            ]
+                        })
+                        .collect(),
+                )
+            });
+        }
+        Cmd::Cache {
+            cmd: CacheCmd::Import { path, sha256 },
+        } => {
+            let path = std::path::absolute(&path).unwrap_or(path);
+            let v = c
+                .call("cache.import", json!({ "path": path, "sha256": sha256 }))
+                .await?;
+            out.ok(&v, |v| {
+                format!(
+                    "Cached {} (sha256 {}).",
+                    path.display(),
+                    v["sha256"].as_str().unwrap_or("?")
+                )
+            });
+        }
+        Cmd::Cache {
+            cmd: CacheCmd::Prune { older_than_days },
+        } => {
+            let v = c
+                .call("cache.prune", json!({ "older_than_days": older_than_days }))
+                .await?;
+            out.ok(&v, |v| {
+                format!(
+                    "Removed {} files ({:.1} MB).",
+                    v["removed"],
+                    v["bytes"].as_f64().unwrap_or(0.0) / 1e6
+                )
+            });
+        }
         Cmd::Root { cmd } => {
             let (method, params) = match cmd {
-                RootCmd::Set { device, mode } => (
-                    "root.set",
-                    json!({ "device": device, "mode": mode.as_str() }),
-                ),
+                RootCmd::Set {
+                    device,
+                    mode,
+                    magisk,
+                } => {
+                    let mut p = json!({ "device": device, "mode": mode.as_str() });
+                    if let Some(apk) = magisk {
+                        let apk = std::path::absolute(&apk).unwrap_or(apk);
+                        let entry = c.call("cache.import", json!({ "path": apk })).await?;
+                        p["magisk_sha256"] = entry["sha256"].clone();
+                    }
+                    ("root.set", p)
+                }
                 RootCmd::Verify { device } => ("root.verify", json!({ "device": device })),
                 RootCmd::Status { device } => ("root.status", json!({ "device": device })),
             };
@@ -689,6 +786,23 @@ async fn device(c: &Client, out: Out, cmd: DeviceCmd) -> JidrResult<()> {
             }
             let v = exec(c, out, "device.edit", Value::Object(p)).await?;
             out.ok(&v, output::device);
+        }
+        DeviceCmd::Logs { device, zip } => {
+            let zip = zip.map(|z| std::path::absolute(&z).unwrap_or(z));
+            let v = exec(
+                c,
+                out,
+                "device.logs",
+                json!({ "device": device, "output": zip }),
+            )
+            .await?;
+            out.ok(&v, |v| {
+                format!(
+                    "Wrote {} ({} files).",
+                    v["path"].as_str().unwrap_or("?"),
+                    v["files"]
+                )
+            });
         }
         DeviceCmd::ConnectInfo { device } => {
             let v = c
