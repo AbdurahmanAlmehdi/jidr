@@ -73,3 +73,12 @@ Notes and open issues:
 - Astro 7 needs Node ≥ 22.12; the default shell here is Node 20.20, so the site uses Astro 5 (`engines: >=20.3`). Moving to Astro 7 later is a version bump plus Node 22 on Cloudflare Pages.
 - Placeholders waiting on Abdurahman: the brand kit and design tokens (D34; `docs/design/` has only PRODUCT.md), the favicon (a plain root-into-phone stroke, not a logo), and the links in `src/config.ts` (`github.com/jidr-dev/jidr`, `github.com/sponsors/jidr-dev`: the org, repo and Sponsors profile don't exist yet, D26).
 - Not deployed (needs Abdurahman's go-ahead, D16/D34).
+
+## Phase 11a: brand assets (D39) — done (2026-10-13)
+
+After merging main (`c11cc06`: gaps proof run, D35–D40, brand kit), I replaced the placeholder favicon and logo:
+- `site/public/` gets copies of `assets/brand/web/{favicon.svg, favicon.ico, favicon-32.png, apple-touch-icon.png, og-image.png, symbol.svg}`.
+- The header shows `symbol.svg` through a CSS mask tinted with the accent token. `Base.astro` links the .ico, .svg and apple-touch icons and sets `og:image` / `twitter:image` (1200×630, `summary_large_image`).
+- Accent tokens now use the brand blue (light `#1267E0`, dark `#2A88FA`), and the Arabic wordmark is lilac `#B9A6F7` on dark. A new `text-on-accent-subtle` token keeps the "New in Jidr" tags at ≥ 5.3:1. Every pair is listed in `tokens.css`.
+
+Validation: `npm ci && npm run build && npx @lhci/cli autorun --collect.staticDistDir=dist --assert.preset=lighthouse:recommended` → all assertions pass; 100/100/100/100 on three runs. Checked by eye in light and dark.

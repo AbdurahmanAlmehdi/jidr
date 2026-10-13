@@ -5,10 +5,13 @@
  * color.surface.raised → --jidr-color-surface-raised → Theme.surface-raised
  * (Slint), so swapping in the real design system is a single-file change.
  *
+ * Accent and wordmark colours come from the brand kit (assets/brand/README.md,
+ * D39): brand blue #1267E0 / #2A88FA, lilac #B9A6F7 for جذر on dark.
+ *
  * Contrast (WCAG 2.x), text on base / raised / sunken:
- *   light: primary 16.7 · secondary 8.8 · tertiary 6.0 · accent 6.8 · positive 6.3 · warning 6.2
- *   dark:  primary 16.5 · secondary 10.8 · tertiary 7.0 · accent 7.6 · positive 10.1 · warning 9.8
- *   on-accent: light 7.1, dark 7.8
+ *   light: primary 16.7 · secondary 8.8 · tertiary 6.0 · accent 5.0/5.2/4.5 · positive 6.3 · warning 6.2
+ *   dark:  primary 16.5 · secondary 10.8 · tertiary 7.0 · accent 5.4/5.0/5.6 · positive 10.1 · warning 9.8
+ *   on-accent: light 5.2, dark 5.4 · on-accent-subtle: light 5.4, dark 6.5 · Arabic wordmark (dark) 8.2
  */
 
 :root {
@@ -25,9 +28,11 @@
   --jidr-color-border-subtle: #e7e2d8;
   --jidr-color-border-default: #d3ccbf;
   --jidr-color-border-strong: #8f8678;
-  --jidr-color-accent: #963d14;
-  --jidr-color-accent-hover: #7d3210;
-  --jidr-color-accent-subtle: #f6e7dd;
+  --jidr-color-accent: #1267e0;
+  --jidr-color-accent-hover: #0f5bc7;
+  --jidr-color-accent-subtle: #e3eefc;
+  --jidr-color-text-on-accent-subtle: #0f5bc7;
+  --jidr-color-wordmark-arabic: #1267e0;
   --jidr-color-positive: #1d6a39;
   --jidr-color-positive-subtle: #e2f1e6;
   --jidr-color-warning: #855400;
@@ -80,13 +85,15 @@
     --jidr-color-text-secondary: #cbc4b8;
     --jidr-color-text-tertiary: #a59d90;
     --jidr-color-text-code: #e2dccf;
-    --jidr-color-text-on-accent: #1a0c05;
+    --jidr-color-text-on-accent: #08111f;
     --jidr-color-border-subtle: #2a2723;
     --jidr-color-border-default: #3b3731;
     --jidr-color-border-strong: #7b7367;
-    --jidr-color-accent: #ec8d5f;
-    --jidr-color-accent-hover: #f3a47e;
-    --jidr-color-accent-subtle: #2f1c12;
+    --jidr-color-accent: #2a88fa;
+    --jidr-color-accent-hover: #5ca3ff;
+    --jidr-color-accent-subtle: #0f1d33;
+    --jidr-color-text-on-accent-subtle: #5ca3ff;
+    --jidr-color-wordmark-arabic: #b9a6f7;
     --jidr-color-positive: #74d197;
     --jidr-color-positive-subtle: #14281b;
     --jidr-color-warning: #e5b45a;

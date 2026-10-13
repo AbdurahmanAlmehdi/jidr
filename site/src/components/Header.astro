@@ -6,6 +6,7 @@ import { links } from "../config";
 <header class="header">
   <div class="container bar">
     <a class="wordmark" href="/">
+      <span class="symbol" aria-hidden="true"></span>
       <span>Jidr</span>
       <span class="arabic" lang="ar" dir="rtl">جذر</span>
     </a>
@@ -40,10 +41,18 @@ import { links } from "../config";
     text-decoration: none;
     letter-spacing: -0.02em;
   }
+  /* The brand symbol (assets/brand/web/symbol.svg), tinted with the accent token. */
+  .symbol {
+    align-self: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    background: var(--jidr-color-accent);
+    mask: url("/symbol.svg") center / contain no-repeat;
+  }
   .arabic {
     font-family: var(--jidr-font-arabic);
     font-weight: 600;
-    color: var(--jidr-color-accent);
+    color: var(--jidr-color-wordmark-arabic);
   }
   nav {
     margin-inline-start: auto;
