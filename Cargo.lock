@@ -2792,6 +2792,20 @@ dependencies = [
 [[package]]
 name = "jidr-root"
 version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "jidr-adb",
+ "jidr-backend",
+ "jidr-core",
+ "jidr-daemon",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "uuid",
+]
 
 [[package]]
 name = "jidr-sdk"

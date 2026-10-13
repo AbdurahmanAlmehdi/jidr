@@ -327,7 +327,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `cargo nextest run -p jidr-cpio`
 
 ### Phase 9c (C): adb root mode
-- **Status:** Not started
+- **Status:** Done (arm64 API 31 `google_apis` locally; API 30/33/35 x86_64 run in the Linux KVM CI job once the branch is pushed)
 - **Scope:** `jidr-root` `CommandProvider`: `root.set {mode: none|adb}`, `root.verify`, `root.status`; adb mode via `adb root` after boot (optional `writable_system` is post-MVP); revert; root-mode tags written into snapshots via `snapshot.*` metadata (request through gaps if 10b isn't ready).
 - **Files touched:** `crates/jidr-root/src/{lib,adb_mode,verify}.rs`
 - **Acceptance criteria:** `none → adb → none` on API 30/33/35 `google_apis`, verified each step.

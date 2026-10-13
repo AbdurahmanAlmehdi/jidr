@@ -88,3 +88,38 @@ Validation: `npm ci && npm run build && npx @lhci/cli autorun --collect.staticDi
 - Options (1) and (2) of D21 grant root to the adb shell on Play Store images without a person approving Magisk's prompt. An earlier attempt at this phase in this session was stopped by a safety check, so I didn't build them; they're left to Abdurahman.
 - `docs/decisions/0002-play-store-root.md` (Proposed) specifies option (3), the guided tap, as the Play Store beta, including the CLI/JSON behaviour. Plan status: Blocked.
 - No spike code, no Magisk download, no images installed.
+
+---
+
+## Phase 9c: adb root mode — plan
+
+Merged `protocol-v0.1` (`68eb049`). Stream A's own branch gets the lockfile from the tag; this branch adds `jidr-cpio`'s six crates on top (G6). Gaps A1/A2 from `stream/a-core` are carried into Part B as G7/G8.
+
+`crates/jidr-root` (Apache-2.0, no Slint), `pub fn provider() -> Arc<dyn CommandProvider>` (G8):
+1. `root.status {device}`: the stored `RootState` plus whether the image allows adb root. No lock.
+2. `root.verify {device}`: on a running device, runs `adb shell id` and checks the uid against the mode (none → non-zero, adb → 0; magisk is 9d). Writes `health` + `verified_at`. A mismatch is `root_failed` (exit 7) after the failed health is stored. Locks the device.
+3. `root.set {device, mode}`: `none | adb` (magisk → usage error until 9d). Refuses `adb` on Play Store images (D7, `ImageRef::allows_adb_root`). Persists the mode with health `unverified` and sets `launch.force_cold_boot` (D29: root changes force a cold boot; the snapshot taken under the old mode isn't reused). If the device is running, applies the mode live (`adb root` / `adb unroot`, wait for the device, verify) so the user doesn't wait for a reboot. Locks the device, long-running (job).
+4. `on_booted`: adb-mode devices get `adb root` + verify after every boot; failures surface as `device.hook_failed` events and `health: failed`.
+5. Snapshot root tags belong to `snapshot.*` (Stream B, 10b); filed as gap G9.
+
+Tests:
+- Offline: a `Daemon` with the fake backend, a fake Studio SDK and a stateful fake `adb` (remembers root/unroot and answers `shell id` accordingly). Covers set/verify/status, the boot hook, Play Store refusal, magisk-not-yet, unknown params.
+- Emulator (`--features emulator`, `adb` filter): a real `AospBackend` daemon with the Studio SDK read-only and AVDs in a temp dir. Cycles none → adb (live) → cold boot (hook re-applies root) → none, verifying each step. Locally on API 31 `google_apis` arm64 (the only arm64 `google_apis` image installed; 33/35 run on Linux KVM CI, D28).
+
+## Phase 9c: adb root mode — done (2026-10-13)
+
+Built (`crates/jidr-root`, Apache-2.0; deps `jidr-core`, `jidr-adb`; dev-deps `jidr-daemon`, `jidr-backend`):
+- `jidr_root::provider()` (G8) with `root.status` (no lock), `root.verify` (locks the device) and `root.set {device, mode}` (locks the device, long-running → job).
+- `root.set`: refuses `adb` on images that don't allow it (D7) and `magisk` until 9d. Persists the mode with health `unverified`, sets `launch.force_cold_boot` on a real change (D29), and applies the change live on a running device (`adb root`/`unroot`, then polls `adb shell id` until adbd is back with the right uid, 60 s cap). A stopped device gets it at the next (cold) boot.
+- `on_booted`: adb-mode devices are rooted and verified after every boot. A failure sets `health: failed`, and the daemon emits `device.hook_failed`.
+- `root.verify`: `id` (or `su -c id` for magisk) → `{uid, ok, health, verified_at}`, stored on the device; a mismatch is `root_failed` (exit 7) carrying the result in `data`.
+
+Validation:
+- `cargo nextest run -p jidr-root --features emulator -- adb` → 5 passed. The real-emulator test (`adb_emulator.rs`, API 31 `google_apis` arm64, Studio SDK read-only, AVD in a temp dir): cold boot 24.6 s → `uid=2000` → live `adb root` 1.2 s → `uid=0` → stop, cold boot + hook 15.3 s → `uid=0`, health `ok` → live `adb unroot` → non-root → magisk refused → delete.
+- Offline (`adb_mode.rs`, 9 tests): a daemon with the fake backend, a fake Studio SDK and a stateful fake adb. Covers the boot hook, live switches, the next-boot cold boot, the Play Store refusal, magisk refused, a lost root recorded as failed, and params validation.
+- `cargo xtask ci` → 149 passed.
+
+Open issues:
+- API 30/33/35 (x86_64) are covered by the Linux KVM CI matrix, which can't run until the branch is pushed. The push was denied by this session's permission check; it waits for Abdurahman.
+- Snapshot root tags are Stream B's `snapshot.*` (10b): filed as G9.
+- Stream A wires `jidr_root::provider()` into `jidr daemon` (G8); the CLI's `root set/verify/status` already target these method names.
