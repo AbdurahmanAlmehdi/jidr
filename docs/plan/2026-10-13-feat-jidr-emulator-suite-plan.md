@@ -249,7 +249,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `cargo nextest run -p jidr && scripts/e2e-cli.sh`
 
 ### Phase 5b (A): Cache, uninstall, logs
-- **Status:** Not started
+- **Status:** Done
 - **Scope:** Magisk APK cache by SHA-256 + `--magisk <path>` plumbing (the cache API is used by stream C), `jidr cache prune`, per-device disk usage in `device.details` (D30); `jidr uninstall [--purge]` that never touches the Studio SDK and removes Jidr MCP entries (D31); `jidr device logs --zip`.
 - **Files touched:** `apps/jidr/src/{cache,uninstall,logs}.rs`, `crates/jidr-sdk/src/cache.rs`
 - **Acceptance criteria:** after `uninstall --purge`, no Jidr-owned files or processes remain and the Studio SDK checksum is unchanged.

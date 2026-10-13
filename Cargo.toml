@@ -54,7 +54,7 @@ tokio-stream = "0.1.19"
 futures = "0.3.34"
 async-trait = "0.1"
 serde = { version = "1.0.229", features = ["derive"] }
-serde_json = "1.0.154"
+serde_json = { version = "1.0.154", features = ["preserve_order"] }
 schemars = { version = "1.2", features = ["uuid1", "chrono04"] }
 toml = "0.9"
 thiserror = "2.0"
@@ -80,6 +80,8 @@ clap_complete = "4.6"
 rmcp = "3.5"
 slint = "1.18"
 png = "0.18"
+zip = { version = "9", default-features = false, features = ["deflate"] }
+sha1 = "0.11"
 
 # Tests + tooling
 assert_cmd = "2.2"

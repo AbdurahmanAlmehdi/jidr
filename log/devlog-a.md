@@ -282,3 +282,24 @@ Validation `cargo nextest run -p jidr && scripts/e2e-cli.sh`: 9 tests passed; e2
 Bug found (regression test `cli::tests::cli_definition_is_valid`): `logcat` gave `-f` to both `--filter` and `--follow`; clap panics on that at runtime in debug builds. `--filter` has no short form now.
 
 Notes: the e2e APK defaults to an AOSP sample app found in the SDK's images (`JIDR_TEST_APK` to override); CI x86_64 images may need `JIDR_TEST_APK` set.
+
+---
+
+## Phase 5b: Cache, uninstall, logs — plan
+
+Gaps: A1/A2 open; C1 FYI. Will file A3 for C (`root.set` takes `magisk_sha256` from the cache).
+
+- `jidr-sdk::cache::DownloadCache` (D30): files under `cache/downloads/sha256/<hex>[.<ext>]`; `get(sha256)`, `fetch(url, sha256, …)` (download → verify SHA-256 → atomic rename; reuse when present and valid), `import(path, expected)` (`--magisk <path>` offline), `list`, `prune(older_than)`. `Fetcher::download` returns both SHA-1 and SHA-256.
+- Daemon commands: `cache.list`, `cache.import {path, sha256?}`, `cache.prune {older_than_days?}`, `device.logs {device, output?}` (zip with the device record, config.ini, emulator + crash logs and a `logcat -d` when running). `device.details` already reports disk usage (D30).
+- CLI: `jidr cache list|import|prune`, `jidr device logs <name> [--zip path]`, `jidr root set <dev> magisk --magisk <apk>` (imports into the cache, passes `magisk_sha256`), `jidr uninstall [--purge] [--yes]` (D31): stop devices and the daemon, kill any leftover emulator running a Jidr AVD, remove Jidr's MCP entries (Claude Desktop, Claude Code `~/.claude.json` incl. per-project, Cursor `~/.cursor/mcp.json`; backup `*.jidr-backup` first, key order preserved), remove cache + logs, and with `--purge` the data dir (private SDK, AVDs, registry, consent). Never touches Android Studio's SDK or `~/.android`.
+- `scripts/e2e-cli.sh` ends with `uninstall --purge` and checks nothing Jidr-owned remains (no files, no socket, no emulator with a Jidr AVD). `scripts/e2e-studio-untouched.sh` defaults to running `e2e-cli.sh`, so install → use → purge is checked against the Studio fingerprint.
+
+## Phase 5b: Cache, uninstall, logs — done (2026-10-13)
+
+Built:
+- `jidr-sdk::cache::DownloadCache` (content-addressed by SHA-256: `fetch` verifies before storing and reuses verified copies offline, `import`, `get_verified` drops corrupt entries, `list`, `prune(older_than)`); `Fetcher::download` returns SHA-1 + SHA-256 (`Digests`).
+- Daemon: `cache.list|import|prune`, `device.logs` (zip: device.json, config.ini, hardware-qemu.ini, launch params, emulator + crash logs, logcat when running, about.txt; `bundle.rs`). Disk usage per device was already in `device.details` (D30).
+- CLI: `cache list|import|prune`, `device logs <name> [--zip]`, `root set … --magisk <apk>` (imports, passes `magisk_sha256`; gap A3 for C), `uninstall [--purge] --yes` (`uninstall.rs`: stops devices + daemon, kills leftover emulators running Jidr AVDs, removes Jidr's MCP entries from Claude Code (incl. per-project), Claude Desktop and Cursor configs with a `.jidr-backup`, deletes cache + logs (+ data with `--purge`), with a guard that refuses home, `~/Library/Android`, `~/.android` and shallow paths). `serde_json` `preserve_order` so rewritten configs keep their key order.
+- `scripts/e2e-cli.sh` now ends with a second running device and `uninstall --purge` under a scratch `HOME`, then checks no data/cache/logs/socket and no live emulator with a Jidr AVD (`scripts/lib/no_jidr_emulators.py`). `scripts/e2e-studio-untouched.sh` defaults to the sdk emulator tests + `e2e-cli.sh`.
+
+Validation `cargo nextest run -p jidr && scripts/e2e-studio-untouched.sh`: 16 CLI tests passed; full real-emulator flow (create → boot 26 s → install → logcat → stop → delete → second device booted → `uninstall --purge`) passed in 93 s, and all 296,062 Studio SDK/AVD files are unchanged.

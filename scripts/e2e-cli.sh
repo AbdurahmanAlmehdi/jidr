@@ -61,5 +61,24 @@ step "stop"     device stop e2e
 step "delete"   device delete e2e --yes
 step "list"     device list
 [ "$(field 'len(r)')" = 0 ] || { echo "e2e-cli: FAIL device left behind: $LAST" >&2; exit 1; }
-step "daemon"   daemon stop
+
+# Uninstall --purge (D31) with HOME pointed at a scratch dir, so the real MCP
+# configs are never touched; a fake Claude Code config proves the cleanup.
+step "create2"  device create e2e2 --image "$IMAGE" --profile small-phone-5
+step "start2"   device start e2e2 --timeout 300
+FAKE_HOME="$JIDR_HOME/home"
+mkdir -p "$FAKE_HOME"
+printf '{"mcpServers":{"jidr":{"command":"jidr","args":["mcp"]},"other":{"command":"x"}}}' > "$FAKE_HOME/.claude.json"
+LAST="$(HOME="$FAKE_HOME" "$JIDR" --json uninstall --purge --yes)" || { echo "e2e-cli: FAIL uninstall: $LAST" >&2; exit 1; }
+echo "e2e-cli: ok   uninstall --purge"
+[ "$(field 'r["purged"]')" = True ] || { echo "e2e-cli: FAIL not purged: $LAST" >&2; exit 1; }
+for d in data cache logs; do
+  [ ! -e "$JIDR_HOME/$d" ] || { echo "e2e-cli: FAIL $JIDR_HOME/$d remains" >&2; exit 1; }
+done
+python3 -I -c 'import json,sys; c=json.load(open(sys.argv[1])); assert "jidr" not in c["mcpServers"] and "other" in c["mcpServers"], c' "$FAKE_HOME/.claude.json" \
+  || { echo "e2e-cli: FAIL MCP entry not removed" >&2; exit 1; }
+[ ! -S "$JIDR_HOME/data/daemon.sock" ] || { echo "e2e-cli: FAIL daemon socket remains" >&2; exit 1; }
+# No emulator may still be running a Jidr AVD.
+python3 -I "$(dirname "$0")/lib/no_jidr_emulators.py" "$JIDR_HOME" \
+  || { echo "e2e-cli: FAIL a Jidr emulator is still running" >&2; exit 1; }
 echo "e2e-cli: passed in $(( $(date +%s) - start )) s"
