@@ -186,7 +186,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `cargo xtask ci`
 
 ### Phase 1 (A): Display + input spike (go/no-go)
-- **Status:** Not started
+- **Status:** Done (pass: 59.9 fps, ~13.5 ms touch → frame; see ADR-0001). Manual step 2 (a mouse click opens Settings) still needs a human run.
 - **Scope:** Throwaway `spikes/display`: boot an existing arm64 AVD headless with `-grpc`, read the discovery file, stream inline RGBA into a Slint window via `SharedPixelBuffer`, send touches back, print fps / CPU / input latency. If the budget is missed, try MMAP, then the wgpu import. Record the numbers in `docs/decisions/0001-frame-transport.md`.
 - **Files touched:** `spikes/display/**`, `docs/decisions/0001-frame-transport.md`
 - **Acceptance criteria:** **pass** = ≥30 fps at 1080×2400 downscaled to a 400 px-wide window and median input latency ≤80 ms on the dev Mac; otherwise the ADR records the fallback decision (MMAP / wgpu / egui).

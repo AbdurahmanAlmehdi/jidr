@@ -32,3 +32,35 @@ Built:
 Skipped / notes:
 - CI workflow is unvalidated until the repo is pushed (not pushing without asking).
 - Emulator-test env contract (`JIDR_TEST_SDK`, `JIDR_TEST_IMAGE`, `JIDR_TEST_API`) is defined in AGENTS.md; local default is the Studio SDK read-only + API 36 `google_apis` arm64.
+
+---
+
+## Phase 1: Display + input spike — plan
+
+Throwaway crate `spikes/display` (`spike-display`, GPL-3.0-only because it links Slint; added to license-check's GPL list, never shipped).
+
+1. `build.rs` generates a tonic client from the SDK's `emulator_controller.proto` (no `jidr-proto` yet, that's 3a).
+2. AVD: `--avd <name>` uses an existing AVD; `--create` writes a spike-only AVD (API 36 `google_apis` arm64, 1080×2400, 420 dpi) under `target/agent-a/spike-avd` via `ANDROID_AVD_HOME`, so neither the Studio SDK nor `~/.android/avd` is written.
+3. Launch `emulator -no-window -grpc <port> -grpc-use-token -no-boot-anim -no-snapshot`, read the token from the discovery file `~/Library/Caches/TemporaryItems/avd/running/pid_<pid>.ini`, wait for `getStatus.booted`.
+4. Display: `streamScreenshot(RGBA8888, width = window px)` → newest-frame slot → `invoke_from_event_loop` → `SharedPixelBuffer<Rgba8Pixel>` → Slint `Image`. Count frames shown per second.
+5. Input: Slint `TouchArea` → map to device px → `streamInputEvent` (touch down/move/up).
+6. Measurements, automated so the numbers are reproducible:
+   - `--bench-fps`: open Settings, inject continuous swipes over gRPC for 10 s, report frames received / displayed per second and process CPU (self + emulator via `ps`).
+   - `--bench-latency`: enable `show_touches`, tap a flat area N times, time from send → first displayed frame whose probe pixel changed; report median / p90.
+   - Run at 400 px (1× frames) and 800 px (Retina 2×) widths; fall back to MMAP transport if the budget is missed.
+7. Record numbers + decision in `docs/decisions/0001-frame-transport.md`.
+
+## Phase 1: Display + input spike — done (2026-10-13), **pass**
+
+Built: `spikes/display` (GPL, throwaway) with `--create` (spike-only AVD under `target/agent-a/spike-avd`), `--bench fps`, `--bench latency`, `--gpu`, `--frame-width`, `--dump`. Numbers and decision in `docs/decisions/0001-frame-transport.md`.
+
+Results (M1 Pro, API 31 google_apis arm64 at 1080×2400): with `-gpu host`, 59.9 fps active scrolling at both 400 px and 800 px frames, touch → changed frame on the UI thread 13.5 ms median (p90 16–26 ms), estimated input-to-photon ≈ 35 ms. Inline RGBA + `SharedPixelBuffer` is enough; no MMAP or wgpu needed.
+
+Findings that bind later phases:
+- `-gpu host` must be the macOS default (Phase 3b). `auto` under `-no-window` = software GL: ~40 fps, 2× emulator CPU.
+- `ImageFormat` needs width **and** height; width alone returns full-res frames.
+- Frames are top-down despite the proto comment.
+- The local `system-images/android-36/google_apis/arm64-v8a` (and API 34 `default`, Baklava) directories are empty. API 31 `google_apis` arm64 is the local emulator-test image until 30/33/35 are installed.
+
+Skipped / open:
+- Manual "click Settings in the window" check: computer use can't drive a bare (non-.app) binary. Needs Abdurahman: `CARGO_TARGET_DIR=target/agent-a cargo run --release -p spike-display -- --create --gpu host`, then click Settings.
