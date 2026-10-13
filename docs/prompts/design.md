@@ -161,7 +161,7 @@ What I want back
 
 ---
 
-## 4. App icon (image generation; run after the design system fixes the colours)
+## 4. App icon (image generation) ✅ done: outputs in `assets/brand/` (D39)
 
 ```
 Design the app icon for Jidr (جذر, Arabic for "root"), a free, open-source Mac app that creates and runs virtual Android phones on your computer. Its headline feature is one-click "rooted" devices: full administrator access to the virtual phone. It's a precise, trustworthy developer tool, and the name and logo carry an Arabic identity.
