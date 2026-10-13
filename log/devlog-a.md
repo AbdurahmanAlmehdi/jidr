@@ -102,3 +102,15 @@ Skipped / open:
 - SDK device-definition import (D24 "imported as-is"): the definitions live inside Studio's jars; deferred.
 - 16 KB page-size images (`*_ps16k`) appear in the catalog; untested (research summary). Consider hiding them until tested.
 - Found: Studio's `system-images/android-36/google_apis_playstore_ps16k` has `ramdisk.img.backup`, i.e. rootAVD patched that shared image in place. Relevant for Stream C's pristine-hash logic.
+
+---
+
+## Phase 3a: gRPC bindings + adb — plan
+
+- `jidr-proto`: `build.rs` compiles `emulator_controller.proto` + `snapshot_service.proto` (+ `snapshot.proto`) from the installed SDK (`ANDROID_SDK_ROOT`/`ANDROID_HOME`/default), else the vendored copies in `proto/` (or when `JIDR_PROTO_VENDORED=1`). Client + server code (server for fake emulators in tests). `BearerToken` interceptor, `clients()` with a 64 MB decode limit. Tests: the vendored copies compile on their own (tempdir out_dir), the protos declare every RPC we use.
+- `jidr-adb`: `Adb` (+ `.device(serial)`, timeout), `raw/run`, devices, shell/shell_status, getprop, install (with `InstallFailure` / signature-mismatch data), uninstall, push/pull, logcat dump/clear/follow, root/unroot (production builds → `root_failed`), connect/disconnect, wait_for_device. Errors classified to not_found / busy / sdk / boot_timeout. Tests against a fake `adb` bash script.
+
+## Phase 3a — done (2026-10-13)
+
+Validation `cargo nextest run -p jidr-proto -p jidr-adb`: 15 passed; also passes with `JIDR_PROTO_VENDORED=1`.
+Notes: the generated code addresses `emulator_snapshot` as `super::super::super::…`, so modules mirror the proto packages (`android::emulation::control`, re-exported as `control`).

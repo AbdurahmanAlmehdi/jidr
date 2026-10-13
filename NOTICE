@@ -20,4 +20,7 @@ Project, Genymobile/Genymotion or the Magisk project. Android is a trademark
 of Google LLC; Genymotion is a trademark of Genymobile SAS.
 
 Third-party attributions:
-(none yet; ported MIT/Apache code must be listed here with its copyright notice)
+(ported MIT/Apache code must be listed here with its copyright notice)
+- crates/jidr-proto/proto/*.proto: the Android Emulator's public gRPC
+  definitions, Copyright (C) 2018 The Android Open Source Project, licensed
+  under the Apache License 2.0.

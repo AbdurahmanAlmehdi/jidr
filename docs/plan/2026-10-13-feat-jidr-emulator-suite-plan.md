@@ -200,7 +200,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `cargo nextest run -p jidr-core -p jidr-sdk && cargo nextest run -p jidr-sdk --features emulator && scripts/e2e-studio-untouched.sh`
 
 ### Phase 3a (A): gRPC bindings + adb
-- **Status:** Not started
+- **Status:** Done
 - **Scope:** `jidr-proto` build.rs (generate from the installed SDK proto, with a vendored fallback copy); `jidr-adb` wrapper (devices, shell, install, push/pull, logcat, root/unroot, connect).
 - **Files touched:** `crates/jidr-proto/**`, `crates/jidr-adb/**`
 - **Acceptance criteria:** proto builds with and without an SDK present; adb wrapper unit tests with a fake `adb` binary.
