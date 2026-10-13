@@ -8,6 +8,7 @@ A stream that needs a hook, command or change in another stream's files adds a r
 
 | # | Needs | From stream | Blocking phase | Owner | Status |
 |---|---|---|---|---|---|
+| C1 | FYI: `jidr-cpio` adds `lz4` 1.28 (bundled liblz4), `flate2` 1.1 with the `zlib` backend and `liblzma` 0.4 (`static`) in its own manifest, so `Cargo.lock` changes on Stream C's branch; regenerate the lockfile on merge. Promote them to `[workspace.dependencies]` only if another crate needs them. | C | none | A | Info |
 
 ## 🔎 Research gaps (D11)
 

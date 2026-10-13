@@ -1,0 +1,8 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 36382113cb447cfb054dd0185735010f038eb01932bdb803731471a0554c64f4 # shrinks to a = Archive { format: Newc, entries: [], trailer: Entry { name: "TRAILER!!!", ino: 0, mode: 0, uid: 0, gid: 0, nlink: 1, mtime: 0, dev_major: 0, dev_minor: 0, rdev_major: 0, rdev_minor: 0, check: 0, data: [] }, tail: [0] }
+cc 13c98fe55a25c1dbedfbd702dc24d5b89bbda6f8fdecfaff3100ff324cf1f901 # shrinks to archives = [Archive { format: Newc, entries: [], trailer: Entry { name: "TRAILER!!!", ino: 0, mode: 0, uid: 0, gid: 0, nlink: 1, mtime: 0, dev_major: 0, dev_minor: 0, rdev_major: 0, rdev_minor: 0, check: 0, data: [] }, tail: [] }], pad = 1

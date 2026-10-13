@@ -319,7 +319,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `manual 1. run spikes/playstore-root/run.sh --api 35 2. confirm uid=0 printed without touching the device 3. read ADR-0002`
 
 ### Phase 9b (C): Ramdisk cpio library (day 1)
-- **Status:** Not started
+- **Status:** Done
 - **Scope:** standalone `jidr-cpio`: read/write cpio newc, gz/lz4-legacy/xz compression detection and round-trip, add/replace/remove entries. Clean-room from the cpio format spec; no GPL code copied.
 - **Files touched:** `crates/jidr-cpio/**`
 - **Acceptance criteria:** round-trip of a real emulator `ramdisk.img` is byte-identical after decompress → parse → write → compress with the same settings; property tests.
