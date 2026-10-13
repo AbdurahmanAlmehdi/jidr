@@ -123,7 +123,7 @@ async fn device_lifecycle() {
         .err("device.connect_info", json!({ "device": "Phone A" }))
         .await;
     assert_eq!(e["data"]["code"], "not_found");
-    let started = c.ok("device.start", json!({ "device": "Phone A" })).await;
+    let started = c.run("device.start", json!({ "device": "Phone A" })).await;
     assert_eq!(started["status"]["state"], "running");
     let ci = c
         .ok("device.connect_info", json!({ "device": "Phone A" }))
@@ -169,7 +169,7 @@ async fn device_lifecycle() {
         )
         .await;
     assert_eq!(copy["launch"]["force_cold_boot"], true);
-    c.ok("device.start", json!({ "device": "Phone C" })).await;
+    c.run("device.start", json!({ "device": "Phone C" })).await;
     let launches = h.backend.launches();
     assert!(
         launches.last().unwrap().1.cold_boot,
@@ -192,20 +192,21 @@ async fn busy_lock_names_the_holder() {
     a.ok("device.create", json!({ "name": "Slow", "image": "35" }))
         .await;
     let gate = h.backend.gate_starts();
-    // A starts (and blocks in the backend); B tries to stop meanwhile.
-    a.send_raw(&json!({ "jsonrpc": "2.0", "id": 99, "method": "device.start", "params": { "device": "Slow" } }).to_string())
-        .await;
-    tokio::time::sleep(Duration::from_millis(200)).await;
+    // A starts: the job holds the lock while the backend blocks.
+    let started = a.ok("device.start", json!({ "device": "Slow" })).await;
+    assert_eq!(started["pending"], true);
+    let job = started["job"].clone();
     let e = b.err("device.stop", json!({ "device": "Slow" })).await;
     assert_eq!(e["code"], -32004);
     assert_eq!(e["data"]["code"], "busy");
     assert_eq!(e["data"]["details"]["op"], "device.start");
+    assert_eq!(e["data"]["details"]["holder"], job, "the holder is the job");
     // Reads don't take the lock.
     b.ok("device.details", json!({ "device": "Slow" })).await;
     gate.add_permits(1);
-    let r = a.read().await;
-    assert_eq!(r["id"], 99);
-    assert_eq!(r["result"]["status"]["state"], "running");
+    let done = a.ok("jobs.wait", json!({ "job": job })).await;
+    assert_eq!(done["state"], "succeeded");
+    assert_eq!(done["result"]["status"]["state"], "running");
     b.ok("device.stop", json!({ "device": "Slow" })).await;
     h.stop().await;
 }
@@ -216,7 +217,7 @@ async fn crash_is_reported_not_restarted() {
     let mut c = h.client().await;
     c.ok("device.create", json!({ "name": "Crashy", "image": "35" }))
         .await;
-    let d = c.ok("device.start", json!({ "device": "Crashy" })).await;
+    let d = c.run("device.start", json!({ "device": "Crashy" })).await;
     let pid = d["runtime"]["pid"].as_u64().unwrap() as u32;
     h.backend.crash(pid);
     let mut state = json!(null);
@@ -232,7 +233,7 @@ async fn crash_is_reported_not_restarted() {
     assert_eq!(state["reason"], "fake crash");
     assert_eq!(h.backend.launches().len(), 1, "D9: no auto-restart");
     // A crashed device can be started again.
-    c.ok("device.start", json!({ "device": "Crashy" })).await;
+    c.run("device.start", json!({ "device": "Crashy" })).await;
     h.stop().await;
 }
 

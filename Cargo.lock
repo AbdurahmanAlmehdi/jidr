@@ -2713,6 +2713,16 @@ dependencies = [
 [[package]]
 name = "jidr-client"
 version = "0.1.0"
+dependencies = [
+ "jidr-backend",
+ "jidr-core",
+ "jidr-daemon",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "uuid",
+]
 
 [[package]]
 name = "jidr-core"

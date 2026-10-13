@@ -17,19 +17,15 @@ use uuid::Uuid;
 
 use crate::locks::DeviceLocks;
 use crate::store::DeviceStore;
-
-/// An event published to `events.subscribe` listeners.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct Event {
-    pub topic: String,
-    pub data: Value,
-}
+use jidr_core::rpc::Event;
 
 #[derive(Debug, Clone)]
 pub struct DaemonConfig {
     pub paths: JidrPaths,
     /// Android Studio's SDK (read-only). `None` = auto-detect.
     pub studio_sdk: Option<PathBuf>,
+    /// Exit after this long idle (D4: 10 min). `None` = never.
+    pub idle_timeout: Option<std::time::Duration>,
 }
 
 pub struct State {

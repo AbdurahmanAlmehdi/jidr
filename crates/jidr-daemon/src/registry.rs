@@ -21,7 +21,13 @@ impl std::fmt::Debug for Registry {
 }
 
 /// Methods the server handles itself (not provider commands).
-pub const BUILTIN_METHODS: &[&str] = &["hello", "commands.list"];
+pub const BUILTIN_METHODS: &[&str] = &[
+    "hello",
+    "commands.list",
+    "events.subscribe",
+    "logcat.follow",
+    "daemon.shutdown",
+];
 
 impl Registry {
     pub fn new() -> Self {
