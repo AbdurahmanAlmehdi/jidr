@@ -1,0 +1,131 @@
+---
+interface Feature {
+  title: string;
+  body: string;
+  tag: "paid" | "new";
+}
+
+// Text only, no logos (D34). Only features in Jidr's MVP plan are listed.
+const features: Feature[] = [
+  {
+    title: "Command-line automation",
+    body: "Create, boot, install, push, pull and delete devices from scripts, with JSON output and stable exit codes for CI.",
+    tag: "paid",
+  },
+  {
+    title: "Root on Android 12 and later",
+    body: "Shell root or full Magisk root on current Android versions, verified and reversible.",
+    tag: "paid",
+  },
+  {
+    title: "Network profiles",
+    body: "Turn Wi-Fi and mobile data on and off, and simulate slow or high-latency networks.",
+    tag: "paid",
+  },
+  {
+    title: "GPS route replay",
+    body: "Replay GPX and KML tracks at any speed, or drop a pin on an OpenStreetMap map.",
+    tag: "paid",
+  },
+  {
+    title: "Quick boot",
+    body: "Stopping a device saves its state, so the next start takes seconds. Cold boot is one click away.",
+    tag: "paid",
+  },
+  {
+    title: "Motion sensors and rotation",
+    body: "Rotate the device and set accelerometer and gyroscope values for sensor-driven apps.",
+    tag: "paid",
+  },
+  {
+    title: "Android controls",
+    body: "D-pad, volume, power and media keys from a panel beside the screen or the keyboard.",
+    tag: "paid",
+  },
+  {
+    title: "Snapshots tagged with root mode",
+    body: "Save and restore named device states. Each snapshot remembers how the device was rooted.",
+    tag: "new",
+  },
+  {
+    title: "Built for AI agents",
+    body: "An MCP server exposes every action: screenshot, tap, type, read the UI tree and logs.",
+    tag: "new",
+  },
+];
+---
+
+<section id="features" class="section" aria-labelledby="features-title">
+  <div class="container">
+    <p class="eyebrow">Everything free</p>
+    <h2 id="features-title" class="section-title">Genymotion's paid features, free.</h2>
+    <p class="section-lede">
+      The features that usually sit behind a yearly subscription, in a free and open-source app, plus
+      a few that don't exist elsewhere.
+    </p>
+    <ul class="grid">
+      {
+        features.map((f) => (
+          <li class="feature">
+            <span class:list={["tag", f.tag]}>
+              {f.tag === "paid" ? "Paid in Genymotion Desktop" : "New in Jidr"}
+            </span>
+            <h3>{f.title}</h3>
+            <p>{f.body}</p>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</section>
+
+<style>
+  .grid {
+    display: grid;
+    gap: var(--jidr-space-4);
+    margin: var(--jidr-space-8) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  @media (min-width: 640px) {
+    .grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (min-width: 1024px) {
+    .grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  .feature {
+    display: flex;
+    flex-direction: column;
+    gap: var(--jidr-space-2);
+    padding: var(--jidr-space-6);
+    border: var(--jidr-border-width) solid var(--jidr-color-border-subtle);
+    border-radius: var(--jidr-radius-md);
+    background: var(--jidr-color-surface-raised);
+  }
+  .tag {
+    align-self: flex-start;
+    padding: 2px var(--jidr-space-2);
+    border-radius: var(--jidr-radius-pill);
+    font-size: var(--jidr-text-caption);
+    font-weight: 600;
+  }
+  .tag.paid {
+    background: var(--jidr-color-surface-sunken);
+    color: var(--jidr-color-text-secondary);
+  }
+  .tag.new {
+    background: var(--jidr-color-accent-subtle);
+    color: var(--jidr-color-accent);
+  }
+  .feature h3 {
+    font-size: var(--jidr-text-title);
+  }
+  .feature p {
+    color: var(--jidr-color-text-secondary);
+    font-size: var(--jidr-text-label);
+  }
+</style>

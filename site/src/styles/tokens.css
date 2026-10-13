@@ -1,0 +1,104 @@
+/*
+ * Jidr design tokens (placeholder until docs/design/tokens.json exists).
+ *
+ * Every value the site uses lives here. Names follow the planned mapping
+ * color.surface.raised → --jidr-color-surface-raised → Theme.surface-raised
+ * (Slint), so swapping in the real design system is a single-file change.
+ *
+ * Contrast (WCAG 2.x), text on base / raised / sunken:
+ *   light: primary 16.7 · secondary 8.8 · tertiary 6.0 · accent 6.8 · positive 6.3 · warning 6.2
+ *   dark:  primary 16.5 · secondary 10.8 · tertiary 7.0 · accent 7.6 · positive 10.1 · warning 9.8
+ *   on-accent: light 7.1, dark 7.8
+ */
+
+:root {
+  color-scheme: light dark;
+
+  --jidr-color-surface-base: #fbfaf7;
+  --jidr-color-surface-raised: #ffffff;
+  --jidr-color-surface-sunken: #f2efe8;
+  --jidr-color-text-primary: #1c1a16;
+  --jidr-color-text-secondary: #4d473e;
+  --jidr-color-text-tertiary: #685f53;
+  --jidr-color-text-code: #3b352d;
+  --jidr-color-text-on-accent: #ffffff;
+  --jidr-color-border-subtle: #e7e2d8;
+  --jidr-color-border-default: #d3ccbf;
+  --jidr-color-border-strong: #8f8678;
+  --jidr-color-accent: #963d14;
+  --jidr-color-accent-hover: #7d3210;
+  --jidr-color-accent-subtle: #f6e7dd;
+  --jidr-color-positive: #1d6a39;
+  --jidr-color-positive-subtle: #e2f1e6;
+  --jidr-color-warning: #855400;
+  --jidr-color-warning-subtle: #f7ecd6;
+  --jidr-color-focus-ring: #1f5fbf;
+
+  --jidr-font-ui: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --jidr-font-arabic: "Geeza Pro", "SF Arabic", "Noto Sans Arabic", "Segoe UI", sans-serif;
+  --jidr-font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+    monospace;
+
+  --jidr-text-hero: clamp(2.25rem, 1.4rem + 3.6vw, 4rem);
+  --jidr-text-headline: clamp(1.6rem, 1.2rem + 1.6vw, 2.25rem);
+  --jidr-text-title: 1.125rem;
+  --jidr-text-body: 1rem;
+  --jidr-text-lede: 1.1875rem;
+  --jidr-text-label: 0.875rem;
+  --jidr-text-caption: 0.8125rem;
+  --jidr-leading-tight: 1.1;
+  --jidr-leading-body: 1.6;
+
+  --jidr-space-1: 0.25rem;
+  --jidr-space-2: 0.5rem;
+  --jidr-space-3: 0.75rem;
+  --jidr-space-4: 1rem;
+  --jidr-space-6: 1.5rem;
+  --jidr-space-8: 2rem;
+  --jidr-space-12: 3rem;
+  --jidr-space-16: 4rem;
+  --jidr-space-24: 6rem;
+
+  --jidr-radius-sm: 6px;
+  --jidr-radius-md: 10px;
+  --jidr-radius-lg: 16px;
+  --jidr-radius-pill: 999px;
+
+  --jidr-border-width: 1px;
+  --jidr-shadow-raised: 0 1px 2px rgb(28 26 22 / 0.06), 0 4px 16px rgb(28 26 22 / 0.06);
+  --jidr-content-width: 72rem;
+  --jidr-duration-fast: 120ms;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --jidr-color-surface-base: #131210;
+    --jidr-color-surface-raised: #1c1a17;
+    --jidr-color-surface-sunken: #0d0c0a;
+    --jidr-color-text-primary: #f3f0ea;
+    --jidr-color-text-secondary: #cbc4b8;
+    --jidr-color-text-tertiary: #a59d90;
+    --jidr-color-text-code: #e2dccf;
+    --jidr-color-text-on-accent: #1a0c05;
+    --jidr-color-border-subtle: #2a2723;
+    --jidr-color-border-default: #3b3731;
+    --jidr-color-border-strong: #7b7367;
+    --jidr-color-accent: #ec8d5f;
+    --jidr-color-accent-hover: #f3a47e;
+    --jidr-color-accent-subtle: #2f1c12;
+    --jidr-color-positive: #74d197;
+    --jidr-color-positive-subtle: #14281b;
+    --jidr-color-warning: #e5b45a;
+    --jidr-color-warning-subtle: #2b2111;
+    --jidr-color-focus-ring: #7fb0ff;
+    /* In dark mode elevation is a surface tint, not a shadow. */
+    --jidr-shadow-raised: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --jidr-duration-fast: 0ms;
+  }
+}

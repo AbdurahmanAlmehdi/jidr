@@ -1,0 +1,58 @@
+---
+const points = [
+  {
+    title: "Google's emulator, downloaded by you",
+    body: "Jidr runs the open-source Android Emulator headless. It never ships Google's binaries or system images: it downloads them on your Mac after you read and accept Google's license.",
+  },
+  {
+    title: "Magisk is never bundled",
+    body: "Full root downloads the official Magisk release from its GitHub page, checks a pinned SHA-256 and shows you its license.",
+  },
+  {
+    title: "Your Android Studio setup is left alone",
+    body: "Jidr keeps its own SDK and devices. It only ever reads Android Studio's, and uninstalling removes everything Jidr created.",
+  },
+  {
+    title: "No accounts, no telemetry",
+    body: "Nothing to sign in to, nothing phoning home. Apache-2.0 core, GPLv3 desktop app.",
+  },
+];
+---
+
+<section id="honest" class="section" aria-labelledby="honest-title">
+  <div class="container">
+    <p class="eyebrow">Plainly</p>
+    <h2 id="honest-title" class="section-title">How it works, and what it won't do.</h2>
+    <dl class="points">
+      {
+        points.map((p) => (
+          <div>
+            <dt>{p.title}</dt>
+            <dd>{p.body}</dd>
+          </div>
+        ))
+      }
+    </dl>
+  </div>
+</section>
+
+<style>
+  .points {
+    display: grid;
+    gap: var(--jidr-space-8);
+    margin: var(--jidr-space-8) 0 0;
+  }
+  @media (min-width: 768px) {
+    .points {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  dt {
+    font-weight: 650;
+    font-size: var(--jidr-text-title);
+  }
+  dd {
+    margin: var(--jidr-space-2) 0 0;
+    color: var(--jidr-color-text-secondary);
+  }
+</style>

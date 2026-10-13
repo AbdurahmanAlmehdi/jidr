@@ -1,0 +1,119 @@
+---
+import Icon from "./Icon.astro";
+import { links } from "../config";
+---
+
+<section class="hero container" aria-labelledby="hero-title">
+  <div class="copy">
+    <p class="eyebrow">Coming soon · free and open source</p>
+    <h1 id="hero-title">Android emulators for the Mac, rooted in one click.</h1>
+    <p class="lede">
+      Jidr creates and runs virtual Android phones and tablets on Apple Silicon. Pick
+      <strong>Full root</strong> when you create a device, and about a minute later it shows a
+      verified Magisk root. Every button is also a CLI command and an MCP tool, so scripts and AI
+      agents can drive it too.
+    </p>
+    <div class="actions">
+      <a class="button button-primary" href={links.repo}><Icon name="star" />Star on GitHub</a>
+      <a class="button" href={links.sponsors}><Icon name="heart" />Sponsor</a>
+    </div>
+    <p class="note">macOS on Apple Silicon first. Linux and Windows later.</p>
+  </div>
+
+  <figure class="terminal" aria-label="Preview of the Jidr command line">
+    <div class="terminal-bar" aria-hidden="true"><span></span><span></span><span></span></div>
+    <pre><code><span class="prompt">$</span> jidr device create "Pixel-ish 6.1" --api 35 --root magisk --wait-boot
+<span class="dim">Downloading Magisk 30.7 · checksum verified</span>
+<span class="dim">Patching a private copy of the ramdisk</span>
+<span class="dim">Cold booting · installing Magisk · rebooting</span>
+<span class="ok">Rooted ✓</span> Pixel-ish 6.1 · Android 15 · Magisk 30.7 · verified
+<span class="prompt">$</span> adb -s emulator-5556 shell su -c id
+uid=0(root) gid=0(root)</code></pre>
+    <figcaption>Planned CLI. Jidr is in development.</figcaption>
+  </figure>
+</section>
+
+<style>
+  .hero {
+    display: grid;
+    gap: var(--jidr-space-12);
+    padding-block: var(--jidr-space-16) var(--jidr-space-24);
+  }
+  @media (min-width: 1024px) {
+    .hero {
+      grid-template-columns: 1fr 1fr;
+      align-items: center;
+    }
+  }
+  h1 {
+    margin-top: var(--jidr-space-3);
+    font-size: var(--jidr-text-hero);
+    letter-spacing: -0.03em;
+  }
+  .lede {
+    margin-top: var(--jidr-space-6);
+    max-width: 36rem;
+    font-size: var(--jidr-text-lede);
+    color: var(--jidr-color-text-secondary);
+  }
+  .lede strong {
+    color: var(--jidr-color-text-primary);
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--jidr-space-3);
+    margin-top: var(--jidr-space-8);
+  }
+  .note {
+    margin-top: var(--jidr-space-4);
+    font-size: var(--jidr-text-caption);
+    color: var(--jidr-color-text-tertiary);
+  }
+  .terminal {
+    margin: 0;
+    min-width: 0;
+    border: var(--jidr-border-width) solid var(--jidr-color-border-default);
+    border-radius: var(--jidr-radius-lg);
+    background: var(--jidr-color-surface-sunken);
+    box-shadow: var(--jidr-shadow-raised);
+    overflow: hidden;
+  }
+  .terminal-bar {
+    display: flex;
+    gap: 6px;
+    padding: var(--jidr-space-3) var(--jidr-space-4);
+    border-bottom: var(--jidr-border-width) solid var(--jidr-color-border-subtle);
+  }
+  .terminal-bar span {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--jidr-color-border-default);
+  }
+  pre {
+    margin: 0;
+    padding: var(--jidr-space-4);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: var(--jidr-text-caption);
+    line-height: 1.7;
+    color: var(--jidr-color-text-code);
+  }
+  .prompt {
+    color: var(--jidr-color-accent);
+  }
+  .dim {
+    color: var(--jidr-color-text-tertiary);
+  }
+  .ok {
+    color: var(--jidr-color-positive);
+    font-weight: 700;
+  }
+  figcaption {
+    padding: 0 var(--jidr-space-4) var(--jidr-space-3);
+    font-family: var(--jidr-font-ui);
+    font-size: var(--jidr-text-caption);
+    color: var(--jidr-color-text-tertiary);
+  }
+</style>

@@ -1,0 +1,23 @@
+---
+import Base from "../layouts/Base.astro";
+import Header from "../components/Header.astro";
+import Hero from "../components/Hero.astro";
+import RootShowcase from "../components/RootShowcase.astro";
+import FeatureGrid from "../components/FeatureGrid.astro";
+import Honest from "../components/Honest.astro";
+import Footer from "../components/Footer.astro";
+---
+
+<Base
+  title="Jidr: free Android emulators for the Mac, rooted in one click"
+  description="Jidr (جذر) is a free, open-source Android emulator for Apple Silicon Macs with one-click rooted devices, a CLI and an MCP server for AI agents. Coming soon."
+>
+  <Header />
+  <main id="main">
+    <Hero />
+    <RootShowcase />
+    <FeatureGrid />
+    <Honest />
+  </main>
+  <Footer />
+</Base>
