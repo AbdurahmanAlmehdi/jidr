@@ -1,13 +1,14 @@
-//! A daemon on a temp socket with the fake backend and a fake Studio SDK.
+//! A raw-socket client on top of `jidr_daemon::testing::TestDaemon`.
 #![allow(dead_code)]
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
 use jidr_backend::fake::FakeBackend;
-use jidr_core::{ImageRef, JidrPaths};
-use jidr_daemon::{Daemon, DaemonConfig};
+use jidr_core::JidrPaths;
+use jidr_daemon::Daemon;
+use jidr_daemon::testing::TestDaemon;
 use serde_json::{Value, json};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::UnixStream;
@@ -18,85 +19,19 @@ pub struct Harness {
     pub paths: JidrPaths,
     pub backend: Arc<FakeBackend>,
     pub daemon: Arc<Daemon>,
-    shutdown: Option<tokio::sync::oneshot::Sender<()>>,
-    task: Option<tokio::task::JoinHandle<()>>,
-}
-
-pub fn image() -> ImageRef {
-    ImageRef {
-        api: 35,
-        tag: "google_apis".into(),
-        abi: jidr_sdk::host::host_abi().into(),
-    }
-}
-
-fn write_exec(path: &Path, body: &str) {
-    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-    std::fs::write(path, body).unwrap();
-    use std::os::unix::fs::PermissionsExt;
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).unwrap();
-}
-
-/// A Studio-like SDK with an emulator, an adb that echoes, and one image.
-pub fn fake_studio(root: &Path) -> PathBuf {
-    write_exec(&root.join("emulator/emulator"), "#!/bin/sh\nexit 0\n");
-    write_exec(
-        &root.join("platform-tools/adb"),
-        "#!/bin/sh\nwhile [ \"$1\" = -s ]; do shift 2; done\ncase \"$1\" in\n  install) echo Success;;\n  logcat) echo 'I/fake: hello';;\n  *) echo ok;;\nesac\n",
-    );
-    for img in [
-        image(),
-        ImageRef {
-            tag: "google_apis_playstore".into(),
-            ..image()
-        },
-    ] {
-        let dir = root.join(img.sysdir());
-        std::fs::create_dir_all(&dir).unwrap();
-        for f in ["source.properties", "system.img", "ramdisk.img"] {
-            std::fs::write(dir.join(f), b"x").unwrap();
-        }
-    }
-    root.to_path_buf()
+    inner: TestDaemon,
 }
 
 impl Harness {
     pub async fn start() -> Self {
         let tmp = tempfile::tempdir().unwrap();
-        let paths = JidrPaths::under(tmp.path().join("j"));
-        let studio = fake_studio(&tmp.path().join("studio"));
-        let backend = Arc::new(FakeBackend::new());
-        let daemon = Daemon::builder(
-            DaemonConfig {
-                paths: paths.clone(),
-                studio_sdk: Some(studio),
-            },
-            backend.clone(),
-        )
-        .build()
-        .unwrap();
-        let (tx, rx) = tokio::sync::oneshot::channel();
-        let d = daemon.clone();
-        let task = tokio::spawn(async move {
-            d.serve(async {
-                let _ = rx.await;
-            })
-            .await
-            .unwrap();
-        });
-        for _ in 0..200 {
-            if paths.socket().exists() {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
+        let inner = TestDaemon::start(tmp.path()).await.unwrap();
         Self {
+            paths: inner.paths.clone(),
+            backend: inner.backend.clone(),
+            daemon: inner.daemon.clone(),
             tmp,
-            paths,
-            backend,
-            daemon,
-            shutdown: Some(tx),
-            task: Some(task),
+            inner,
         }
     }
 
@@ -117,13 +52,8 @@ impl Harness {
         c
     }
 
-    pub async fn stop(mut self) {
-        if let Some(tx) = self.shutdown.take() {
-            let _ = tx.send(());
-        }
-        if let Some(t) = self.task.take() {
-            let _ = t.await;
-        }
+    pub async fn stop(self) {
+        self.inner.stop().await;
     }
 }
 
@@ -179,6 +109,17 @@ impl Conn {
         r.get("result")
             .cloned()
             .unwrap_or_else(|| panic!("{method} failed: {r}"))
+    }
+
+    /// Like `ok`, but follows a `{job, pending}` answer to the job's result.
+    pub async fn run(&mut self, method: &str, params: Value) -> Value {
+        let r = self.ok(method, params).await;
+        if r.get("pending") != Some(&json!(true)) {
+            return r;
+        }
+        let job = self.ok("jobs.wait", json!({ "job": r["job"] })).await;
+        assert_eq!(job["state"], "succeeded", "{method} job: {job}");
+        job["result"].clone()
     }
 
     pub async fn err(&mut self, method: &str, params: Value) -> Value {

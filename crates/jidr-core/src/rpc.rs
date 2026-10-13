@@ -1,6 +1,6 @@
 //! JSON-RPC 2.0 message types (newline-delimited JSON over the socket).
 
-use jidr_core::{ErrorCode, JidrError};
+use crate::{ErrorCode, JidrError};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -120,6 +120,18 @@ impl Notification {
         }
     }
 }
+
+/// An event published to `events.subscribe` listeners, sent as an `event`
+/// notification.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Event {
+    /// e.g. `device.status`, `device.boot`, `job.progress`, `logcat`.
+    pub topic: String,
+    pub data: Value,
+}
+
+/// The notification method carrying events.
+pub const EVENT_METHOD: &str = "event";
 
 /// `hello` params and result.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]

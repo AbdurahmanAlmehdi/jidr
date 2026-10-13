@@ -204,3 +204,27 @@ Validation `cargo nextest run -p jidr-daemon`: 17 passed. Conformance: bad JSON 
 Bug caught by the conformance test: locked commands resolved the device before validating params, so a type error surfaced as `not_found`. Params are now validated against the schema first (`validate::tests`).
 
 Deferred to 4b: long-running commands still run inline (jobs + `{job, pending}` come next), `events.subscribe`, idle exit.
+
+---
+
+## Phase 4b: Jobs, events, lifecycle, client — plan
+
+Gaps: A1/A2 open (B/C), C1 FYI. Nothing blocking anyone.
+
+- Move JSON-RPC types (`rpc`) and `Event` into `jidr-core` so `jidr-client` stays light (no daemon dependency).
+- `jobs`: `JobManager` (`Job` + `Cancel` + watch channel per job, last 200 finished kept). A `longRunning` command validates params, takes the device lock and creates the job **before** answering `{job, pending: true}` (so conflicts still fail synchronously); the task holds the lock until it finishes. Progress → `job.progress` events; the end → `job.finished`. Cancel → `cancelled` state (cancel errors recognised via `cancel::is_cancelled`). `JobsProvider`: `jobs.list|get|cancel|wait` (`wait` blocks until terminal or `timeout_s`).
+- Events: `events.subscribe {topics}` (prefix filters) per connection → `{"method":"event","params":{topic,data}}` notifications; `logcat.follow {device, filter}` streams `logcat` events on that connection until it closes.
+- Lifecycle (D4): `IdleMonitor`: exit once there are no running devices, no clients and no active jobs for `idle_timeout` (10 min; `None` in tests). Tested with paused tokio time.
+- `jidr-client`: `Client::connect` (+ hello, stale → `daemon_stale`), `connect_or_spawn` (spawn `jidr daemon` detached: `JIDR_DAEMON_BIN`, the sibling `jidr`, or `PATH`), `call`, `run` (follows jobs to completion), `wait_job`, `subscribe` (broadcast receiver), `cancel_job`.
+- Tests: cancel a gated boot → job `cancelled`, device `stopped`, nothing running; a subscriber sees `device.boot` stages + `job.finished`; idle exit with paused time; client end-to-end against an in-process daemon (calls, jobs, events, stale).
+
+## Phase 4b: Jobs, events, lifecycle, client — done (2026-10-13)
+
+Built:
+- `jidr-core::rpc` (moved from the daemon) + `Event`, `EVENT_METHOD`.
+- `jidr-daemon`: `jobs` (`JobManager` with watch channels, cap of 200 finished, `JobsProvider`: `jobs.list|get|cancel|wait`); long-running commands validate → lock → create job → answer `{job, pending: true}`, the job task holds the lock; `job.started|progress|finished` events. `events.subscribe {topics}` (prefix filters, re-subscribe replaces, lag notice) and `logcat.follow` as per-connection streams. `daemon.shutdown` (allowed before hello) to replace a stale daemon; open connections close when serving ends. `lifecycle::idle_for` (D4: no devices, clients or jobs for 10 min → exit; `DaemonConfig.idle_timeout`). `testing::TestDaemon` + `fake_studio`, shared by daemon/client/CLI/MCP tests. `DaemonBuilder::version` (stale tests).
+- `jidr-client`: `Client::connect` (+hello), `connect_or_spawn` (spawns `jidr daemon` in its own process group, logs to `daemon.log`, `restart_stale` path), `call`, `call_as`, `run` (follows jobs, reports progress, maps failed/cancelled), `wait_job`, `cancel_job`, `subscribe`, `events`, `shutdown_daemon`, `pending_job`.
+
+Validation `cargo nextest run -p jidr-daemon -p jidr-client`: 30 passed (3 runs). Covered: cancelling a gated boot → job `cancelled`, device `stopped`, nothing running, lock released; a subscriber gets `spawned → grpc_ready → adb_online → booted` then `job.finished`; topic filters; logcat streaming; failed job carries `boot_timeout`; idle exit after 10 virtual minutes with paused time (activity resets the clock); client calls/jobs/errors/events, stale daemon detected and shut down, spawn path invokes `jidr daemon`, closed daemon → calls fail instead of hanging.
+
+Notes: the spawn test polls for its marker (the spawned process can lag under parallel load).

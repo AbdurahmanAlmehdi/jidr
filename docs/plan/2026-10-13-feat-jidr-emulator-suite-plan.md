@@ -228,7 +228,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `cargo nextest run -p jidr-daemon`
 
 ### Phase 4b (A): Jobs, events, lifecycle, client
-- **Status:** Not started
+- **Status:** Done
 - **Scope:** jobs with progress and cancel; `events.subscribe` (device state, boot progress, job progress, logcat); auto-start on first client and idle exit 10 min after the last device stops (D4); `jidr-client` library.
 - **Files touched:** `crates/jidr-daemon/src/{jobs,events,lifecycle}.rs`, `crates/jidr-client/**`
 - **Acceptance criteria:** job cancel leaves the state unchanged; subscriber receives boot progress; the daemon exits after idle (time-mocked test).

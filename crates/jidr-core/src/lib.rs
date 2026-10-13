@@ -6,6 +6,7 @@ pub mod error;
 pub mod model;
 pub mod paths;
 pub mod provider;
+pub mod rpc;
 
 pub use cancel::Cancel;
 pub use error::{ErrorCode, JidrError, JidrResult, ResultExt};
