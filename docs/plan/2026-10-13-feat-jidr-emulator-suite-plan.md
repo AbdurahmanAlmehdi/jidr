@@ -214,7 +214,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `cargo nextest run -p jidr-backend --features emulator`
 
 ### Phase 3c (A): Backend resilience
-- **Status:** Not started
+- **Status:** Done
 - **Scope:** crash detection (process exit, gRPC drop) with logs auto-saved and no auto-restart (D9); re-adopting running emulators after a daemon restart; refusing an AVD already running elsewhere (Android Studio lock); telnet console client (network speed/delay, gsm, power).
 - **Files touched:** `crates/jidr-backend/src/{crash,adopt,console}.rs`
 - **Acceptance criteria:** fault-injection test (kill the emulator process) reports `Crashed` with a log path; re-adopt test; double-launch refused.

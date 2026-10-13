@@ -1,7 +1,10 @@
 //! Backend trait and the AOSP emulator backend (spawn, discovery, gRPC/console
 //! clients, ports, boot wait, crash detection).
 
+pub mod adopt;
 pub mod aosp;
+pub mod console;
+pub mod crash;
 pub mod discovery;
 pub mod grpc;
 pub mod ports;
@@ -15,6 +18,8 @@ use jidr_core::{Cancel, DeviceRuntime, JidrResult};
 use serde::{Deserialize, Serialize};
 
 pub use aosp::AospBackend;
+pub use console::Console;
+pub use crash::{CrashKind, CrashReport};
 pub use ports::{PortAllocator, Ports};
 
 /// What to launch.

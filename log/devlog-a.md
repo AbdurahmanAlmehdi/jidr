@@ -145,3 +145,23 @@ Bugs found by the emulator test (each has a regression test):
 Open:
 - Quick boot is 13.5 s vs the ≤ 5 s metric: gRPC is up at 1.0 s, adb online at 7.3 s (adb server's emulator scan interval), `Booted` at 13.5 s (`getStatus.booted` lags after a snapshot restore). Tune later (e.g. trust `sys.boot_completed` alone after a snapshot load, nudge adb discovery).
 - Stop without saving the snapshot is only a launch-time choice (`snapshot_save=false`); a per-stop "don't save" needs another mechanism.
+
+---
+
+## Phase 3c: Backend resilience — plan
+
+Gaps: only C1 (FYI). Nothing to serve.
+
+- `console.rs`: telnet console client (`127.0.0.1:<console>`), banner + `auth <token>` from `~/.emulator_console_auth_token` (read-only; the emulator owns it), `OK` / `KO: …` replies. Typed helpers: `network speed|delay`, `gsm signal|data|voice`, `power ac|health|capacity|status`, `avd name`, `kill`. Unit-tested against an in-process fake console.
+- Double launch: `start` refuses an AVD whose `hardware-qemu.ini.lock` names a live pid (Android Studio or another Jidr) and an AVD this backend is already launching → `busy`. `jidr-backend` takes `jidr-sdk` as a dependency for the lock check.
+- `adopt.rs`: after a daemon restart, scan discovery files for live emulators whose `avd.dir` is under Jidr's AVD home, rebuild `InstanceInfo` (serial from the console port), claim their ports.
+- `crash.rs`: `wait_for_crash(info, log_dir)` resolves on process exit (exit watcher for owned instances, `kill -0` polling for adopted ones) or 3 failed gRPC heartbeats in a row; writes `crash-<ts>.log` (reason + emulator log) and returns a `CrashReport`. No auto-restart (D9). The daemon aborts the watcher before an intentional stop.
+- Emulator test (one boot): double launch refused → console `avd name`/`network speed`/`power ac` → a fresh backend re-adopts the instance (same pid/ports/token) → `kill -9` → crash reported with a saved log path.
+
+## Phase 3c: Backend resilience — done (2026-10-13)
+
+Built: `console` (telnet client: banner + `auth` from `~/.emulator_console_auth_token`, OK/KO parsing, network speed/delay, gsm signal/data/voice, power ac/health, avd name, kill; argument validation against injection), double-launch refusal in `start` (live `hardware-qemu.ini.lock` → busy, plus an in-flight set; `jidr-backend` now depends on `jidr-sdk`), `adopt` (discovery files under Jidr's AVD home with a live pid → `InstanceInfo`, ports claimed; Studio's emulators ignored), `crash` (`wait_for_crash`: exit watcher or `kill -0` polling + 3 missed gRPC heartbeats → `CrashReport` with a saved `crash-<ts>.log`; no restart).
+
+Validation `cargo nextest run -p jidr-backend --features emulator`: 17 passed, also with both emulator tests in parallel (`--test-threads 4`). Emulator test: double launch → busy; console commands on the real emulator; a fresh backend re-adopts the instance (same pid/ports/token/serial); `kill -9` → `Exited` report + crash log, seen by both the owning and the adopting backend.
+
+Bug found (regression test `discovery::tests::actual_ports_come_from_the_discovery_file`): two emulators launched at once by different processes both asked for console 5554; the loser silently bound another port and we talked to the wrong emulator's console. The discovery file (matched by pid or our reserved gRPC port) is now the source of truth for ports.

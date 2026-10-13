@@ -13,6 +13,7 @@ publish.workspace = true
 jidr-core.workspace = true
 jidr-proto.workspace = true
 jidr-adb.workspace = true
+jidr-sdk.workspace = true
 tokio.workspace = true
 tonic.workspace = true
 serde.workspace = true
@@ -25,7 +26,6 @@ async-trait = "0.1"
 
 [dev-dependencies]
 tempfile.workspace = true
-jidr-sdk.workspace = true
 
 [lints]
 workspace = true

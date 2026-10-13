@@ -1,6 +1,6 @@
 //! The AOSP emulator backend: spawn headless with gRPC, wait for boot, stop.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::process::Stdio;
 use std::sync::{Arc, Mutex};
@@ -34,6 +34,8 @@ pub struct AospBackend {
     ports: PortAllocator,
     /// Exit watchers of the emulators this process spawned, by pid.
     exits: Arc<Mutex<HashMap<u32, ExitWatch>>>,
+    /// AVDs being launched right now (before the emulator holds its lock).
+    launching: Arc<Mutex<HashSet<std::path::PathBuf>>>,
 }
 
 impl AospBackend {
@@ -188,12 +190,27 @@ impl AospBackend {
 
         // 1. Discovery file → gRPC token.
         let disc_deadline = Instant::now() + DISCOVERY_TIMEOUT;
-        let token = loop {
+        let (token, ports) = loop {
             check("starting")?;
-            if let Some(d) = crate::discovery::find(pid, ports.console, ports.grpc)
+            if let Some(d) = crate::discovery::find(pid, ports.grpc)
                 && let Some(t) = d.grpc_token()
             {
-                break t.to_string();
+                // Trust the ports the emulator actually bound: if another
+                // process took our console port first, the emulator falls
+                // back to a different one.
+                let actual = d.ports().unwrap_or(ports);
+                if actual != ports {
+                    tracing::warn!(
+                        ?ports,
+                        ?actual,
+                        "emulator bound different ports than requested"
+                    );
+                    // (If the boot then fails, the actual pair stays reserved
+                    // until restart; allocation skips it, nothing breaks.)
+                    self.ports().release(ports);
+                    self.ports().claim(actual);
+                }
+                break (t.to_string(), actual);
             }
             if Instant::now() > disc_deadline {
                 return Err(JidrError::sdk(format!(
@@ -288,11 +305,37 @@ impl Backend for AospBackend {
         progress: BootProgress<'_>,
         cancel: &Cancel,
     ) -> JidrResult<InstanceInfo> {
-        let ports = self.ports.allocate()?;
-        let result = self.launch(spec, opts, ports, progress, cancel).await;
-        if result.is_err() {
-            self.ports.release(ports);
+        // Refuse an AVD that is already running: started by Android Studio,
+        // another Jidr, or a launch still in progress here.
+        if jidr_sdk::AvdManager::new(&spec.avd_home).is_running(&spec.avd) {
+            return Err(JidrError::busy(format!(
+                "{} is already running in another emulator (Android Studio or another Jidr)",
+                spec.avd
+            )));
         }
+        let key = spec.avd_home.join(&spec.avd);
+        if !self
+            .launching
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(key.clone())
+        {
+            return Err(JidrError::busy(format!("{} is already starting", spec.avd)));
+        }
+        let result = match self.ports.allocate() {
+            Ok(ports) => {
+                let r = self.launch(spec, opts, ports, progress, cancel).await;
+                if r.is_err() {
+                    self.ports.release(ports);
+                }
+                r
+            }
+            Err(e) => Err(e),
+        };
+        self.launching
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(&key);
         result
     }
 
