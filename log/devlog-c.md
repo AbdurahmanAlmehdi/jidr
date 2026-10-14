@@ -266,3 +266,9 @@ entries in `.backup/.rmlist`. Regression test added. Also registered
 Validated: `cargo xtask ci` (203 tests) and a real arm64 API 31 `google_apis`
 run — none → adb → magisk → none in 255 s, `su -c id` = uid 0, `magisk -v`
 `30.7:MAGISK:R`, SDK ramdisk hash unchanged.
+
+## CI fix for PR #1's emulator jobs (2026-10-14)
+
+Run 38561510057 failed all three Linux KVM emulator jobs. Fast-forwarded `stream/c-root` to `5d8fec1` (prepared as draft PR #5, reviewed here):
+- `crates/jidr-root/tests/adb_emulator.rs`: dropped the step asserting `root.set {mode: magisk}` is refused. That was true before Phase 9d; Magisk mode now works and is covered by `magisk_emulator.rs`.
+- `crates/jidr-mcp/tests/agent_tasks.rs` (Stream A's file, test-only): taps Wait on a launcher "isn't responding" dialog during the agent tasks (API 30 CI), with a unit test.
