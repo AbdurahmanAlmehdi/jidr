@@ -1,0 +1,29 @@
+/* Page-level rules the design canvas gets from its host page. Tokens only. */
+body {
+  margin: 0;
+  background: var(--jidr-color-surface-base);
+  color: var(--jidr-color-text-primary);
+  font-family: var(--jidr-font-family-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+.skip-link {
+  position: absolute;
+  inset-inline-start: var(--jidr-space-lg);
+  top: -100px;
+  padding: var(--jidr-space-sm) var(--jidr-space-lg);
+  background: var(--jidr-color-surface-raised);
+  border-radius: var(--jidr-radius-md);
+  z-index: 10;
+}
+
+.skip-link:focus {
+  top: var(--jidr-space-lg);
+}
+
+/* The brand symbol in the header wordmark (D39), tinted like the text. */
+.lp-nav .logo .mark {
+  width: 22px;
+  height: 22px;
+  align-self: center;
+}

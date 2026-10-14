@@ -1,38 +1,38 @@
 ---
+// From docs/design/screens/Landing.dc.html (D41).
 import { links } from "../config";
 ---
 
-<footer class="footer">
-  <div class="container inner">
-    <p class="cta">
-      Jidr is in development. <a href={links.repo}>Follow along on GitHub</a> or
-      <a href={links.sponsors}>sponsor the work</a>.
-    </p>
-    <p class="fine">
-      Apache-2.0, with the desktop app under GPL-3.0. Jidr is not affiliated with or endorsed by
-      Google, the Android Open Source Project, Genymobile or the Magisk project. Android is a
-      trademark of Google LLC. Genymotion is a trademark of Genymobile SAS.
-    </p>
+<footer class="lfoot">
+  <div>
+    <h5 aria-level="3">Jidr <span lang="ar" style="font-family:var(--jidr-font-family-arabic);color:var(--jidr-color-root)">جذر</span></h5>
+    <ul>
+      <li>App: GPL-3.0; CLI and daemon: Apache-2.0</li>
+      <li><a href={links.repo}>Source on GitHub</a></li>
+      <li>© 2026 Jidr contributors</li>
+    </ul>
+  </div>
+  <div>
+    <h5 aria-level="3">Downloaded on your Mac</h5>
+    <ul>
+      <li>Android Emulator and system images: Google, under the Android SDK License, accepted in the app</li>
+      <li>Magisk: GPL-3.0</li>
+    </ul>
+  </div>
+  <div>
+    <h5 aria-level="3">Built with</h5>
+    <ul>
+      <li>Slint: GPL-3.0</li>
+      <li>Lucide icons: ISC</li>
+      <li>Geist, Geist Mono, Noto Kufi Arabic: OFL-1.1</li>
+      <li>Map data © OpenStreetMap contributors, ODbL</li>
+    </ul>
+  </div>
+  <div>
+    <h5 aria-level="3">Trademarks</h5>
+    <ul>
+      <li>Android is a trademark of Google LLC.</li>
+      <li>Jidr is not affiliated with Google or Genymotion.</li>
+    </ul>
   </div>
 </footer>
-
-<style>
-  .footer {
-    border-top: var(--jidr-border-width) solid var(--jidr-color-border-subtle);
-    background: var(--jidr-color-surface-sunken);
-  }
-  .inner {
-    display: grid;
-    gap: var(--jidr-space-4);
-    padding-block: var(--jidr-space-12);
-  }
-  .cta {
-    font-size: var(--jidr-text-title);
-    font-weight: 600;
-  }
-  .fine {
-    max-width: 48rem;
-    font-size: var(--jidr-text-caption);
-    color: var(--jidr-color-text-tertiary);
-  }
-</style>

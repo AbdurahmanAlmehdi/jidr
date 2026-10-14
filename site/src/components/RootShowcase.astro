@@ -1,32 +1,24 @@
 ---
-import RootModes from "./RootModes.vue";
+// From docs/design/screens/Landing.dc.html (D41, concept 8A), phase "soon", locale "en".
 ---
 
-<section id="root" class="section" aria-labelledby="root-title">
-  <div class="container">
-    <p class="eyebrow">The headline feature</p>
-    <h2 id="root-title" class="section-title">Root is a setting, not a weekend project.</h2>
-    <p class="section-lede">
-      Choose a root mode when you create a device. Jidr patches its own copy of the image, boots
-      it, checks the result and shows a verified badge. Switching back is one click, and the shared
-      images in your Android SDK are never modified.
-    </p>
-    <RootModes client:visible />
-    <p class="integrity">
-      Rooted emulators can't pass Play Integrity, and no emulator can. Magisk's hiding features only
-      affect local root checks.
-    </p>
-  </div>
-</section>
-
-<style>
-  .integrity {
-    margin-top: var(--jidr-space-6);
-    padding: var(--jidr-space-3) var(--jidr-space-4);
-    border-inline-start: 3px solid var(--jidr-color-warning);
-    background: var(--jidr-color-warning-subtle);
-    border-radius: var(--jidr-radius-sm);
-    font-size: var(--jidr-text-label);
-    max-width: 44rem;
-  }
-</style>
+<section class="lp-sec" id="root">
+        <span class="eyebrow">One-click root</span>
+        <h2 class="lp-h2">Pick Full root. Get a verified badge.</h2>
+        <p class="lead">Jidr does the patching you would otherwise do by hand, then checks that su really works before it says Rooted.</p>
+        <div class="rshow">
+          <div class="rseq2">
+            <div><svg class="ic i16 ok" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span>Download Magisk 30.7</span><span class="r">step 1</span></div>
+            <div><svg class="ic i16 ok" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span>Patch the boot image, keep the original</span><span class="r">step 2</span></div>
+            <div><svg class="ic i16 ok" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span>Reboot (about 40 s)</span><span class="r">step 3</span></div>
+            <div><svg class="ic i16 ok" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span>Install the Magisk app</span><span class="r">step 4</span></div>
+            <div><svg class="ic i16 ok" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span>Verify <code>su -c id</code></span><span class="r">step 5</span></div>
+          </div>
+          <div class="rres">
+            <span class="rb p-root-strong shape-solid"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="m9 12 2 2 4-4"/></svg>Rooted · Magisk 30.7</span>
+            <span class="num mut" style="font-size:13px">verified 14:02 · uid=0(root)</span>
+            <p class="mut" style="margin:0;font-size:15px;line-height:24px">If a step fails you see which one and why, with the log, and one click puts the device back the way it was.</p>
+            <div class="banner p-warning"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M12 8v4M12 16h.01"/></svg><span>Rooted emulators can't pass Play Integrity. Jidr says so wherever it matters.</span></div>
+          </div>
+        </div>
+      </section>

@@ -1,23 +1,31 @@
 ---
 import Base from "../layouts/Base.astro";
-import Header from "../components/Header.astro";
+import Nav from "../components/Nav.astro";
 import Hero from "../components/Hero.astro";
+import AppShot from "../components/AppShot.astro";
 import RootShowcase from "../components/RootShowcase.astro";
-import FeatureGrid from "../components/FeatureGrid.astro";
-import Honest from "../components/Honest.astro";
+import Features from "../components/Features.astro";
+import Compare from "../components/Compare.astro";
+import Sponsors from "../components/Sponsors.astro";
 import Footer from "../components/Footer.astro";
 ---
 
 <Base
-  title="Jidr: free Android emulators for the Mac, rooted in one click"
+  title="Jidr: Android on your Mac, rooted in a minute"
   description="Jidr (جذر) is a free, open-source Android emulator for Apple Silicon Macs with one-click rooted devices, a CLI and an MCP server for AI agents. Coming soon."
 >
-  <Header />
-  <main id="main">
-    <Hero />
-    <RootShowcase />
-    <FeatureGrid />
-    <Honest />
-  </main>
-  <Footer />
+  <div class="site jidr-dark" dir="ltr" lang="en">
+    <div class="wrap">
+      <Nav />
+      <main id="main">
+        <Hero />
+        <AppShot />
+        <RootShowcase />
+        <Features />
+        <Compare />
+        <Sponsors />
+      </main>
+      <Footer />
+    </div>
+  </div>
 </Base>
