@@ -1,0 +1,111 @@
+// Device status and root badges. Every status has a colour pair, an icon and
+// a label; root state never depends on colour alone.
+
+import { Theme } from "../theme.slint";
+import { Icons } from "../icons.slint";
+import { T, Role, Tone, Tones, Icon, Pill, Tag, Spinner } from "base.slint";
+import { DevState, RootKind } from "../types.slint";
+
+export global StatusStyle {
+    public pure function tone(s: DevState) -> Tone {
+        return s == DevState.running ? Tone.positive
+            : s == DevState.starting || s == DevState.booting || s == DevState.stopping ? Tone.transition
+            : s == DevState.crashed ? Tone.negative
+            : s == DevState.busy ? Tone.warning
+            : Tone.neutral;
+    }
+    public pure function icon(s: DevState) -> image {
+        return s == DevState.paused ? Icons.pause
+            : s == DevState.crashed ? Icons.triangle-alert
+            : s == DevState.busy ? Icons.lock
+            : Icons.square;
+    }
+    public pure function spins(s: DevState) -> bool {
+        return s == DevState.starting || s == DevState.booting || s == DevState.stopping;
+    }
+}
+
+/// Device status pill (plated) or bare status text (sidebar, `.st`).
+export component StatusPill inherits Pill {
+    in property <DevState> state;
+    tone: StatusStyle.tone(state);
+    dot: state == DevState.running;
+    spinning: StatusStyle.spins(state);
+    icon: StatusStyle.icon(state);
+}
+
+/// Bare status line: the label in its tone colour (stopped stays secondary).
+export component StatusText inherits Pill {
+    in property <DevState> state;
+    bare: true;
+    small: true;
+    tone: StatusStyle.tone(state);
+    dot: state == DevState.running;
+    spinning: StatusStyle.spins(state);
+    icon: StatusStyle.icon(state);
+}
+
+/// RootBadge: 24 px default, 20 px small. Beta is a tag after the badge.
+export component RootBadge inherits Rectangle {
+    in property <RootKind> kind;
+    in property <string> text;
+    in property <bool> small: false;
+    in property <bool> beta: false;
+    property <Tone> tone: kind == RootKind.verified ? Tone.root-strong
+        : kind == RootKind.full || kind == RootKind.setting-up || kind == RootKind.unverified ? Tone.root-soft
+        : kind == RootKind.failed ? Tone.negative
+        : Tone.neutral;
+    property <bool> text-only: kind == RootKind.none;
+    property <length> pad: text-only ? 0px : (small ? 7px : 10px);
+    property <length> isz: small ? 12px : 14px;
+    property <length> gap: small ? 4px : 5px;
+    property <length> plate-w: 2 * pad + isz + gap + label.preferred-width;
+    height: small ? 20px : 24px;
+    width: plate-w + (beta ? 6px + tag.width : 0px);
+    plate := Rectangle {
+        x: Theme.rtl ? parent.width - root.plate-w : 0px;
+        width: root.plate-w;
+        height: parent.height;
+        border-radius: self.height / 2;
+        background: text-only ? transparent : Tones.container(tone);
+        border-width: text-only ? 0px
+            : kind == RootKind.failed ? 2px
+            : kind == RootKind.shell ? 1px
+            : Theme.border-width-emphasis;
+        border-color: kind == RootKind.failed ? Theme.negative
+            : kind == RootKind.verified ? Tones.container(tone)
+            : Tones.border(tone);
+        property <color> fg: text-only ? Theme.text-secondary : Tones.on(tone);
+        if kind == RootKind.setting-up: Spinner {
+            x: Theme.rtl ? parent.width - pad - isz : pad;
+            size: isz;
+            tint: plate.fg;
+        }
+        if kind != RootKind.setting-up: Icon {
+            x: Theme.rtl ? parent.width - pad - isz : pad;
+            size: isz;
+            colorize: plate.fg;
+            source: kind == RootKind.verified ? Icons.badge-check
+                : kind == RootKind.shell ? Icons.terminal
+                : kind == RootKind.full ? Icons.key-round
+                : kind == RootKind.unverified ? Icons.circle-help
+                : kind == RootKind.failed ? Icons.circle-x
+                : Icons.minus;
+        }
+        label := T {
+            x: Theme.rtl ? pad : pad + isz + gap;
+            width: self.preferred-width;
+            text: root.text;
+            role: Role.label;
+            font-size: small ? 11px : 12px;
+            color: plate.fg;
+            horizontal-alignment: left;
+        }
+    }
+    tag := Tag {
+        visible: beta;
+        x: Theme.rtl ? 0px : root.plate-w + 6px;
+        text: @tr("Beta");
+        tone: Tone.warning;
+    }
+}

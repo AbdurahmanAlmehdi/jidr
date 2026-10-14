@@ -1,0 +1,133 @@
+// Jidr app window (Workbench direction, D41).
+
+import "../../../apps/jidr-gui/assets/fonts/Geist-Regular.ttf";
+import "../../../apps/jidr-gui/assets/fonts/Geist-Medium.ttf";
+import "../../../apps/jidr-gui/assets/fonts/Geist-SemiBold.ttf";
+import "../../../apps/jidr-gui/assets/fonts/Geist-Bold.ttf";
+import "../../../apps/jidr-gui/assets/fonts/GeistMono-Regular.ttf";
+import "../../../apps/jidr-gui/assets/fonts/GeistMono-Medium.ttf";
+import "../../../apps/jidr-gui/assets/fonts/GeistMono-SemiBold.ttf";
+import "../../../apps/jidr-gui/assets/fonts/NotoKufiArabic.ttf";
+
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { T, Role, Tone, Toast } from "components/base.slint";
+import { TitleBar, Sidebar, MiniSidebar } from "shell.slint";
+import { DeviceDetail, FirstRunEmpty } from "launcher.slint";
+import { DeviceVm, JobVm, TabVm, SnapshotVm, DevState, RootKind, FormFactor, JobTone, ConnState } from "types.slint";
+
+export { Theme, Icons, DeviceVm, JobVm, TabVm, SnapshotVm, DevState, RootKind, FormFactor, JobTone, ConnState }
+
+export component AppWindow inherits Window {
+    in-out property <[DeviceVm]> devices;
+    in-out property <[JobVm]> jobs;
+    in-out property <[TabVm]> tabs;
+    /// -1 = Library; otherwise an index into `tabs`.
+    in-out property <int> active-tab: -1;
+    in-out property <int> selected: -1;
+    in-out property <[SnapshotVm]> snapshots;
+    in-out property <bool> sdk-ready: true;
+    in-out property <string> sdk-label: @tr("Not installed");
+    in-out property <ConnState> conn: ConnState.online;
+    in-out property <string> conn-text;
+    in-out property <bool> sidebar-visible: true;
+    /// Drawn traffic lights (snapshots); the live app uses the native ones.
+    in property <bool> draw-lights: true;
+    in-out property <string> toast;
+
+    callback select-device(int);
+    callback open-device(int);
+    callback start-device(int);
+    callback stop-device(int);
+    callback more-device(int);
+    callback new-device();
+    callback open-palette();
+    callback open-settings();
+    callback cancel-job(int);
+    callback select-tab(int);
+    callback close-tab(int);
+    callback setup-sdk();
+    callback use-existing-sdk();
+    callback drag-window();
+    callback verify-root(int);
+    callback revert-root(int);
+    callback manage-snapshots(int);
+    callback restore-snapshot(int, int);
+
+    title: "Jidr";
+    icon: @image-url("../../../apps/jidr-gui/assets/icons/app-icon-256.png");
+    preferred-width: 1440px;
+    preferred-height: 900px;
+    min-width: Theme.window-launcher-min-width;
+    min-height: Theme.window-launcher-min-height;
+    background: Theme.surface-base;
+    default-font-family: Theme.font-ui;
+    default-font-size: Theme.type-body-size;
+
+    titlebar := TitleBar {
+        y: 0px;
+        tabs: root.tabs;
+        active-tab: root.active-tab;
+        draw-lights: root.draw-lights;
+        conn: root.conn;
+        conn-text: root.conn-text;
+        select-tab(i) => { root.select-tab(i); }
+        close-tab(i) => { root.close-tab(i); }
+        toggle-sidebar => { root.sidebar-visible = !root.sidebar-visible; }
+        drag-window => { root.drag-window(); }
+    }
+    body := Rectangle {
+        y: titlebar.height;
+        height: root.height - titlebar.height;
+        property <bool> library: root.active-tab < 0;
+        property <length> side-w: !library ? 52px : root.sidebar-visible ? Theme.window-sidebar-width : 0px;
+        if library && root.sidebar-visible: Sidebar {
+            x: Theme.rtl ? parent.width - self.width : 0px;
+            height: parent.height;
+            devices: root.devices;
+            jobs: root.jobs;
+            selected: root.selected;
+            sdk-ready: root.sdk-ready;
+            sdk-label: root.sdk-label;
+            select(i) => { root.select-device(i); }
+            open(i) => { root.open-device(i); }
+            new-device => { root.new-device(); }
+            open-palette => { root.open-palette(); }
+            open-settings => { root.open-settings(); }
+            cancel-job(i) => { root.cancel-job(i); }
+        }
+        if !library: MiniSidebar {
+            x: Theme.rtl ? parent.width - self.width : 0px;
+            height: parent.height;
+            devices: root.devices;
+            active-id: root.tabs[root.active-tab].id;
+            open(i) => { root.open-device(i); }
+        }
+        main := Rectangle {
+            x: Theme.rtl ? 0px : parent.side-w;
+            width: parent.width - parent.side-w;
+            height: parent.height;
+            if library && root.devices.length == 0: FirstRunEmpty {
+                sdk-label: root.sdk-label;
+                setup-sdk => { root.setup-sdk(); }
+                use-existing => { root.use-existing-sdk(); }
+            }
+            if library && root.devices.length > 0 && root.selected >= 0: DeviceDetail {
+                device: root.devices[root.selected];
+                snapshots: root.snapshots;
+                open => { root.open-device(root.selected); }
+                start => { root.start-device(root.selected); }
+                stop => { root.stop-device(root.selected); }
+                more => { root.more-device(root.selected); }
+                verify-root => { root.verify-root(root.selected); }
+                revert-root => { root.revert-root(root.selected); }
+                manage-snapshots => { root.manage-snapshots(root.selected); }
+                restore-snapshot(i) => { root.restore-snapshot(root.selected, i); }
+            }
+        }
+    }
+    if root.toast != "": Toast {
+        y: root.height - 64px;
+        text: root.toast;
+    }
+}

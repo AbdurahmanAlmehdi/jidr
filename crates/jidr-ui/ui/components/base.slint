@@ -1,0 +1,617 @@
+// Base components of the Workbench design system
+// (docs/design/system/README.md, docs/design/system/components/*).
+
+import { Theme, Easing } from "../theme.slint";
+import { Icons } from "../icons.slint";
+
+/// Type roles from the design tokens (`type-*`).
+export enum Role { hero, display, headline, title, body, label, caption, code, metric, metric-lg }
+
+/// Status colour pairs (system README › Status).
+export enum Tone { neutral, positive, transition, warning, negative, root-soft, root-strong, accent }
+
+/// Text in one of the type roles. Aligns to the start edge (right in RTL).
+export component T inherits Text {
+    in property <Role> role: Role.body;
+    in property <bool> mono: role == Role.code || role == Role.metric || role == Role.metric-lg;
+    /// Code, serials and logcat never mirror.
+    in property <bool> ltr: false;
+    font-family: mono ? Theme.font-mono : Theme.font-ui;
+    font-size: role == Role.hero ? Theme.type-hero-size
+        : role == Role.display ? Theme.type-display-size
+        : role == Role.headline ? Theme.type-headline-size
+        : role == Role.title ? Theme.type-title-size
+        : role == Role.label ? Theme.type-label-size
+        : role == Role.caption ? Theme.type-caption-size
+        : role == Role.code ? Theme.type-code-size
+        : role == Role.metric ? Theme.type-metric-size
+        : role == Role.metric-lg ? Theme.type-metric-lg-size
+        : Theme.type-body-size;
+    font-weight: role == Role.hero ? Theme.type-hero-weight
+        : role == Role.display ? Theme.type-display-weight
+        : role == Role.headline ? Theme.type-headline-weight
+        : role == Role.title ? Theme.type-title-weight
+        : role == Role.label ? Theme.type-label-weight
+        : role == Role.caption ? Theme.type-caption-weight
+        : role == Role.code ? Theme.type-code-weight
+        : role == Role.metric ? Theme.type-metric-weight
+        : role == Role.metric-lg ? Theme.type-metric-lg-weight
+        : Theme.type-body-weight;
+    letter-spacing: role == Role.hero ? Theme.type-hero-letter-spacing
+        : role == Role.display ? Theme.type-display-letter-spacing
+        : role == Role.headline ? Theme.type-headline-letter-spacing
+        : role == Role.title ? Theme.type-title-letter-spacing
+        : role == Role.caption ? Theme.type-caption-letter-spacing
+        : role == Role.metric-lg ? Theme.type-metric-lg-letter-spacing
+        : 0px;
+    color: Theme.text-primary;
+    vertical-alignment: center;
+    horizontal-alignment: Theme.rtl && !ltr ? TextHorizontalAlignment.right : TextHorizontalAlignment.left;
+    overflow: elide;
+}
+
+/// A Lucide icon, tinted.
+export component Icon inherits Image {
+    in property <length> size: Theme.icon-md;
+    /// Arrows, chevrons, back/forward and progress mirror in RTL; everything else never does.
+    in property <bool> directional: false;
+    width: size;
+    height: size;
+    colorize: Theme.text-secondary;
+    image-fit: contain;
+}
+
+/// Pair colours for a tone.
+export global Tones {
+    public pure function container(t: Tone) -> color {
+        return t == Tone.positive ? Theme.status-positive-container
+            : t == Tone.transition ? Theme.status-transition-container
+            : t == Tone.warning ? Theme.status-warning-container
+            : t == Tone.negative ? Theme.status-negative-container
+            : t == Tone.root-soft ? Theme.status-root-soft-container
+            : t == Tone.root-strong ? Theme.status-root-strong-container
+            : t == Tone.accent ? Theme.accent-container
+            : Theme.status-neutral-container;
+    }
+    public pure function on(t: Tone) -> color {
+        return t == Tone.positive ? Theme.status-positive-on-container
+            : t == Tone.transition ? Theme.status-transition-on-container
+            : t == Tone.warning ? Theme.status-warning-on-container
+            : t == Tone.negative ? Theme.status-negative-on-container
+            : t == Tone.root-soft ? Theme.status-root-soft-on-container
+            : t == Tone.root-strong ? Theme.status-root-strong-on-container
+            : t == Tone.accent ? Theme.accent-text
+            : Theme.status-neutral-on-container;
+    }
+    public pure function border(t: Tone) -> color {
+        return t == Tone.positive ? Theme.status-positive-border
+            : t == Tone.transition ? Theme.status-transition-border
+            : t == Tone.warning ? Theme.status-warning-border
+            : t == Tone.negative ? Theme.status-negative-border
+            : t == Tone.root-soft ? Theme.status-root-soft-border
+            : t == Tone.root-strong ? Theme.status-root-strong-border
+            : t == Tone.accent ? Theme.accent-fill
+            : Theme.status-neutral-border;
+    }
+}
+
+/// Spinner: loader-circle, rotating unless Reduce Motion is on.
+export component Spinner inherits Rectangle {
+    in property <length> size: Theme.icon-sm;
+    in property <color> tint: Theme.text-secondary;
+    width: size;
+    height: size;
+    Image {
+        width: parent.width;
+        height: parent.height;
+        source: Icons.loader-circle;
+        colorize: root.tint;
+        transform-origin: { x: self.width / 2, y: self.height / 2 };
+        transform-rotation: Theme.reduce-motion ? 0deg : (animation-tick() / Theme.motion-spinner-duration) * 360deg;
+    }
+}
+
+/// Status pill (`.sp`): icon + label in a tone's container.
+export component Pill inherits Rectangle {
+    in property <Tone> tone: Tone.neutral;
+    in property <string> text;
+    in property <image> icon;
+    in property <bool> has-icon: true;
+    in property <bool> spinning: false;
+    /// The filled 8 px dot used for Running.
+    in property <bool> dot: false;
+    in property <bool> small: false;
+    /// Status text without a plate (`.st`): sidebar second lines.
+    in property <bool> bare: false;
+    property <length> pad: bare ? 0px : (small ? 7px : 9px);
+    property <length> gap: small ? 5px : 6px;
+    property <length> icon-size: dot ? 8px : 12px;
+    property <bool> show-icon: has-icon || dot || spinning;
+    height: small ? 20px : 22px;
+    width: label.preferred-width + 2 * pad + (show-icon ? icon-size + gap : 0px);
+    border-radius: self.height / 2;
+    background: bare ? transparent : Tones.container(tone);
+    property <length> icon-x: Theme.rtl ? self.width - pad - icon-size : pad;
+    if dot: Rectangle {
+        x: icon-x;
+        width: 8px;
+        height: 8px;
+        border-radius: 4px;
+        background: Tones.on(tone);
+    }
+    if spinning: Spinner {
+        x: icon-x;
+        size: icon-size;
+        tint: Tones.on(tone);
+    }
+    if has-icon && !dot && !spinning: Icon {
+        x: icon-x;
+        size: icon-size;
+        source: icon;
+        colorize: Tones.on(tone);
+    }
+    label := T {
+        x: Theme.rtl ? pad : (show-icon ? pad + icon-size + gap : pad);
+        width: self.preferred-width;
+        text: root.text;
+        role: Role.label;
+        font-size: small ? 11px : 12px;
+        color: Tones.on(tone);
+        horizontal-alignment: left;
+    }
+}
+
+/// Uppercase square tag (`.tag`), e.g. BETA. Never alone next to a status.
+export component Tag inherits Rectangle {
+    in property <Tone> tone: Tone.warning;
+    in property <string> text;
+    height: 18px;
+    width: t.preferred-width + 12px;
+    border-radius: Theme.radius-xs;
+    background: Tones.container(tone);
+    border-width: 1px;
+    border-color: Tones.border(tone);
+    t := T {
+        text: root.text;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.6px;
+        color: Tones.on(tone);
+        horizontal-alignment: center;
+    }
+}
+
+/// Keyboard hint (`.kbd`).
+export component Kbd inherits Rectangle {
+    in property <string> text;
+    in property <color> tint: Theme.text-tertiary;
+    height: 18px;
+    width: max(18px, t.preferred-width + 8px);
+    border-radius: Theme.radius-xs;
+    border-width: 1px;
+    border-color: root.tint.with-alpha(0.55);
+    t := T {
+        text: root.text;
+        font-size: 10px;
+        font-weight: 500;
+        color: root.tint;
+        horizontal-alignment: center;
+        ltr: true;
+    }
+}
+
+export enum ButtonKind { secondary, primary, tertiary, destructive }
+
+/// Button (`.btn`): md 30 px or sm 24 px, optional icon and kbd hint.
+export component Button inherits Rectangle {
+    in property <string> text;
+    in property <image> icon;
+    in property <bool> has-icon: false;
+    in property <ButtonKind> kind: ButtonKind.secondary;
+    in property <bool> small: false;
+    in property <bool> enabled: true;
+    in property <string> kbd;
+    /// Icon-only square button.
+    in property <bool> icon-only: false;
+    callback clicked();
+    property <length> pad: small ? 8px : 12px;
+    property <length> gap: small ? 6px : 8px;
+    property <length> isz: small ? Theme.icon-sm : Theme.icon-md;
+    property <color> fg: !enabled ? Theme.text-disabled
+        : kind == ButtonKind.primary || kind == ButtonKind.destructive ? Theme.text-on-accent
+        : kind == ButtonKind.tertiary ? Theme.text-secondary
+        : Theme.text-primary;
+    height: small ? Theme.control-height-sm : Theme.control-height-md;
+    width: icon-only ? self.height
+        : 2 * pad + label.preferred-width + (has-icon ? isz + gap : 0px) + (kbd != "" ? kbdv.width + gap : 0px);
+    border-radius: small ? Theme.radius-sm : Theme.radius-md;
+    border-width: kind == ButtonKind.tertiary ? 0px : 1px;
+    border-color: kind == ButtonKind.primary ? Theme.accent-fill
+        : kind == ButtonKind.destructive ? Theme.negative-fill
+        : Theme.border-default;
+    background: !enabled ? (kind == ButtonKind.tertiary ? transparent : Theme.surface-control)
+        : kind == ButtonKind.primary ? (ta.pressed ? Theme.accent-pressed : ta.has-hover ? Theme.accent-hover : Theme.accent-fill)
+        : kind == ButtonKind.destructive ? (ta.has-hover ? Theme.negative-fill-hover : Theme.negative-fill)
+        : kind == ButtonKind.tertiary ? (ta.pressed ? Theme.surface-control-pressed : ta.has-hover ? Theme.surface-control-hover : transparent)
+        : (ta.pressed ? Theme.surface-control-pressed : ta.has-hover ? Theme.surface-control-hover : Theme.surface-control);
+    animate background { duration: Theme.motion-hover-duration; }
+    // Leading edge = left in LTR, right in RTL.
+    property <length> lead: Theme.rtl ? self.width - pad : pad;
+    if has-icon: Icon {
+        x: icon-only ? (parent.width - self.width) / 2 : (Theme.rtl ? parent.width - pad - isz : pad);
+        size: isz;
+        source: icon;
+        colorize: fg;
+    }
+    label := T {
+        visible: !icon-only;
+        x: Theme.rtl ? (kbd != "" ? pad + kbdv.width + gap : pad) : pad + (has-icon ? isz + gap : 0px);
+        width: self.preferred-width;
+        text: root.text;
+        role: Role.label;
+        font-size: small ? 12px : 13px;
+        color: fg;
+        horizontal-alignment: left;
+    }
+    kbdv := Kbd {
+        visible: kbd != "";
+        x: Theme.rtl ? pad : parent.width - pad - self.width;
+        text: kbd;
+        tint: fg;
+    }
+    ta := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+/// Icon button (`.ib`): 32 px, used in toolbars and the mini sidebar.
+export component IconButton inherits Rectangle {
+    in property <image> icon;
+    in property <bool> on: false;
+    in property <bool> enabled: true;
+    in property <length> size: 32px;
+    in property <length> icon-size: Theme.icon-lg;
+    in property <string> tooltip;
+    callback clicked();
+    width: size;
+    height: size;
+    border-radius: Theme.radius-md;
+    background: on ? Theme.accent-container : ta.pressed ? Theme.surface-control-pressed : ta.has-hover ? Theme.surface-control-hover : transparent;
+    animate background { duration: Theme.motion-hover-duration; }
+    Icon {
+        size: icon-size;
+        source: icon;
+        colorize: !enabled ? Theme.text-disabled : on ? Theme.accent-text : Theme.text-secondary;
+    }
+    ta := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+/// Progress bar (`.bar`, `.mini-bar`).
+export component Bar inherits Rectangle {
+    in property <float> value;
+    in property <color> fill: Theme.status-transition-on-container;
+    height: 4px;
+    border-radius: self.height / 2;
+    background: Theme.surface-sunken;
+    clip: true;
+    Rectangle {
+        x: Theme.rtl ? parent.width - self.width : 0px;
+        width: parent.width * clamp(root.value, 0, 1);
+        height: parent.height;
+        background: root.fill;
+        border-radius: parent.border-radius;
+        animate width { duration: Theme.motion-progress-duration; easing: Easing.motion-progress-easing; }
+    }
+}
+
+/// Card / panel (`.panel`).
+export component Panel inherits Rectangle {
+    background: Theme.surface-raised;
+    border-width: 1px;
+    border-color: Theme.border-default;
+    border-radius: Theme.radius-lg;
+    drop-shadow-offset-y: Theme.elevation-1-shadow-y;
+    drop-shadow-blur: Theme.elevation-1-shadow-blur;
+    drop-shadow-color: Theme.elevation-1-shadow-color;
+}
+
+/// Hairline divider.
+export component Divider inherits Rectangle {
+    in property <bool> vertical: false;
+    background: Theme.border-subtle;
+    height: vertical ? self.preferred-height : 1px;
+    width: vertical ? 1px : self.preferred-width;
+}
+
+/// Toggle switch (`.tgl`).
+export component Toggle inherits Rectangle {
+    in-out property <bool> checked;
+    in property <bool> enabled: true;
+    callback toggled(bool);
+    width: 32px;
+    height: 18px;
+    border-radius: 9px;
+    background: checked ? Theme.accent-fill : Theme.surface-control-pressed;
+    border-width: 1px;
+    border-color: checked ? Theme.accent-fill : Theme.border-strong;
+    animate background { duration: Theme.motion-hover-duration; }
+    Rectangle {
+        width: 12px;
+        height: 12px;
+        border-radius: 6px;
+        y: 2px;
+        // The thumb moves toward the end edge when on (start edge in RTL).
+        x: (checked != Theme.rtl) ? parent.width - 15px : 2px;
+        background: checked ? Theme.text-on-accent : Theme.text-secondary;
+        animate x { duration: Theme.motion-hover-duration; easing: Easing.motion-hover-easing; }
+    }
+    TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => {
+            root.checked = !root.checked;
+            root.toggled(root.checked);
+        }
+    }
+}
+
+/// Checkbox with a label (`.chk`).
+export component Checkbox inherits Rectangle {
+    in-out property <bool> checked;
+    in property <string> text;
+    callback toggled(bool);
+    height: 18px;
+    width: 16px + 8px + l.preferred-width;
+    box := Rectangle {
+        x: Theme.rtl ? parent.width - 16px : 0px;
+        width: 16px;
+        height: 16px;
+        border-radius: Theme.radius-xs;
+        border-width: 1px;
+        border-color: checked ? Theme.accent-fill : Theme.border-strong;
+        background: checked ? Theme.accent-fill : Theme.surface-control;
+        if checked: Icon {
+            size: 12px;
+            source: Icons.check;
+            colorize: Theme.text-on-accent;
+        }
+    }
+    l := T {
+        x: Theme.rtl ? 0px : 24px;
+        width: self.preferred-width;
+        text: root.text;
+    }
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.checked = !root.checked;
+            root.toggled(root.checked);
+        }
+    }
+}
+
+/// Segmented control (`.seg`) over a list of labels.
+export component Segmented inherits Rectangle {
+    in property <[string]> items;
+    in-out property <int> selected;
+    in property <bool> mono: false;
+    in property <bool> stretch: false;
+    callback changed(int);
+    height: 30px;
+    border-radius: Theme.radius-md;
+    background: Theme.surface-sunken;
+    border-width: 1px;
+    border-color: Theme.border-default;
+    HorizontalLayout {
+        padding: 2px;
+        spacing: 2px;
+        alignment: root.stretch ? LayoutAlignment.stretch : LayoutAlignment.start;
+        // Visual slot j shows item i; RTL reverses the order.
+        for slot[j] in root.items: Rectangle {
+            property <int> i: Theme.rtl ? root.items.length - 1 - j : j;
+            horizontal-stretch: root.stretch ? 1 : 0;
+            min-width: t.preferred-width + 20px;
+            border-radius: Theme.radius-sm;
+            background: i == root.selected ? Theme.surface-raised : transparent;
+            border-width: i == root.selected ? 1px : 0px;
+            border-color: Theme.border-default;
+            t := T {
+                text: root.items[i];
+                role: Role.label;
+                mono: root.mono;
+                horizontal-alignment: center;
+                color: i == root.selected ? Theme.text-primary : Theme.text-secondary;
+            }
+            TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    root.selected = i;
+                    root.changed(i);
+                }
+            }
+        }
+    }
+}
+
+/// Single-line input (`.inp`) with an optional unit suffix.
+export component TextField inherits Rectangle {
+    in-out property <string> text;
+    in property <string> placeholder;
+    in property <string> unit;
+    in property <bool> mono: false;
+    in property <bool> enabled: true;
+    in property <bool> focused-look: false;
+    callback edited(string);
+    callback accepted(string);
+    height: Theme.control-height-md;
+    border-radius: Theme.radius-md;
+    border-width: (input.has-focus || focused-look) ? 2px : 1px;
+    border-color: (input.has-focus || focused-look) ? Theme.focus-ring : Theme.border-strong;
+    background: Theme.surface-control;
+    property <length> unit-w: unit != "" ? u.preferred-width + 8px : 0px;
+    input := TextInput {
+        x: Theme.rtl ? 10px + unit-w : 10px;
+        width: parent.width - 20px - unit-w;
+        text <=> root.text;
+        enabled: root.enabled;
+        font-family: mono ? Theme.font-mono : Theme.font-ui;
+        font-size: 13px;
+        color: enabled ? Theme.text-primary : Theme.text-disabled;
+        vertical-alignment: center;
+        horizontal-alignment: Theme.rtl && !mono ? TextHorizontalAlignment.right : TextHorizontalAlignment.left;
+        selection-background-color: Theme.selection;
+        edited => { root.edited(self.text); }
+        accepted => { root.accepted(self.text); }
+    }
+    if root.text == "" && placeholder != "": T {
+        x: input.x;
+        width: input.width;
+        text: placeholder;
+        color: Theme.text-tertiary;
+        mono: root.mono;
+    }
+    u := T {
+        visible: unit != "";
+        x: Theme.rtl ? 10px : parent.width - 10px - self.preferred-width;
+        width: self.preferred-width;
+        text: unit;
+        role: Role.caption;
+        mono: true;
+        color: Theme.text-tertiary;
+    }
+}
+
+/// Field label above a control (`.field` / `.lbl`).
+export component FieldLabel inherits T {
+    role: Role.label;
+    color: Theme.text-secondary;
+}
+
+/// Hint text under a control (`.hint`).
+export component Hint inherits T {
+    font-size: 11px;
+    color: Theme.text-tertiary;
+    wrap: word-wrap;
+    overflow: clip;
+}
+
+/// Vertical scroll area with a thin thumb.
+export component Scroll inherits Rectangle {
+    in property <length> content-height;
+    out property <length> scroll-y: -flick.content-y;
+    clip: true;
+    flick := Flickable {
+        width: parent.width;
+        height: parent.height;
+        content-height: max(root.content-height, self.height);
+        content-width: self.width;
+        @children
+    }
+    if root.content-height > root.height: Rectangle {
+        x: Theme.rtl ? 2px : parent.width - 6px;
+        width: 4px;
+        border-radius: 2px;
+        background: Theme.border-strong.with-alpha(0.5);
+        height: max(24px, root.height * root.height / root.content-height);
+        y: (root.height - self.height) * (-flick.content-y) / max(1px, root.content-height - root.height);
+    }
+}
+
+/// macOS traffic lights, drawn in snapshots; the live app leaves room for the native ones.
+export component TrafficLights inherits Rectangle {
+    in property <bool> drawn: true;
+    width: 52px;
+    height: 12px;
+    if drawn: HorizontalLayout {
+        spacing: 8px;
+        Rectangle { width: 12px; height: 12px; border-radius: 6px; background: #ff5f57; }
+        Rectangle { width: 12px; height: 12px; border-radius: 6px; background: #febc2e; }
+        Rectangle { width: 12px; height: 12px; border-radius: 6px; background: #28c840; }
+    }
+}
+
+/// Toast (`.toast`): bottom-centre confirmation, past tense.
+export component Toast inherits Rectangle {
+    in property <string> text;
+    in property <Tone> tone: Tone.positive;
+    height: 40px;
+    width: min(420px, t.preferred-width + 48px);
+    border-radius: Theme.radius-lg;
+    background: Theme.elevation-3-surface;
+    border-width: 1px;
+    border-color: Theme.border-default;
+    drop-shadow-offset-y: Theme.elevation-3-shadow-y;
+    drop-shadow-blur: Theme.elevation-3-shadow-blur;
+    drop-shadow-color: Theme.elevation-3-shadow-color;
+    Rectangle {
+        x: Theme.rtl ? parent.width - 20px : 12px;
+        width: 8px;
+        height: 8px;
+        border-radius: 4px;
+        background: Tones.on(tone);
+    }
+    t := T {
+        x: Theme.rtl ? 12px : 28px;
+        width: parent.width - 40px;
+        text: root.text;
+    }
+}
+
+/// Section header in the sidebar (`.j-sh`).
+export component SectionHeader inherits Rectangle {
+    in property <string> text;
+    in property <string> trailing;
+    height: 30px;
+    T {
+        x: 8px;
+        y: 12px;
+        width: parent.width - 16px;
+        height: 14px;
+        text: root.text;
+        font-size: 11px;
+        font-weight: 600;
+        color: Theme.text-secondary;
+    }
+    if trailing != "": T {
+        x: Theme.rtl ? 8px : parent.width - 8px - self.preferred-width;
+        y: 12px;
+        height: 14px;
+        width: self.preferred-width;
+        text: root.trailing;
+        font-size: 11px;
+        font-weight: 500;
+        color: Theme.text-tertiary;
+    }
+    @children
+}
+
+/// A key/value row (`.kv`): label column then value, mirrored in RTL.
+export component KV inherits Rectangle {
+    in property <string> key;
+    in property <string> value;
+    in property <bool> mono: false;
+    in property <length> key-width: 64px;
+    in property <Role> role: Role.label;
+    height: 18px;
+    T {
+        x: Theme.rtl ? parent.width - root.key-width : 0px;
+        width: root.key-width;
+        text: root.key;
+        role: root.role;
+        font-weight: 400;
+        color: Theme.text-secondary;
+    }
+    T {
+        x: Theme.rtl ? 0px : root.key-width + 12px;
+        width: parent.width - root.key-width - 12px;
+        text: root.value;
+        role: root.mono ? Role.code : root.role;
+        font-weight: 400;
+    }
+}
