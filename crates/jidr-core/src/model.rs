@@ -249,6 +249,12 @@ pub struct LaunchPrefs {
     /// The next start ignores the quick-boot snapshot; cleared after a boot.
     #[serde(default)]
     pub force_cold_boot: bool,
+    /// `-camera-back`: `emulated`, `virtualscene`, `none` or `webcamN` (R7, D36).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub camera_back: Option<String>,
+    /// `-camera-front`: same values.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub camera_front: Option<String>,
 }
 
 /// How to reach a running device directly (the player streams frames from

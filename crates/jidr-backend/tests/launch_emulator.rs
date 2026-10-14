@@ -74,6 +74,7 @@ async fn boot_battery_stop_ramdisk_quickboot() {
     let opts = LaunchOptions {
         ramdisk: Some(custom.clone()),
         cold_boot: true,
+        camera_back: Some("emulated".into()),
         ..quiet.clone()
     };
     let inst = backend
@@ -81,6 +82,7 @@ async fn boot_battery_stop_ramdisk_quickboot() {
         .await
         .unwrap();
     let hw = ConfigIni::read(&avds.dir(&spec.avd).join("hardware-qemu.ini")).unwrap();
+    assert_eq!(hw.get("hw.camera.back"), Some("emulated"), "camera option applied (R7)");
     assert_eq!(
         hw.get("disk.ramdisk.path"),
         Some(custom.to_str().unwrap()),
