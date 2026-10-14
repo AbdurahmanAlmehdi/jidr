@@ -36,6 +36,13 @@ fn check_cancel(cancel: &Cancel) -> JidrResult<()> {
     cancel.check()
 }
 
+/// Lowercase hex digests of a download.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Digests {
+    pub sha1: String,
+    pub sha256: String,
+}
+
 /// Fetches small documents (repository XML) over https or `file://`.
 #[derive(Debug, Clone)]
 pub struct Fetcher {
@@ -72,16 +79,16 @@ impl Fetcher {
             .ctx(ErrorCode::Sdk, format!("reading {url}"))
     }
 
-    /// Downloads `url` to `dest`, hashing with SHA-1 as it goes.
-    /// Returns the lowercase hex digest.
+    /// Downloads `url` to `dest`, hashing as it goes.
     pub async fn download(
         &self,
         url: &str,
         dest: &Path,
         on_bytes: &(dyn Fn(u64, u64) + Send + Sync),
         cancel: &Cancel,
-    ) -> JidrResult<String> {
+    ) -> JidrResult<Digests> {
         let mut hasher = Sha1::new();
+        let mut hasher256 = sha2::Sha256::new();
         let file = std::fs::File::create(dest)
             .ctx(ErrorCode::Sdk, format!("creating {}", dest.display()))?;
         let mut out = std::io::BufWriter::new(file);
@@ -91,6 +98,7 @@ impl Fetcher {
                 .ctx(ErrorCode::Sdk, format!("reading {url}"))?;
             check_cancel(cancel)?;
             hasher.update(&bytes);
+            hasher256.update(&bytes);
             out.write_all(&bytes)
                 .ctx(ErrorCode::Sdk, "writing download")?;
             on_bytes(bytes.len() as u64, bytes.len() as u64);
@@ -111,6 +119,7 @@ impl Fetcher {
             {
                 check_cancel(cancel)?;
                 hasher.update(&chunk);
+                hasher256.update(&chunk);
                 out.write_all(&chunk)
                     .ctx(ErrorCode::Sdk, "writing download")?;
                 done += chunk.len() as u64;
@@ -118,7 +127,10 @@ impl Fetcher {
             }
         }
         out.flush().ctx(ErrorCode::Sdk, "writing download")?;
-        Ok(hex::encode(hasher.finalize()))
+        Ok(Digests {
+            sha1: hex::encode(hasher.finalize()),
+            sha256: hex::encode(hasher256.finalize()),
+        })
     }
 
     /// Fetches and merges every listing Jidr uses.
@@ -210,7 +222,8 @@ pub async fn install(
                 },
                 cancel,
             )
-            .await?;
+            .await?
+            .sha1;
         report(Phase::Verifying, size, size);
         if sha1 != archive.sha1 {
             return Err(JidrError::sdk(format!(

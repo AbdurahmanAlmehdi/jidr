@@ -53,6 +53,10 @@ pub struct LaunchOptions {
     pub wipe: bool,
     /// `-gpu` mode; `None` = `host` on macOS (ADR-0001), `swiftshader_indirect` elsewhere.
     pub gpu: Option<String>,
+    /// `-camera-back`: `emulated`, `virtualscene`, `none` or `webcamN` (R7, D36).
+    pub camera_back: Option<String>,
+    /// `-camera-front`: same values.
+    pub camera_front: Option<String>,
     /// Guest audio to the host; `false` adds `-no-audio`.
     pub audio: bool,
     /// Save the quick-boot snapshot when stopped (D29); `false` adds `-no-snapshot-save`.
@@ -65,6 +69,8 @@ impl Default for LaunchOptions {
         Self {
             extra_args: Vec::new(),
             ramdisk: None,
+            camera_back: None,
+            camera_front: None,
             cold_boot: false,
             wipe: false,
             gpu: None,
@@ -73,6 +79,13 @@ impl Default for LaunchOptions {
             boot_timeout: Duration::from_secs(300),
         }
     }
+}
+
+/// A valid `-camera-back` / `-camera-front` value.
+pub fn valid_camera(v: &str) -> bool {
+    matches!(v, "emulated" | "virtualscene" | "none")
+        || v.strip_prefix("webcam")
+            .is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()))
 }
 
 pub fn default_gpu() -> &'static str {
@@ -172,6 +185,16 @@ pub trait Backend: Send + Sync + std::fmt::Debug {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn camera_values() {
+        for ok in ["emulated", "virtualscene", "none", "webcam0", "webcam12"] {
+            assert!(valid_camera(ok), "{ok}");
+        }
+        for bad in ["webcam", "webcamX", "front", "", "webcam0; rm"] {
+            assert!(!valid_camera(bad), "{bad}");
+        }
+    }
 
     #[test]
     fn stages_progress_monotonically() {
