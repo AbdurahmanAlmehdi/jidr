@@ -14,9 +14,14 @@ import { Icons } from "icons.slint";
 import { T, Role, Tone, Toast } from "components/base.slint";
 import { TitleBar, Sidebar, MiniSidebar } from "shell.slint";
 import { DeviceDetail, FirstRunEmpty } from "launcher.slint";
-import { DeviceVm, JobVm, TabVm, SnapshotVm, DevState, RootKind, FormFactor, JobTone, ConnState } from "types.slint";
+import { DeviceSheet } from "device_form.slint";
+import { ConfirmDialog } from "forms.slint";
+import { Palette } from "palette.slint";
+import { SetupWindow } from "wizard.slint";
+import { SettingsWindow } from "settings.slint";
+import { DeviceVm, JobVm, TabVm, SnapshotVm, DevState, RootKind, FormFactor, JobTone, ConnState, RootChoice, ImageRowVm, OptionVm, DeviceForm, DetectRow, PlanRow, UsageRow, PaletteKind, PaletteItem } from "types.slint";
 
-export { Theme, Icons, DeviceVm, JobVm, TabVm, SnapshotVm, DevState, RootKind, FormFactor, JobTone, ConnState }
+export { Theme, Icons, DeviceVm, JobVm, TabVm, SnapshotVm, DevState, RootKind, FormFactor, JobTone, ConnState, RootChoice, ImageRowVm, OptionVm, DeviceForm, DetectRow, PlanRow, UsageRow, PaletteKind, PaletteItem, SetupWindow, SettingsWindow }
 
 export component AppWindow inherits Window {
     in-out property <[DeviceVm]> devices;
@@ -34,6 +39,22 @@ export component AppWindow inherits Window {
     /// Drawn traffic lights (snapshots); the live app uses the native ones.
     in property <bool> draw-lights: true;
     in-out property <string> toast;
+    // Create / edit sheet.
+    in-out property <bool> sheet-open: false;
+    in-out property <DeviceForm> form;
+    in-out property <[OptionVm]> profiles;
+    in-out property <[ImageRowVm]> images;
+    in-out property <string> host-ram: "16 GB";
+    in-out property <string> host-cpus: "10";
+    // Command palette.
+    in-out property <bool> palette-open: false;
+    in-out property <[PaletteItem]> palette-items;
+    in-out property <string> palette-query;
+    // Confirmation dialog.
+    in-out property <bool> confirm-open: false;
+    in-out property <string> confirm-title;
+    in-out property <string> confirm-body;
+    in-out property <string> confirm-action;
 
     callback select-device(int);
     callback open-device(int);
@@ -53,6 +74,14 @@ export component AppWindow inherits Window {
     callback revert-root(int);
     callback manage-snapshots(int);
     callback restore-snapshot(int, int);
+    callback submit-form(DeviceForm);
+    callback cancel-form();
+    callback form-image-changed(int);
+    callback palette-query-changed(string);
+    callback palette-run(PaletteItem);
+    /// ⌘1…9 and other shortcuts Rust handles.
+    callback shortcut(string);
+    callback confirm-ok();
 
     title: "Jidr";
     icon: @image-url("../../../apps/jidr-gui/assets/icons/app-icon-256.png");
@@ -63,6 +92,31 @@ export component AppWindow inherits Window {
     background: Theme.surface-base;
     default-font-family: Theme.font-ui;
     default-font-size: Theme.type-body-size;
+    forward-focus: keys;
+
+    keys := FocusScope {
+        key-pressed(ev) => {
+            if (ev.modifiers.meta && !ev.modifiers.shift) {
+                if (ev.text == "k") { root.open-palette(); return accept; }
+                if (ev.text == "n") { root.new-device(); return accept; }
+                if (ev.text == ",") { root.open-settings(); return accept; }
+                if (ev.text == "w") { root.shortcut("close-tab"); return accept; }
+                if (ev.text >= "1" && ev.text <= "9") { root.shortcut("tab-" + ev.text); return accept; }
+                if (ev.text == "0") { root.shortcut("library"); return accept; }
+            }
+            if (ev.text == Key.Escape) {
+                root.sheet-open = false;
+                root.palette-open = false;
+                root.confirm-open = false;
+                return accept;
+            }
+            if (ev.text == Key.Return && root.active-tab < 0 && root.selected >= 0) {
+                root.open-device(root.selected);
+                return accept;
+            }
+            return reject;
+        }
+    }
 
     titlebar := TitleBar {
         y: 0px;
@@ -124,6 +178,57 @@ export component AppWindow inherits Window {
                 manage-snapshots => { root.manage-snapshots(root.selected); }
                 restore-snapshot(i) => { root.restore-snapshot(root.selected, i); }
             }
+        }
+    }
+    if root.sheet-open: DeviceSheet {
+        y: titlebar.height;
+        height: root.height - titlebar.height;
+        form: root.form;
+        profiles: root.profiles;
+        images: root.images;
+        device-name: root.form.name;
+        host-ram: root.host-ram;
+        host-cpus: root.host-cpus;
+        submit(f) => { root.submit-form(f); }
+        cancel => {
+            root.cancel-form();
+            keys.focus();
+        }
+        image-changed(i) => { root.form-image-changed(i); }
+    }
+    if root.palette-open: Palette {
+        y: 0px;
+        height: root.height;
+        items: root.palette-items;
+        query: root.palette-query;
+        query-changed(q) => {
+            root.palette-query = q;
+            root.palette-query-changed(q);
+        }
+        run(item) => {
+            root.palette-open = false;
+            keys.focus();
+            root.palette-run(item);
+        }
+        dismiss => {
+            root.palette-open = false;
+            keys.focus();
+        }
+    }
+    if root.confirm-open: ConfirmDialog {
+        y: titlebar.height;
+        height: root.height - titlebar.height;
+        title: root.confirm-title;
+        body: root.confirm-body;
+        action: root.confirm-action;
+        ok => {
+            root.confirm-open = false;
+            keys.focus();
+            root.confirm-ok();
+        }
+        cancel => {
+            root.confirm-open = false;
+            keys.focus();
         }
     }
     if root.toast != "": Toast {

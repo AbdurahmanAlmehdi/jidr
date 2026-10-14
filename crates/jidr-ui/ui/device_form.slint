@@ -1,0 +1,188 @@
+// Create / edit device sheet (docs/design/screens/Create.dc.html).
+
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { T, Role, Button, ButtonKind, TextField, Checkbox, Hint, FieldLabel } from "components/base.slint";
+import { Select, RootCards, ImageList, Field, Sheet, SheetFooter } from "forms.slint";
+import { DeviceForm, RootChoice, ImageRowVm, OptionVm } from "types.slint";
+
+export component DeviceSheet inherits Sheet {
+    in-out property <DeviceForm> form;
+    in property <[OptionVm]> profiles;
+    in property <[ImageRowVm]> images;
+    in property <string> device-name;
+    in property <string> magisk-version: "30.7";
+    in property <string> host-ram: "16 GB";
+    in property <string> host-cpus: "10";
+    callback submit(DeviceForm);
+    callback cancel();
+    callback image-changed(int);
+    property <bool> ps: form.image >= 0 && form.image < images.length && images[form.image].play-store;
+    title: form.edit ? @tr("Edit {}", device-name) : @tr("New device");
+    subtitle: form.edit ? @tr("Changes apply the next time the device starts.") : @tr("Defaults are filled in. Change what you need, then create.");
+    sheet-width: 680px;
+    body-height: form.edit ? 160px : (ps ? 556px : 532px);
+    dismiss => { root.cancel(); }
+
+    property <length> cw: 640px;
+    property <length> half: (cw - 14px) / 2;
+    property <length> third: (cw - 28px) / 3;
+    function colx(i: int, w: length, gap: length) -> length {
+        return 20px + (Theme.rtl ? cw - (i + 1) * w - i * gap : i * (w + gap));
+    }
+
+    // Name + profile.
+    Field {
+        x: colx(0, half, 14px);
+        y: 4px;
+        width: half;
+        label: @tr("Name");
+        TextField {
+            text: root.form.name;
+            focused-look: true;
+            edited(t) => { root.form.name = t; }
+        }
+    }
+    Field {
+        x: colx(1, half, 14px);
+        y: 4px;
+        width: half;
+        label: @tr("Hardware profile");
+        Select {
+            options: root.profiles;
+            selected: root.form.profile;
+            changed(i) => { root.form.profile = i; }
+        }
+    }
+
+    // Android version.
+    if !form.edit: Rectangle {
+        x: 20px;
+        y: 69px;
+        width: cw;
+        height: 16px;
+        FieldLabel {
+            x: Theme.rtl ? parent.width - self.preferred-width : 0px;
+            width: self.preferred-width;
+            text: @tr("Android version");
+        }
+        Hint {
+            x: Theme.rtl ? 0px : parent.width - self.preferred-width;
+            width: self.preferred-width;
+            text: @tr("Only images that run on Apple Silicon (arm64) are listed.");
+            wrap: no-wrap;
+        }
+    }
+    if !form.edit: ImageList {
+        x: 20px;
+        y: 90px;
+        width: cw;
+        images: root.images;
+        selected: root.form.image;
+        changed(i) => {
+            root.form.image = i;
+            root.image-changed(i);
+        }
+    }
+
+    // Root mode.
+    if !form.edit: FieldLabel {
+        x: Theme.rtl ? 20px + cw - self.preferred-width : 20px;
+        y: 300px;
+        width: self.preferred-width;
+        height: 16px;
+        text: @tr("Root mode");
+    }
+    if !form.edit: RootCards {
+        x: 20px;
+        y: 321px;
+        width: cw;
+        selected: root.form.root;
+        shell-allowed: !root.ps;
+        play-store: root.ps;
+        magisk-version: root.magisk-version;
+        changed(c) => { root.form.root = c; }
+    }
+
+    // Hardware.
+    property <length> hw-y: form.edit ? 69px : (ps ? 459px : 435px);
+    Field {
+        x: colx(0, third, 14px);
+        y: hw-y;
+        width: third;
+        label: @tr("RAM");
+        hint: @tr("Your Mac has {}.", root.host-ram);
+        TextField {
+            text: root.form.ram-gb;
+            unit: "GB";
+            mono: true;
+            edited(t) => { root.form.ram-gb = t; }
+        }
+    }
+    Field {
+        x: colx(1, third, 14px);
+        y: hw-y;
+        width: third;
+        label: @tr("CPU cores");
+        TextField {
+            text: root.form.cpus;
+            unit: @tr("of {}", root.host-cpus);
+            mono: true;
+            edited(t) => { root.form.cpus = t; }
+        }
+    }
+    Field {
+        x: colx(2, third, 14px);
+        y: hw-y;
+        width: third;
+        label: @tr("Screen");
+        hint: @tr("From the profile.");
+        TextField {
+            text: root.form.screen;
+            unit: root.form.density + " dpi";
+            mono: true;
+            edited(t) => { root.form.screen = t; }
+        }
+    }
+    if root.form.error != "": T {
+        x: 20px;
+        y: hw-y + 84px;
+        width: cw;
+        height: 18px;
+        text: root.form.error;
+        color: Theme.negative;
+    }
+
+    SheetFooter {
+        y: root.body-height;
+        width: root.sheet-width;
+        if !root.form.edit: Checkbox {
+            x: Theme.rtl ? parent.width - 20px - self.width : 20px;
+            text: @tr("Start after creating");
+            checked: root.form.start-after;
+            toggled(v) => { root.form.start-after = v; }
+        }
+        HorizontalLayout {
+            x: Theme.rtl ? 20px : parent.width - 20px - self.preferred-width;
+            width: self.preferred-width;
+            height: 30px;
+            spacing: 8px;
+            for slot[j] in 2: Rectangle {
+                property <int> i: Theme.rtl ? 1 - j : j;
+                width: i == 0 ? cancel-b.width : ok-b.width;
+                cancel-b := Button {
+                    visible: i == 0;
+                    text: @tr("Cancel");
+                    clicked => { root.cancel(); }
+                }
+                ok-b := Button {
+                    visible: i == 1;
+                    kind: ButtonKind.primary;
+                    text: root.form.edit ? @tr("Save") : @tr("Create");
+                    kbd: "⌘↵";
+                    clicked => { root.submit(root.form); }
+                }
+            }
+        }
+    }
+}

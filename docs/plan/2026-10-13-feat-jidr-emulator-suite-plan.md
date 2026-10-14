@@ -271,7 +271,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `cargo nextest run -p jidr-ui && cargo run -p jidr-ui --example snapshot -- --check`
 
 ### Phase 7b (B): Launcher, first run, create/edit
-- **Status:** Not started
+- **Status:** Done (57 goldens incl. 4 setup steps, create GA/Play Store, edit, palette, 4 settings tabs, empty/error; live first-run walkthrough waits on `jidr daemon`, gap B1)
 - **Scope:** per `docs/design/screens/Setup.dc.html`, `Main.dc.html` (1A), `Create.dc.html` and `Settings.dc.html`: first-run wizard (SDK detection, license text with explicit accept, image download progress), device list with live status/root badge/disk usage, create/edit dialog (profile, Android version, root mode defaulting to `adb` where allowed with Magisk highlighted (D7), RAM/CPU, resolution/density), command palette (⌘K).
 - **Files touched:** `crates/jidr-ui/src/{launcher,wizard,device_form,palette}/**`
 - **Acceptance criteria:** golden snapshots for each screen and state (empty, populated, downloading, error); manual first-run walkthrough.

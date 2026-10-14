@@ -237,3 +237,71 @@ pub fn snapshots(mode: RootMode) -> Vec<SnapshotVm> {
         ),
     ]
 }
+
+/// The built-in profiles (assets/profiles).
+pub fn profiles() -> Vec<jidr_core::HardwareProfile> {
+    let p = |id: &str, name: &str, w, h, d, ram, cpus| jidr_core::HardwareProfile {
+        id: id.into(),
+        name: name.into(),
+        form_factor: if id.starts_with("tablet") {
+            jidr_core::FormFactor::Tablet
+        } else {
+            jidr_core::FormFactor::Phone
+        },
+        width: w,
+        height: h,
+        density: d,
+        ram_mb: ram,
+        cpus,
+        data_mb: 6144,
+        config: Default::default(),
+        build_props: Default::default(),
+    };
+    vec![
+        p("phone-6.1-fhd", "Phone 6.1″ FHD+", 1080, 2400, 420, 4096, 4),
+        p("phone-6.7-qhd", "Phone 6.7″ QHD+", 1440, 3120, 560, 4096, 4),
+        p("small-phone-5", "Small phone 5″", 720, 1280, 320, 2048, 2),
+        p("tablet-11", "Tablet 11″", 1600, 2560, 320, 4096, 4),
+    ]
+}
+
+/// The image list from Create.dc.html, newest first.
+pub fn system_images() -> Vec<jidr_core::SystemImage> {
+    let img = |api, tag: &str, size: u64, installed: bool| jidr_core::SystemImage {
+        image: image(api, tag),
+        display: String::new(),
+        revision: "1".into(),
+        support: jidr_core::Support::for_api(api),
+        size,
+        license: Some("android-sdk-license".into()),
+        installed_in: installed.then(|| "/sdk".into()),
+        pristine_ramdisk_sha256: None,
+    };
+    crate::device_form::sorted_images(&[
+        img(36, "google_apis", 2_100_000_000, false),
+        img(35, "google_apis", 2_000_000_000, true),
+        img(35, "google_apis_playstore", 2_200_000_000, false),
+        img(34, "google_apis", 1_900_000_000, true),
+        img(33, "google_apis_playstore", 1_800_000_000, true),
+        img(30, "default", 1_200_000_000, true),
+    ])
+}
+
+/// The API 36 download in progress (67%).
+pub fn download_job() -> Job {
+    Job {
+        id: Uuid::from_u128(100),
+        kind: "image.install".into(),
+        device: None,
+        progress: Some(0.67),
+        message: "Downloading system-images;android-36;google_apis;arm64-v8a".into(),
+        state: JobState::Running,
+        error: None,
+        result: None,
+        created_at: at(14, 20),
+    }
+}
+
+/// Google's SDK license opening, as shown in step 2 (excerpt; the app shows
+/// the full text from `sdk.licenses`).
+pub const LICENSE_EXCERPT: &str = "1. Introduction\n\n1.1 The Android Software Development Kit (referred to in the License Agreement as the \"SDK\" and specifically including the Android system files, packaged APIs, and Google APIs add-ons) is licensed to you subject to the terms of the License Agreement. The License Agreement forms a legally binding contract between you and Google in relation to your use of the SDK.\n\n1.2 \"Android\" means the Android software stack for devices, as made available under the Android Open Source Project.\n\n2. Accepting this License Agreement\n\n2.1 In order to use the SDK, you must first agree to the License Agreement. You may not use the SDK if you do not accept the License Agreement.\n\n2.2 By clicking to accept, you hereby agree to the terms of the License Agreement.";

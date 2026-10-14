@@ -27,3 +27,26 @@ Built:
 Validation: `cargo nextest run -p jidr-ui` (8 passed) and `cargo run -p jidr-ui --example snapshot -- --check` (12 renders ok). `cargo xtask ci` ok.
 
 Open: `jidr daemon` isn't implemented yet (A's 5a), so the live GUI can't start a daemon on its own (gap B1). On macOS the window uses the native traffic lights over a transparent title bar; dragging calls winit `drag_window`.
+
+## 2026-10-14 · Phase 7b plan: launcher, first run, create/edit
+
+- Setup window (`ui/wizard.slint`, 760×580, Setup.dc.html): 1 find SDK (`sdk.status`: Studio SDK, `$ANDROID_HOME`, `$ANDROID_SDK_ROOT`), 2 Google's license from `sdk.licenses` shown unchanged, "I accept" enabled only after scrolling to the end, then `sdk.accept_license {id, sha256}`; 3 `image.install` job with real bytes/progress; 4 first device (reuses the create form).
+- Create/edit sheet (`ui/device_form.slint`, Create.dc.html): name, profile (`profile.list`), Android version list (`image.list`, host ABI only, installed/downloading/download states), root-mode cards (default Shell root where the image allows it, Full root highlighted, Play Store: Shell disabled + Beta + Play Integrity note; D7), RAM/CPU/screen, "Start after creating". Edit = same sheet over `device.edit`.
+- Settings window (`ui/settings.slint`, Settings.dc.html): General (default root mode, map tiles, appearance, quick boot), Storage (SDK path and state, per-device disk from `device.details`, images, cache), Agents (copyable MCP snippets), About (licences incl. Lucide and the fonts). Settings with no protocol command yet (default root mode, quick boot) are kept in a GUI prefs file and filed as a gap.
+- Command palette (`ui/palette.slint`, ⌘K): filtered list of actions and devices; ↑/↓/↵/Esc.
+- Shortcuts: ⌘K, ⌘N, ⌘,, ⌘1…9, ↵ open, Esc closes overlays.
+- Goldens: launcher empty / populated / downloading / error, every setup step, create (Google APIs, Play Store), edit, each settings tab, palette.
+
+## 2026-10-14 · Phase 7b done: launcher, first run, create/edit
+
+Built:
+- Setup window (`ui/wizard.slint`, `src/wizard/`): detection from `sdk.status` + env, download plan from `image.list` sizes (picks API 35 Google APIs, else newest supported), license text from `sdk.licenses` shown unchanged with "I accept" enabled only after scrolling to the end, consent per hash via `sdk.accept_license`, then `image.install` (or `sdk.install`) as a job with real progress, ETA and failure text; step 4 creates the first device.
+- Create/edit sheet (`ui/device_form.slint`, `src/device_form/`): profiles, host-ABI image list (installed / download / downloading), root cards with D7 defaults (Shell where allowed, Full highlighted, Play Store disables Shell, shows Beta and the Play Integrity note), RAM/CPU/screen with validation, only overrides sent to `device.create`; a missing image is installed first. Edit sends changed fields to `device.edit`.
+- Settings window (`ui/settings.slint`, `src/settings/`): General (default root, map tiles incl. custom URL, appearance, quick boot; in `gui-prefs.json`, gap B4), Storage (SDK path/state, per-device disk, images with device counts, cache with Clear), Agents (Add to Claude Desktop merges `claude_desktop_config.json` without touching other servers; copyable snippets), About (licences incl. Lucide + fonts).
+- Command palette (`ui/palette.slint`, `src/palette/`): open/start/stop/edit per device, new device, setup, settings, appearance; ordered-letters fuzzy filter; ↑/↓/↵/Esc. "More actions" opens it narrowed to the device.
+- Shortcuts: ⌘K, ⌘N, ⌘,, ⌘W, ⌘0, ⌘1…9, ↵ opens the selected device, Esc closes overlays. Confirmation dialog for destructive or slow actions (revert root).
+- Slint gotcha recorded: inside `@children`, `parent` is the component that received them, not the slot container; sheets and settings rows expose their content size instead.
+
+Validation: `cargo run -p jidr-ui --example snapshot -- --check` → 57 renders ok; `cargo nextest run -p jidr-ui` → 21 passed; `cargo xtask ci` ok.
+
+Not done: the manual first-run walkthrough needs a daemon the GUI can spawn (`jidr daemon`, gap B1); `--example dev-daemon` (7c) covers live runs meanwhile. Gaps B4 (daemon settings) and B5 (job bytes) filed.

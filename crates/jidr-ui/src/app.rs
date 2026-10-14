@@ -6,7 +6,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use jidr_core::{JidrPaths, JidrResult};
-use serde_json::{Value, json};
+use serde_json::Value;
 use slint::{ComponentHandle, ModelRc, VecModel, Weak};
 use uuid::Uuid;
 
@@ -125,14 +125,31 @@ pub fn report(
     }
 }
 
+/// Everything the UI-thread controllers share.
 pub struct Ctx {
     pub app: AppWindow,
     pub bridge: std::sync::Arc<Bridge>,
     pub state: Shared,
+    pub paths: JidrPaths,
+    pub prefs: RefCell<crate::settings::Prefs>,
+    /// Secondary windows (setup, settings) kept alive while shown.
+    pub windows: RefCell<Vec<Box<dyn std::any::Any>>>,
+    /// Catalog for the create sheet, loaded when it opens.
+    pub catalog: RefCell<Catalog>,
+    /// What the confirmation dialog will do.
+    pub pending_confirm: RefCell<Option<Box<dyn Fn()>>>,
+}
+
+#[derive(Default)]
+pub struct Catalog {
+    pub profiles: Vec<jidr_core::HardwareProfile>,
+    pub images: Vec<jidr_core::SystemImage>,
+    /// Device being edited.
+    pub editing: Option<Uuid>,
 }
 
 impl Ctx {
-    fn device_id(&self, index: i32) -> Option<Uuid> {
+    pub fn device_id(&self, index: i32) -> Option<Uuid> {
         let st = self.state.borrow();
         usize::try_from(index)
             .ok()
@@ -140,109 +157,29 @@ impl Ctx {
             .map(|d| d.device.id)
     }
 
-    fn rerender(&self) {
+    pub fn info(&self, id: Uuid) -> Option<crate::model::DeviceInfo> {
+        self.state
+            .borrow()
+            .data
+            .devices
+            .iter()
+            .find(|d| d.device.id == id)
+            .cloned()
+    }
+
+    pub fn rerender(&self) {
         render(&self.app, &self.state.borrow());
     }
-}
 
-/// Wires the launcher callbacks.
-pub fn wire(ctx: &Rc<Ctx>) {
-    let app = &ctx.app;
-    let weak = app.as_weak();
-
-    let c = ctx.clone();
-    app.on_select_device(move |i| {
-        let id = c.device_id(i);
-        c.state.borrow_mut().selected = id;
-        c.rerender();
-    });
-
-    let c = ctx.clone();
-    app.on_open_device(move |i| {
-        let Some(id) = c.device_id(i) else { return };
-        {
-            let mut st = c.state.borrow_mut();
-            st.selected = Some(id);
-            let pos = match st.tabs.iter().position(|t| *t == id) {
-                Some(p) => p,
-                None => {
-                    st.tabs.push(id);
-                    st.tabs.len() - 1
-                }
-            };
-            st.active = Some(pos);
-        }
-        c.rerender();
-    });
-
-    let c = ctx.clone();
-    app.on_select_tab(move |i| {
-        c.state.borrow_mut().active = usize::try_from(i).ok();
-        c.rerender();
-    });
-
-    let c = ctx.clone();
-    app.on_close_tab(move |i| {
-        {
-            let mut st = c.state.borrow_mut();
-            if let Ok(i) = usize::try_from(i)
-                && i < st.tabs.len()
-            {
-                st.tabs.remove(i);
-            }
-            st.active = None;
-        }
-        c.rerender();
-    });
-
-    let c = ctx.clone();
-    let w = weak.clone();
-    app.on_start_device(move |i| {
-        let Some(id) = c.device_id(i) else { return };
-        c.bridge.run(
-            "device.start",
-            json!({ "device": id }),
-            |_| {},
-            report(&w, ""),
-        );
-    });
-
-    let c = ctx.clone();
-    let w = weak.clone();
-    app.on_stop_device(move |i| {
-        let Some(id) = c.device_id(i) else { return };
-        c.bridge
-            .call("device.stop", json!({ "device": id }), report(&w, ""));
-    });
-
-    let c = ctx.clone();
-    let w = weak.clone();
-    app.on_cancel_job(move |i| {
-        let job = {
-            let st = c.state.borrow();
-            usize::try_from(i)
-                .ok()
-                .and_then(|i| st.data.jobs.get(i))
-                .map(|j| j.id)
+    /// Applies the Appearance pref (System follows macOS).
+    pub fn apply_appearance(&self) {
+        let dark = match self.prefs.borrow().appearance {
+            1 => false,
+            2 => true,
+            _ => system_dark(),
         };
-        if let Some(job) = job {
-            c.bridge.call(
-                "jobs.cancel",
-                json!({ "job": job }),
-                report(&w, "Cancelled"),
-            );
-        }
-    });
-
-    let w = weak.clone();
-    app.on_drag_window(move || {
-        if let Some(app) = w.upgrade() {
-            use slint::winit_030::WinitWindowAccessor;
-            app.window().with_winit_window(|win| {
-                let _ = win.drag_window();
-            });
-        }
-    });
+        self.app.global::<Theme>().set_dark(dark);
+    }
 }
 
 thread_local! {
@@ -296,9 +233,8 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     select_backend()?;
     let app = AppWindow::new()?;
     app.set_draw_lights(!cfg!(target_os = "macos"));
-    let theme = app.global::<Theme>();
-    theme.set_dark(system_dark());
-    theme.set_reduce_motion(system_reduce_motion());
+    app.global::<Theme>()
+        .set_reduce_motion(system_reduce_motion());
 
     let paths = JidrPaths::discover()?;
     let bridge = Bridge::new()?;
@@ -306,8 +242,14 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         app: app.clone_strong(),
         bridge: bridge.clone(),
         state: state(),
+        prefs: RefCell::new(crate::settings::Prefs::load(&paths.data)),
+        paths: paths.clone(),
+        windows: RefCell::default(),
+        catalog: RefCell::default(),
+        pending_confirm: RefCell::default(),
     });
-    wire(&ctx);
+    ctx.apply_appearance();
+    crate::launcher::wire(&ctx);
     bridge.connect(paths, sink(app.as_weak()));
     app.run()?;
     Ok(())
@@ -324,4 +266,43 @@ fn select_backend() -> Result<(), slint::PlatformError> {
             .with_title_hidden(true)
     });
     selector.select()
+}
+
+/// A UI-thread continuation waiting for a value from the IO thread.
+pub type Token = u64;
+
+type Continuation = Box<dyn FnOnce(Box<dyn std::any::Any + Send>)>;
+
+thread_local! {
+    static PENDING: RefCell<(Token, std::collections::HashMap<Token, Continuation>)> =
+        RefCell::new((0, std::collections::HashMap::new()));
+}
+
+/// Parks `f` (which may hold UI-thread values such as `Rc<Ctx>`) and
+/// returns a `Send` token; `fire(token, value)` runs it on the UI thread.
+pub fn defer<T: Send + 'static>(f: impl FnOnce(T) + 'static) -> Token {
+    PENDING.with(|p| {
+        let mut p = p.borrow_mut();
+        p.0 += 1;
+        let token = p.0;
+        p.1.insert(
+            token,
+            Box::new(move |v: Box<dyn std::any::Any + Send>| {
+                if let Ok(v) = v.downcast::<T>() {
+                    f(*v);
+                }
+            }),
+        );
+        token
+    })
+}
+
+/// Runs a deferred continuation on the UI thread (callable from any thread).
+pub fn fire<T: Send + 'static>(token: Token, value: T) {
+    let _ = slint::invoke_from_event_loop(move || {
+        let f = PENDING.with(|p| p.borrow_mut().1.remove(&token));
+        if let Some(f) = f {
+            f(Box::new(value));
+        }
+    });
 }
