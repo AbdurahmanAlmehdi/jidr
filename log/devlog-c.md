@@ -187,3 +187,7 @@ A peer session found 13 orphaned emulators (Stream A's `agent-phone`, `jidr_resi
 - `JIDR_ROOT_E2E_FAIL_AFTER_BOOT=1` fails the test on purpose, to check the guard.
 
 Checked (regression): a deliberately failing run leaves no qemu. A test process SIGKILLed after boot leaves an orphan (ppid 1), which the next run's backstop kills before booting. A normal run passes (5/5) with no qemu left.
+
+## Phase 9a: Play Store root — done as a beta pass (2026-10-14)
+
+Abdurahman accepted ADR-0002 option (3) ("yes to both, accept option 3"): the guided tap ships as the Play Store beta for the MVP, built in 9d. Options (1) and (2) are deferred to post-MVP, to be revisited by hand. ADR-0002 is Accepted; 9a is Done.

@@ -314,7 +314,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `cargo nextest run -p jidr-widgets --features emulator -- snapshot`
 
 ### Phase 9a (C): Play Store root R&D spike ★ (day 1, no product code)
-- **Status:** Blocked: needs Abdurahman's decision (ADR-0002 proposes the guided-tap beta; options 1 and 2 not attempted)
+- **Status:** Done (beta pass per ADR-0002, accepted 2026-10-14: the guided tap ships as the Play Store beta in 9d; options 1 and 2 deferred to post-MVP)
 - **Scope:** time-boxed ≈3 agent-days in `spikes/playstore-root/` using adb and the emulator directly (no daemon needed). Try, in order (D21): (1) a ramdisk `overlay.d` boot script that writes the shell uid's grant into Magisk's policy DB; (2) uiautomator auto-tap of the Grant prompt; (3) guided tap. Write `docs/decisions/0002-play-store-root.md`.
 - **Files touched:** `spikes/playstore-root/**`, `docs/decisions/0002-play-store-root.md`
 - **Acceptance criteria:** **full-support pass** = `su -c id` → uid=0 with zero human input on API 33/34/35 `google_apis_playstore` arm64; **beta pass** = the ADR documents why (1) and (2) failed and specifies the guided-tap flow.
