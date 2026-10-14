@@ -86,7 +86,10 @@ impl AospBackend {
         if !opts.audio {
             a.push("-no-audio".into());
         }
-        for (flag, cam) in [("-camera-back", &opts.camera_back), ("-camera-front", &opts.camera_front)] {
+        for (flag, cam) in [
+            ("-camera-back", &opts.camera_back),
+            ("-camera-front", &opts.camera_front),
+        ] {
             if let Some(c) = cam {
                 a.extend([flag.to_string(), c.clone()]);
             }
