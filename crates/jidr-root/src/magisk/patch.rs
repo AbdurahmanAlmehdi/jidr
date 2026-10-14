@@ -155,6 +155,11 @@ pub fn patch_ramdisk(pristine: &[u8], payload: &Payload) -> JidrResult<Vec<u8>> 
     let stub_xz = compress(&payload.stub)?;
     let init_ld_xz = compress(&payload.init_ld)?;
 
+    // Snapshot the stock archive before editing it, so the diff can be
+    // recorded under `.backup/` — magiskinit re-execs the original `init` from
+    // there, so without it the device never reaches adb.
+    let original = archive.clone();
+
     // `insert` replaces `init` in place (keeping its inode) and appends the
     // rest before the trailer — the same edits `magiskboot cpio` performs.
     archive.insert(Entry::file("init", 0o750, payload.magisk_init.clone()));
@@ -163,12 +168,67 @@ pub fn patch_ramdisk(pristine: &[u8], payload: &Payload) -> JidrResult<Vec<u8>> 
     archive.insert(Entry::file("overlay.d/sbin/magisk.xz", 0o644, magisk_xz));
     archive.insert(Entry::file("overlay.d/sbin/stub.xz", 0o644, stub_xz));
     archive.insert(Entry::file("overlay.d/sbin/init-ld.xz", 0o644, init_ld_xz));
+    backup(archive, &original)?;
     archive.insert(Entry::dir(".backup", 0));
     archive.insert(Entry::file(".backup/.magisk", 0, config()));
 
     ramdisk
         .to_bytes()
         .map_err(|e| JidrError::root_failed(format!("serializing the patched ramdisk: {e}")))
+}
+
+/// Ports `magiskboot cpio backup ORIG`: records the difference between the
+/// patched archive and the stock archive under `.backup/`, so magiskinit can
+/// restore the original entries at boot — above all the original `init`, which
+/// it re-execs as the real first-stage init. Entries the patch introduced are
+/// listed in `.backup/.rmlist` so a Magisk restore can remove them again.
+fn backup(patched: &mut jidr_cpio::Archive, original: &jidr_cpio::Archive) -> JidrResult<()> {
+    patched.insert(Entry::dir(".backup", 0));
+
+    // Stock entries whose content changed (or which were removed) are stored
+    // under `.backup/<name>`, xz-compressed when they are regular files.
+    for entry in original.iter() {
+        if entry.name.starts_with(".backup") {
+            continue;
+        }
+        let unchanged = patched
+            .get(&entry.name)
+            .is_some_and(|p| p.data == entry.data);
+        if unchanged {
+            continue;
+        }
+        let name = format!(".backup/{}", entry.name);
+        if entry.is_file() {
+            let compressed = payload_xz().compress(&entry.data).map_err(|e| {
+                JidrError::root_failed(format!("compressing {} for backup: {e}", entry.name))
+            })?;
+            patched.insert(Entry::file(
+                format!("{name}.xz"),
+                entry.permissions(),
+                compressed,
+            ));
+        } else {
+            let mut copy = entry.clone();
+            copy.name = name;
+            patched.insert(copy);
+        }
+    }
+
+    // Entries the patch introduced are listed so a restore can delete them.
+    let mut rmlist = Vec::new();
+    for entry in patched.iter() {
+        if entry.name.starts_with(".backup") {
+            continue;
+        }
+        if original.get(&entry.name).is_none() {
+            rmlist.extend_from_slice(entry.name.as_bytes());
+            rmlist.push(0);
+        }
+    }
+    if !rmlist.is_empty() {
+        patched.insert(Entry::file(".backup/.rmlist", 0, rmlist));
+    }
+    Ok(())
 }
 
 /// Writes `bytes` to `path` atomically: a temp file in the same directory is
@@ -265,6 +325,43 @@ mod tests {
 
         let (_, cfg) = ramdisk.get(".backup/.magisk").unwrap();
         assert!(String::from_utf8_lossy(&cfg.data).contains("KEEPVERITY=true"));
+    }
+
+    #[test]
+    fn patch_backs_up_the_original_init_for_magiskinit() {
+        // Regression: without `.backup/init.xz`, magiskinit's restore step
+        // falls back to symlinking `/init` -> `/system/bin/init`, which skips
+        // the emulator's real first-stage init and the device never reaches
+        // adb (Phase 9d e2e hang).
+        let pristine = pristine_ramdisk();
+        let patched = patch_ramdisk(&pristine, &payload()).unwrap();
+        let ramdisk = Ramdisk::parse(&patched).unwrap();
+
+        let (_, backup) = ramdisk.get(".backup/init.xz").unwrap();
+        assert!(backup.is_file());
+        assert!(
+            backup
+                .data
+                .starts_with(&[0xfd, b'7', b'z', b'X', b'Z', 0x00]),
+            "the backup init is xz-compressed"
+        );
+        let decoded = jidr_cpio::compress::decompress(&backup.data).unwrap();
+        assert_eq!(decoded.data, b"#!stock init", "the original init is kept");
+
+        // Entries the patch added are listed for restore.
+        let (_, rmlist) = ramdisk.get(".backup/.rmlist").unwrap();
+        let mut names: Vec<&str> = rmlist
+            .data
+            .split(|&b| b == 0)
+            .filter(|s| !s.is_empty())
+            .map(|s| std::str::from_utf8(s).unwrap())
+            .collect();
+        names.sort_unstable();
+        assert!(names.contains(&"overlay.d"), "{names:?}");
+        assert!(names.contains(&"overlay.d/sbin/magisk.xz"), "{names:?}");
+
+        // The stock entries that were not touched stay out of the backup.
+        assert!(ramdisk.get(".backup/dev.xz").is_none());
     }
 
     #[test]
