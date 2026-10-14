@@ -1,6 +1,6 @@
 # ADR-0002: Full root on Play Store images (Phase 9a)
 
-- **Status:** Proposed. Waiting for Abdurahman's decision; Phase 9a is not Done.
+- **Status:** Accepted (2026-10-14). Abdurahman: "yes to both, accept option 3".
 - **Stream:** C
 - **Date:** 2026-10-13
 
@@ -26,11 +26,13 @@ Play Store images don't allow `adb root`. So the shell can't write Magisk's poli
 
 Apps keep Magisk's normal per-app prompt (D22). The "auto-grant all" toggle stays opt-in and off.
 
-## Decision needed
+## Decision
 
-Abdurahman: ship option (3) as the Play Store beta for the MVP, or do options (1)/(2) yourself and record the result here.
+Accepted by Abdurahman on 2026-10-14:
+- Option (3), the guided tap above, ships as the **Play Store beta for the MVP** (D6 fallback), built in Phase 9d.
+- Options (1) and (2) are **deferred to post-MVP**, to be revisited by hand. No agent builds them.
 
 ## Consequences
 
 - With (3), Play Store full root needs one tap per device, once. `google_apis` images stay zero-touch.
-- The acceptance criterion's "beta pass" also asks this ADR to say why (1) and (2) failed. They weren't tried, so 9a stays open until Abdurahman decides.
+- Phase 9a is Done as a beta pass under this decision: options (1) and (2) were deferred by Abdurahman, not tried and failed.
