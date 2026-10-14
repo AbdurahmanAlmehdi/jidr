@@ -1,8 +1,12 @@
 ---
-// From docs/design/screens/Landing.dc.html (D41, concept 8A), phase "soon", locale "en".
+// From docs/design/screens/Landing.dc.html (D41, concept 8A). The app is
+// English-only (D33), so the shot stays English and LTR on both pages.
+import { strings } from "../i18n";
+
+const t = strings(Astro.currentLocale);
 ---
 
-<div class="shot" dir="ltr" lang="en" role="img" aria-label="The Jidr app: device list, a phone running a delivery app, and the GPS panel">
+<div class="shot" dir="ltr" lang="en" role="img" aria-label={t.shotLabel}>
       <div class="tbar" inert><div class="lights"><span></span><span></span><span></span></div><div class="tab">Library</div><div class="tab on">Pixel-ish 6.1</div><div class="grow"></div></div>
       <div class="shot-b" inert>
         <div class="shot-side">

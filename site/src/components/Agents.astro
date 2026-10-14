@@ -1,0 +1,34 @@
+---
+// From docs/design/screens/Landing.dc.html (D41), phase "launch". Tool names
+// and parameters are the real ones from docs/mcp.md; the transcript depicts
+// the English-only app, so it stays English (D33).
+import Icon from "./Icon.astro";
+import Terminal from "./Terminal.astro";
+import { strings } from "../i18n";
+
+const t = strings(Astro.currentLocale);
+---
+
+<section class="lp-sec" id="agents">
+  <span class="eyebrow">{t.agents.eyebrow}</span>
+  <h2 class="lp-h2">{t.agents.title}</h2>
+  <p class="lead">{t.agents.lead}</p>
+  <div class="agent">
+    <div class="j-col" style="gap:14px">
+      <div class="tools" role="list">
+        {t.agents.tools.map(([tool, what]) => <div role="listitem"><code>{tool}</code><span>{what}</span></div>)}
+      </div>
+      <Terminal title={t.agents.client} lines={["claude mcp add jidr -- jidr mcp"]} />
+    </div>
+    <div class="tx" role="figure" aria-label={t.agents.sessionLabel} lang="en">
+      <div class="tx-h"><Icon name="bot" class="ic i14" />Agent session · Pixel-ish 6.1</div>
+      <div class="tx-b">
+        <div><span class="who">You</span>Open the shop app on Pixel-ish 6.1 and find out why tracking an order crashes.</div>
+        <div class="call">jidr.screenshot <span>{'{ device: "Pixel-ish 6.1" }'}</span><br /><span>→ PNG of the 1080×2400 screen</span></div>
+        <div class="call">jidr.tap <span>{'{ device: "Pixel-ish 6.1", x: 230, y: 776 }'}</span><span> → ok</span></div>
+        <div class="call">jidr.logcat_tail <span>{'{ device: "Pixel-ish 6.1", filter: ["AndroidRuntime:E", "*:S"] }'}</span><br /><span class="e">E AndroidRuntime: FATAL EXCEPTION: main</span></div>
+        <div><span class="who">Claude</span>Tapping Track order crashes the app on the main thread. The full trace is in logcat at 14:02:08. I left the device on that screen so you can look.</div>
+      </div>
+    </div>
+  </div>
+</section>

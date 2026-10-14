@@ -1,14 +1,32 @@
 ---
-import { links } from "../config";
+// From docs/design/screens/Landing.dc.html (D41, concept 8A).
+import Icon from "./Icon.astro";
+import { links, phase, release } from "../config";
+import { strings } from "../i18n";
+
+const t = strings(Astro.currentLocale);
+const meta =
+  phase === "launch"
+    ? [...t.hero.meta.launch, t.hero.version(release.version), ...(release.homebrew ? [t.hero.brew] : [])]
+    : t.hero.meta.soon;
 ---
 
 <section class="lp-hero">
-  <span class="pillnote"><svg class="ic fill i8" viewBox="0 0 8 8" aria-hidden="true" style="color:var(--jidr-color-positive)"><circle cx="4" cy="4" r="4"></circle></svg>Coming soon · free and open source</span>
-  <h1>Android on your Mac.<br />Rooted in a minute.</h1>
-  <p>Jidr creates and runs virtual Android phones and tablets on Apple Silicon. Pick Full root and Magisk is set up and verified for you. Desktop app, CLI and MCP server.</p>
-  <div class="cta">
-    <a class="btn btn-primary btn-lg" href={links.repo}><svg class="ic i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg>Star on GitHub</a>
-    <a class="btn btn-lg" href={links.sponsors}><svg class="ic i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>Sponsor</a>
-  </div>
-  <span class="metaline">Free forever · no account · macOS 14+ on Apple Silicon</span>
+  <span class="pillnote"><Icon name="dot" class="ic fill i8" style="color:var(--jidr-color-positive)" />{t.hero.pill[phase]}</span>
+  <h1 set:html={t.hero.titleHtml} />
+  <p>{t.hero.lede}</p>
+  {
+    phase === "launch" ? (
+      <div class="cta">
+        <a class="btn btn-primary btn-lg" href={links.dmg}><Icon name="download" class="ic i16" />{t.hero.download}</a>
+        <a class="btn btn-lg" href={links.repo}>{t.hero.github}</a>
+      </div>
+    ) : (
+      <div class="cta">
+        <a class="btn btn-primary btn-lg" href={links.repo}><Icon name="star" class="ic i16" />{t.hero.star}</a>
+        <a class="btn btn-lg" href={links.sponsors}><Icon name="heart" class="ic i16" />{t.hero.sponsor}</a>
+      </div>
+    )
+  }
+  <span class="metaline">{meta.map((m, i) => <>{i > 0 && " · "}<bdi>{m}</bdi></>)}</span>
 </section>

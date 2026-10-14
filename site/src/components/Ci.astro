@@ -1,0 +1,35 @@
+---
+// From docs/design/screens/Landing.dc.html (D41), phase "launch": the CI
+// snippet and the download. Commands are the real ones from docs/cli.md and
+// docs/root.md; the release comes from src/config.ts.
+import Icon from "./Icon.astro";
+import Terminal from "./Terminal.astro";
+import { links, release } from "../config";
+import { strings } from "../i18n";
+
+const t = strings(Astro.currentLocale);
+---
+
+<section class="lp-sec" id="download">
+  <h2 class="lp-h2">{t.cli.title}</h2>
+  <p class="lead" set:html={t.cli.leadHtml} />
+  <Terminal
+    title={t.cli.terminal}
+    lines={[
+      "jidr device create ci-phone --image 35",
+      "jidr --json device start ci-phone --timeout 300",
+      "jidr root set ci-phone magisk",
+      "./gradlew connectedAndroidTest",
+      "jidr device delete ci-phone --yes",
+    ]}
+  />
+  <div class="sponsorband" style="align-items:center;text-align:center">
+    <div class="dl">
+      <a class="btn btn-primary btn-lg" href={links.dmg}><Icon name="download" class="ic i16" />{t.hero.download}</a>
+      <span class="sum"><bdi>{t.download.system}</bdi> · <bdi>{t.download.size(release.sizeMb)}</bdi></span>
+      <span class="sum" lang="en" dir="ltr"><span>{t.download.sha}</span><code class="sha">{release.sha256}</code></span>
+      {release.homebrew && <span class="sum"><bdi>{t.hero.brew}</bdi></span>}
+      <a class="sum" href={links.releases}>{t.download.all}</a>
+    </div>
+  </div>
+</section>

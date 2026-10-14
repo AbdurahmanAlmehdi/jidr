@@ -363,7 +363,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `cd site && npm ci && npm run build && npx @lhci/cli autorun --collect.staticDistDir=dist --assert.preset=lighthouse:recommended`
 
 ### Phase 11b (C): Launch site
-- **Status:** Not started
+- **Status:** Built, not deployed. `site/` renders the launch page in English (`/`) and Arabic RTL (`/ar/`); `phase` in `site/src/config.ts` switches back to the coming-soon page. Before launch: release size and SHA-256 in `site/src/config.ts`, the `jidr-dev` org and repo, and Abdurahman connects jidr.ly and getjidr.com on Cloudflare Pages. Arabic landing type sizes are bridged from `jidr.css` until gap G13 lands in `tokens.json`.
 - **Scope:** after the Magisk demo works (9d), built to `Landing-Launch.dc.html` / `-390` and `Landing-AR.dc.html` / `-390`: full home page, root and agent/MCP sections, CLI snippet, download (GitHub Releases), docs links, Arabic version (D33); deploy to Cloudflare Pages on jidr.ly with getjidr.com redirecting (Abdurahman connects the domains).
 - **Files touched:** `site/**`
 - **Acceptance criteria:** same Lighthouse gate in both languages; RTL page renders correctly.

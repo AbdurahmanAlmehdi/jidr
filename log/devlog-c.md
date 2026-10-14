@@ -273,3 +273,51 @@ Run 38561510057 failed all three Linux KVM emulator jobs. Fast-forwarded `stream
 - `crates/jidr-root/tests/adb_emulator.rs`: dropped the step asserting `root.set {mode: magisk}` is refused. That was true before Phase 9d; Magisk mode now works and is covered by `magisk_emulator.rs`.
 - `crates/jidr-mcp/tests/agent_tasks.rs` (Stream A's file, test-only): taps Wait on a launcher "isn't responding" dialog during the agent tasks (API 30 CI), with a unit test.
 - Follow-up (`b89fce6`, prepared as draft PR #6, reviewed here): PR #1's next run (38635419953) passed API 30 and 35, but API 33 failed agent task 2. Settings hadn't opened 30 s after one tap, a first-boot timing flake. Task 2 now retries up to 3 times: it reopens the drawer, taps Settings, and waits 20 s while answering any ANR dialog, printing the screen after each miss. `crates/jidr-mcp/tests/agent_tasks.rs` only.
+
+## Phase 11b: launch site — 2026-10-14
+
+Plan: port the "launch" phase of `docs/design/screens/Landing.dc.html` (frames
+Landing-Launch / -390, Landing-AR / -390) onto the 11a site, in English and
+Arabic, without losing the coming-soon page.
+
+Built (`site/`):
+- `/` (English) and `/ar/` (Arabic, `dir="rtl"`), one `Landing.astro` rendered
+  per locale with Astro i18n routing; all copy in `src/i18n.ts`. What depicts
+  the English-only app (product shot, Rooted badge, agent transcript,
+  commands) stays English and LTR on both pages (D33).
+- `phase` in `src/config.ts`: `"launch"` adds the download, agent/MCP, CI
+  snippet and docs sections and the Agents/Docs nav links; `"soon"` renders
+  the 11a page.
+- Download: buttons link to `Jidr-<version>-arm64.dmg` on the `v<version>`
+  release (names from `xtask release` / `release.yml`), plus GitHub Releases;
+  size and SHA-256 are `[size]` / `[checksum]` placeholders in `config.ts`.
+  The Homebrew line is hidden until the cask exists (12b).
+- Agent and CI sections use the real MCP tool names and params
+  (`docs/mcp.md`: `type_text`, `ui_dump`, `logcat_tail` with filter specs) and
+  real CLI commands (`docs/cli.md`, `docs/root.md`). The design's one-liner
+  (`--api 35 --root magisk --wait-boot`) doesn't exist, so the section is
+  "A few lines in CI": create, start, `root set magisk`, test, delete.
+- Copy buttons: a few lines of bundled script, hidden without a clipboard;
+  if the write is refused they select the commands. No Vue island needed.
+- `Icon.astro` (Lucide paths) replaces the repeated inline SVGs.
+- Fonts: Arabic headings use 600 (the tokens' Arabic group weight), so no
+  bold Kufi loads; Kufi faces only the Arabic page needs are imported in
+  `pages/ar/index.astro`; each locale preloads only its hero faces.
+- G13 bridged in `build-styles.mjs` (Arabic landing type sizes from
+  `jidr.css`, with a warning).
+
+Validation: `cd site && npm ci && npm run build` exits 0 (2 pages); `npm test`
+7/7. Lighthouse 12.8.2, 3 runs per page against `astro preview`:
+- mobile, quiet machine: en 98/98/98, ar 95/98/95; accessibility 100 everywhere.
+- desktop: en 95/98/97, ar 100/100/100; accessibility 100.
+- A later mobile pass with load average ~600 (other sessions' simulators and a
+  JVM) gave ar 54/85/93 with 0.3–9 s of TBT on a page with ~300 bytes of JS:
+  host contention, not the page. Re-run on a quiet machine before launch.
+
+Not done / open:
+- Deploy to Cloudflare Pages and the jidr.ly / getjidr.com domains (Abdurahman).
+- Release size and checksum; the `jidr-dev` org, repo and Sponsors profile.
+- G13: add `type-web-*-ar` to `tokens.json`; the bridge then drops out.
+- Arabic page margin is thin on mobile (Noto Kufi Arabic is ~45 KB per
+  weight); subsetting the Kufi faces to the page's glyphs is the next lever.
+- The Arabic copy needs a native-speaker read.
