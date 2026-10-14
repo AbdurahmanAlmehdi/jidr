@@ -12,17 +12,23 @@ publish.workspace = true
 [dependencies]
 jidr-core.workspace = true
 jidr-adb.workspace = true
+jidr-sdk.workspace = true
+jidr-cpio.workspace = true
 async-trait.workspace = true
 chrono.workspace = true
 schemars.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+toml.workspace = true
+zip.workspace = true
 tokio.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
 jidr-backend.workspace = true
 jidr-daemon.workspace = true
+jidr-cpio.workspace = true
+zip.workspace = true
 tempfile.workspace = true
 tokio.workspace = true
 

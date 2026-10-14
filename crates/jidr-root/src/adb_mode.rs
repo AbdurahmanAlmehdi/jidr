@@ -51,14 +51,14 @@ async fn switch(ctx: &CallCtx, device: &Device, mode: RootMode) -> JidrResult<Ve
         ctx.cancel.check()?;
         match verify::probe(&adb, mode).await {
             Ok(uid) if verify::uid_matches(mode, uid) => {
-                return verify::record(ctx, device, mode, uid).await;
+                return verify::record(ctx, device, mode, uid, None).await;
             }
             Ok(uid) => last = Some(uid),
             Err(_) => {}
         }
         if tokio::time::Instant::now() >= deadline {
             return match last {
-                Some(uid) => verify::record(ctx, device, mode, uid).await,
+                Some(uid) => verify::record(ctx, device, mode, uid, None).await,
                 None => Err(JidrError::root_failed(format!(
                     "{}: adbd didn't come back within {} s",
                     device.name,

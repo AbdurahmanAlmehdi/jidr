@@ -335,7 +335,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `cargo nextest run -p jidr-root --features emulator -- adb`
 
 ### Phase 9d (C): Magisk mode ★ headline
-- **Status:** Not started
+- **Status:** Done (offline tests + `cargo xtask ci` pass; the real-emulator e2e — `scripts/e2e-root.sh` on API 30/33/35 x86_64 and `cargo nextest run -p jidr-root --features emulator` — runs on Linux KVM CI once the branch is pushed, and in `xtask e2e-mac` on arm64 before release)
 - **Scope:** pinned Magisk release (`assets/magisk-pins.toml`: version, URL, SHA-256), download through the 5b cache, host-side patch with `jidr-cpio` into `<avd>/jidr/ramdisk.magisk-<ver>.img`, launch via `LaunchOptions.ramdisk` + cold boot, app install + env setup + reboot, shell su auto-grant (D22; Play Store path per ADR-0002), verify, revert, re-patch when the pristine hash or the pin changes, Play Integrity notice, `docs/root.md`, and `root.module.install {path}` (`magisk --install-module` + reboot) used by the player's zip drop (D35, R12).
 - **Files touched:** `crates/jidr-root/src/magisk/**`, `assets/magisk-pins.toml`, `docs/root.md`, `scripts/e2e-root.sh`
 - **Acceptance criteria:** `scripts/e2e-root.sh` cycles none → adb → magisk → none on API 30/33/35 `google_apis` and checks `su -c id` = uid=0 in magisk mode; the SDK `ramdisk.img` hash is unchanged at the end. Linux KVM (x86_64) on PRs; arm64 in `xtask e2e-mac` before release.

@@ -221,3 +221,29 @@ Left out on purpose: the star count, the sponsor logo slots (no sponsors yet) an
 ## Emulator test cleanup: switched to Stream A's helpers (2026-10-14)
 
 Merged `stream/a-core` (`0f32814`: Stream A's leak fix `9ee8eed`, main and the same rustfmt fix, merged cleanly). `crates/jidr-root/tests/adb_emulator.rs` now uses `jidr_backend::testing`: a per-process device name (`unique_avd`), an orphan sweep at start (`kill_orphans`) and `AvdGuard`, whose reaper process also covers a SIGKILLed test. Stream C's own guard and backstop are gone. Checked: a deliberately failing run and a passing run (5/5; cold boot 24.4 s, live adb root 1.4 s, cold boot + hook 15.4 s) both leave no qemu. Asked Stream A to add `binary(adb_emulator)` to the 1-thread `emulator` test group in `.config/nextest.toml`.
+
+## Phase 9d: Magisk mode — done (2026-10-14)
+
+Built (`crates/jidr-root/src/magisk/**`, `assets/magisk-pins.toml`, `docs/root.md`, `scripts/e2e-root.sh`; deps added to `jidr-root`: `jidr-sdk`, `jidr-cpio`, `toml`, `zip`):
+
+- **Pin + fetch** (`pins.rs`, `assets/magisk-pins.toml`): one entry — Magisk v30.7, its official GitHub release URL, SHA-256 `e0d32d21…ebd5`, licence `GPL-3.0-only` and source link. `resolve_apk` gets the APK through `DownloadCache::fetch` (SHA-256 verified) and shows the GPL notice once, only before the first download. `root.set` takes `magisk_sha256` (the CLI imports `--magisk <path>` via `cache.import` first), which uses the cached copy offline (D30).
+- **Per-device patch** (`patch.rs`): hashes the pristine `ramdisk.img`, extracts the payload from the APK (`lib/<abi>/libmagiskinit.so` → `init`, `libmagisk.so`, `libinit-ld.so`, `assets/stub.apk`), xz-compresses it (preset 6, CRC32 — what `magiskboot compress=xz` uses), edits the first cpio segment (`init` → magiskinit, `overlay.d/sbin/{magisk,stub,init-ld}.xz`, `.backup/.magisk`), and writes `<avd>/jidr/ramdisk.magisk-<ver>.img` atomically (temp + rename). Provenance (version + pristine SHA-256) lives in a `.json` sidecar; the SDK image is never written.
+- **State machine** (`mod.rs`): `to_magisk` = fetch → patch → set `launch.ramdisk` + `force_cold_boot` → cold boot → install app → `/data/adb/magisk` env setup (`env.rs`) → one reboot → shell grant (`grant.rs`) → verify. `clear_patch` reverts (delete file + clear launch → cold boot). Every step reports progress and checks cancel; a failure sets `health: failed` and leaves the device revertable. `on_booted` re-patches (from cache only) when the pristine hash or pin changed — patches never stack.
+- **Shell grant** (`grant.rs`, D22): zero-touch on `google_apis`/`default`/`aosp_atd` (adb root → `magisk --sqlite "REPLACE INTO policies … VALUES (2000,2,…)"` → drop root); Play Store uses the ADR-0002 guided tap (`su -c id` poll, 60 s timeout, `awaiting_user_grant` on deny/timeout). `auto_grant_all` stays opt-in/off.
+- **Verify** (`verify.rs`): `su -c id` → uid 0 plus `su -c 'magisk -v'`; the version rides on `Verification.magisk_version`.
+- **`root.module.install {path}`** (D35/R12): Magisk-only (usage error otherwise), destructive + locks device; pushes the zip, `magisk --install-module`, cold boot, verify.
+- **Notices**: `root.status`/`root.set` both carry `play_integrity` ("Play Integrity cannot pass…").
+
+Tests (all offline, `cargo xtask ci` → 202 passed):
+- `magisk::patch` unit: patch idempotence/determinism, refuses an already-patched ramdisk, atomic write + provenance round-trip, ABI mapping.
+- `magisk::env` unit: environment extraction (lib→binary name, assets, chromeos) and wrong-ABI rejection.
+- `magisk::grant` unit: the guided grant's 60 s timeout → `awaiting_user_grant`, and success once su answers root.
+- `tests/magisk_mode.rs`: full `root.set magisk` flow roots and verifies (`su -c id` uid 0, `magisk -v`), SDK ramdisk hash unchanged, re-patch on pristine change, revert deletes the file + clears `launch.ramdisk`, `root.module.install` refuses non-Magisk, command flags (destructive/locked/long-running) and the `magisk_sha256` param. The fake adb in `tests/common` now simulates `su`, the `magisk` binary and the su-policy DB, and the fake SDK ships a real cpio ramdisk + a synthetic Magisk APK.
+- `tests/magisk_emulator.rs` (behind `emulator`): none → magisk → none on a real emulator, verifying each step and the SDK hash; compiles and mirrors `adb_emulator.rs` (AvdGuard/unique_avd/kill_orphans).
+
+Clean-room: the ramdisk layout, payload/ABI layout, `/data/adb/magisk` environment and the su-policy grant were read from Magisk's `boot_patch.sh` (GPL, read-only) and ported from avdroot (MIT, attributed in `NOTICE` and `docs/clean-room.md`). No GPL code copied.
+
+Open issues:
+- The real-emulator validation (`scripts/e2e-root.sh` on API 30/33/35 x86_64, `cargo nextest run -p jidr-root --features emulator`) needs Linux KVM CI (or `xtask e2e-mac` on arm64), which can't run until the branch is pushed. The patch is faithful to the documented layout but has not been boot-tested here (no emulator + network in this session).
+- The Play Store beta path is specified (ADR-0002) but its env setup relies on the Magisk app; the guided tap is exercised offline at the grant level, not end-to-end on a playstore image.
+- `SystemImage.pristine_ramdisk_sha256` is filled by the root engine only implicitly (provenance sidecar); surfacing it in `image.list`/`device.details` is a small Stream A follow-up (gap G14).

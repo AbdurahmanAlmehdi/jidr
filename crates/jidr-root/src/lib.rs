@@ -2,15 +2,18 @@
 //!
 //! Commands (plan, "Root engine"):
 //! - `root.status`: the stored root state of a device;
-//! - `root.verify`: checks the live uid against the mode and records the result;
-//! - `root.set`: switches the mode, live when the device is running.
+//! - `root.verify`: checks the live uid (and Magisk version) against the mode;
+//! - `root.set`: switches the mode, live when the device is running;
+//! - `root.module.install`: installs a Magisk module zip on a Magisk device.
 //!
 //! adb-mode devices get `adb root` after every boot through
-//! [`CommandProvider::on_booted`]. Magisk mode lands in Phase 9d.
+//! [`CommandProvider::on_booted`]; Magisk devices get a re-patch check.
 
 mod adb_mode;
+mod magisk;
 mod verify;
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -21,6 +24,9 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 pub use verify::Verification;
+
+/// Shown in `root.status` and `root.set` results so the UI and CLI agree.
+pub const PLAY_INTEGRITY_NOTICE: &str = "Play Integrity cannot pass on any emulator; Zygisk/DenyList only hides root from local checks.";
 
 /// The root provider, for `jidr daemon` to register (gap G8).
 pub fn provider() -> Arc<dyn CommandProvider> {
@@ -37,6 +43,20 @@ pub struct SetParams {
     pub device: String,
     /// `none`, `adb` (images that allow it) or `magisk`.
     pub mode: RootMode,
+    /// SHA-256 of a Magisk APK already in the download cache (the CLI imports
+    /// it with `--magisk <path>` before calling this); overrides the pinned
+    /// release (D30, offline).
+    #[serde(default)]
+    pub magisk_sha256: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModuleInstallParams {
+    /// Device name or id (must be in `magisk` mode).
+    pub device: String,
+    /// A local Magisk module zip.
+    pub path: PathBuf,
 }
 
 #[async_trait]
@@ -59,6 +79,13 @@ impl CommandProvider for RootProvider {
             )
             .locks_device()
             .long_running(),
+            CommandSpec::new::<ModuleInstallParams>(
+                "root.module.install",
+                "Install a Magisk module zip and reboot (Full-root devices only)",
+            )
+            .locks_device()
+            .long_running()
+            .destructive(),
         ]
     }
 
@@ -76,6 +103,12 @@ impl CommandProvider for RootProvider {
                 to_value(verify::verify(ctx, &device).await?)
             }
             "root.set" => set(ctx, parse_params(params)?).await,
+            "root.module.install" => {
+                let p: ModuleInstallParams = parse_params(params)?;
+                let device = ctx.daemon.device(&p.device).await?;
+                ensure_running(&device)?;
+                magisk::install_module(ctx, &device, &p.path).await
+            }
             other => Err(JidrError::not_found(format!("unknown method {other}"))),
         }
     }
@@ -85,7 +118,8 @@ impl CommandProvider for RootProvider {
             RootMode::Adb => adb_mode::apply(ctx, device, RootMode::Adb)
                 .await
                 .map(|_| ()),
-            RootMode::None | RootMode::Magisk => Ok(()),
+            RootMode::Magisk => magisk::on_booted(ctx, device).await,
+            RootMode::None => Ok(()),
         }
     }
 }
@@ -100,6 +134,7 @@ fn status(device: &Device) -> Value {
         "name": device.name,
         "root": device.root,
         "adb_root_allowed": device.image.allows_adb_root(),
+        "play_integrity": PLAY_INTEGRITY_NOTICE,
     })
 }
 
@@ -120,28 +155,22 @@ fn ensure_running(device: &Device) -> JidrResult<()> {
 
 async fn set(ctx: &CallCtx, p: SetParams) -> JidrResult<Value> {
     let device = ctx.daemon.device(&p.device).await?;
-    match p.mode {
-        RootMode::Magisk => {
-            return Err(JidrError::usage(
-                "Full root (Magisk) isn't available yet; use mode none or adb",
-            ));
-        }
-        RootMode::Adb if !device.image.allows_adb_root() => {
-            return Err(JidrError::usage(format!(
-                "{} images don't allow adb root; use mode none, or magisk once it's available",
-                device.image.tag
-            )));
-        }
-        RootMode::Adb | RootMode::None => {}
+    if p.mode == RootMode::Adb && !device.image.allows_adb_root() {
+        return Err(JidrError::usage(format!(
+            "{} images don't allow adb root; use mode none, or magisk for full root",
+            device.image.tag
+        )));
     }
-    if device.root.mode == RootMode::Magisk {
-        return Err(JidrError::usage(
-            "reverting Full root (Magisk) isn't available yet",
-        ));
+    if p.mode == RootMode::Magisk {
+        return magisk::to_magisk(ctx, &device, p.magisk_sha256.as_deref()).await;
     }
 
     let changed = device.root.mode != p.mode;
-    let device = if changed {
+    // Leaving Magisk: clear the patch and cold-boot before applying the target
+    // mode, so `none` and `adb` behave exactly as they do today.
+    let device = if device.root.mode == RootMode::Magisk {
+        magisk::clear_patch(ctx, &device, p.mode).await?
+    } else if changed {
         let mode = p.mode;
         ctx.daemon
             .update_device(
@@ -165,6 +194,7 @@ async fn set(ctx: &CallCtx, p: SetParams) -> JidrResult<Value> {
             "mode": device.root.mode,
             "changed": changed,
             "applied": "next_boot",
+            "play_integrity": PLAY_INTEGRITY_NOTICE,
         }));
     }
     ctx.cancel.check()?;
@@ -176,6 +206,7 @@ async fn set(ctx: &CallCtx, p: SetParams) -> JidrResult<Value> {
         "changed": changed,
         "applied": "live",
         "verification": verification,
+        "play_integrity": PLAY_INTEGRITY_NOTICE,
     }))
 }
 
