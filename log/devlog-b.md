@@ -96,3 +96,15 @@ Findings on the API 31 arm64 emulator (35.6.11):
 Validation: `cargo nextest run -p jidr-widgets --features emulator` → 11 passed (`widgets_core_commands` 76 s incl. a 30 s cold boot). `cargo run -p jidr-ui --example snapshot -- --check` → 90 renders. `cargo xtask ci` ok (152 tests).
 
 Open: fingerprint "recognised" needs a finger enrolled once in the guest (the panel says so); rich biometric scenarios stay post-MVP (D36).
+
+## 2026-10-14 · Phase 8b plan + done: GPS
+
+Plan: `gps.get/set` (gRPC `setGps`), `gps.route` (a job walking a GPX/KML track at 10 m/s × 1/2/4×, one fix per ≤ 50 m, progress text like the design), `gps.route_control` (speed, pause, loop) and `gps.route_stop`; GPS panel with an OSM tile map (configurable URL from Settings, attribution always visible, disk cache), coordinate fields, map click to move the fix, and the route card.
+
+Built:
+- `crates/jidr-widgets/src/gps/` (`track.rs`: tolerant GPX `trkpt/rtept/wpt` + KML `coordinates` / `gx:coord` parsing, haversine distance, bearing, walking a polyline; `mod.rs`: commands, route registry so a new route stops the old one).
+- `crates/jidr-ui/ui/widgets/panels.slint` `GpsPanel` and `src/widgets/gps.rs` (Web Mercator, tile fetch with reqwest + `Jidr/<ver>` User-Agent, cache under `~/Library/Caches/Jidr/tiles`, compositing to a 584×300 map image, route drawn as a `Path`, macOS file chooser for routes).
+- Design deviation: the design's "Accuracy" field became "Bearing". The AOSP emulator's `GpsState` has no accuracy (Android reports hAcc 5 m for every fix), and PRODUCT §6 lists bearing.
+- Test app: `build-hello-apk.sh … locprobe` builds `ly.jidr.locprobe`, which requests GPS updates and logs each fix. Without a client asking for location, `dumpsys location` never shows a fix.
+
+Validation: `cargo nextest run -p jidr-widgets --features emulator -- gps` → `gps_fix_and_route_replay` passed (67.6 s incl. boot): `Location[gps 32.895400,13.180198 …]` in `dumpsys location`; a 3-point GPX at 600 m/s produced probe fixes near point 1, then 2, then 3 with latitude only falling. Goldens 93, `cargo xtask ci` ok (160 tests). One OSM tile fetched with the app's User-Agent: HTTP 200 PNG.

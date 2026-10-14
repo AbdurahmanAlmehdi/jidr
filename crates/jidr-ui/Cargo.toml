@@ -24,6 +24,7 @@ chrono.workspace = true
 png.workspace = true
 tracing.workspace = true
 dirs.workspace = true
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "http2", "system-proxy"] }
 
 [build-dependencies]
 slint-build = "1.18.1"

@@ -2850,6 +2850,7 @@ dependencies = [
  "jidr-daemon",
  "jidr-proto",
  "png",
+ "reqwest",
  "serde",
  "serde_json",
  "slint",

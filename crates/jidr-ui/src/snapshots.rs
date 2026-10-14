@@ -377,6 +377,39 @@ pub fn cases() -> Vec<Case> {
             },
         },
         Case {
+            name: "widgets-gps",
+            render: |v| {
+                let app = device_tab(v, 0)?;
+                let mut w = app.get_widgets();
+                w.gps_lat = "32.8954".into();
+                w.gps_lon = "13.1802".into();
+                w.gps_alt = "21".into();
+                w.gps_bearing = "168".into();
+                w.route_name = "tripoli-airport-run.gpx".into();
+                w.route_active = true;
+                w.route_progress = 0.38;
+                w.route_speed = 1;
+                w.route_text = "4.1 / 10.8 km · 6 min left at 2× · bearing 168°".into();
+                app.set_widgets(w);
+                let c = crate::widgets::gps::world_px(32.8954, 13.1802, crate::widgets::gps::ZOOM);
+                app.set_gps_route_path(
+                    crate::widgets::gps::route_path(
+                        &[
+                            (32.8990, 13.1720),
+                            (32.8954, 13.1802),
+                            (32.8925, 13.1830),
+                            (32.8890, 13.1842),
+                            (32.8850, 13.1880),
+                        ],
+                        c,
+                    )
+                    .into(),
+                );
+                app.set_player_panel_tab(1);
+                shot(&app, 1440, 900)
+            },
+        },
+        Case {
             name: "widgets-network",
             render: |v| {
                 let app = device_tab(v, 0)?;

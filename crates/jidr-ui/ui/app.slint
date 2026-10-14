@@ -18,7 +18,7 @@ import { DeviceSheet } from "device_form.slint";
 import { ConfirmDialog } from "forms.slint";
 import { Palette } from "palette.slint";
 import { DeviceView, WidgetPanel } from "player.slint";
-import { BatteryPanel, NetworkPanel, SensorsPanel, MorePanel } from "widgets/panels.slint";
+import { BatteryPanel, NetworkPanel, SensorsPanel, MorePanel, GpsPanel } from "widgets/panels.slint";
 import { RootBadge } from "components/status.slint";
 import { SetupWindow } from "wizard.slint";
 import { SettingsWindow } from "settings.slint";
@@ -86,6 +86,11 @@ export component AppWindow inherits Window {
     in-out property <string> log-filter;
     in-out property <bool> log-following: true;
     in-out property <WidgetsVm> widgets;
+    in-out property <image> gps-map;
+    in-out property <bool> gps-has-map;
+    in-out property <float> gps-marker-x: 0.5;
+    in-out property <float> gps-marker-y: 0.5;
+    in-out property <string> gps-route-path;
 
     callback select-device(int);
     callback open-device(int);
@@ -127,6 +132,7 @@ export component AppWindow inherits Window {
     /// A widget control changed: (action id, value).
     callback widget-action(string, string);
     callback widget-tab(int);
+    callback gps-map-click(float, float);
 
     title: "Jidr";
     icon: @image-url("../../../apps/jidr-gui/assets/icons/app-icon-256.png");
@@ -281,13 +287,15 @@ export component AppWindow inherits Window {
                         vm: root.widgets;
                         action(a, v) => { root.widget-action(a, v); }
                     }
-                    if root.player-panel-tab == 1: T {
-                        x: 14px;
-                        y: 16px;
-                        width: parent.width - 28px;
-                        height: 18px;
-                        text: @tr("GPS");
-                        color: Theme.text-secondary;
+                    if root.player-panel-tab == 1: GpsPanel {
+                        vm: root.widgets;
+                        map: root.gps-map;
+                        has-map: root.gps-has-map;
+                        marker-x: root.gps-marker-x;
+                        marker-y: root.gps-marker-y;
+                        route-path: root.gps-route-path;
+                        action(a, v) => { root.widget-action(a, v); }
+                        map-click(x, y) => { root.gps-map-click(x, y); }
                     }
                     if root.player-panel-tab == 2: NetworkPanel {
                         vm: root.widgets;

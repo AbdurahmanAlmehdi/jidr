@@ -292,7 +292,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `cargo nextest run -p jidr-widgets --features emulator`
 
 ### Phase 8b (B): GPS
-- **Status:** Not started
+- **Status:** Done (`gps_fix_and_route_replay` passes on API 31 arm64: Tripoli in `dumpsys location`, 3-point GPX fixes in order)
 - **Scope:** GPS widget with an OpenStreetMap tile map (attribution, configurable URL, D14), coordinate fields, GPX/KML route replay job with speed control.
 - **Files touched:** `crates/jidr-widgets/src/gps/**`, `crates/jidr-ui/src/widgets/gps/**`
 - **Acceptance criteria:** setting Tripoli coordinates shows in `dumpsys location`; replay of a 3-point GPX moves the reported location in order.

@@ -4,7 +4,7 @@
 
 import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
-import { T, Role, Tone, Icon, Button, ButtonKind, Pill, Toggle, Segmented, TextField, Hint, Scroll } from "../components/base.slint";
+import { T, Role, Tone, Icon, Button, ButtonKind, Pill, Toggle, Segmented, TextField, Hint, Scroll, Checkbox } from "../components/base.slint";
 import { WidgetsVm } from "../types.slint";
 
 /// Slider (`.slider`) 0–100 with a linked value field.
@@ -444,6 +444,226 @@ export component MorePanel inherits Rectangle {
                     changed(i) => { root.action("camera.back", i); }
                 }
                 Hint { height: 15px; text: @tr("Applies the next time the device starts."); }
+            }
+        }
+    }
+}
+
+/// GPS (Device.dc.html GPS frame): OSM map, coordinates, route replay.
+export component GpsPanel inherits VerticalLayout {
+    in property <WidgetsVm> vm;
+    in property <image> map;
+    in property <bool> has-map;
+    /// Marker position on the map, 0..1.
+    in property <float> marker-x: 0.5;
+    in property <float> marker-y: 0.5;
+    /// Route as SVG path commands in map units (0..1000 × 0..1000).
+    in property <string> route-path;
+    callback action(string, string);
+    /// The user clicked the map at (x, y) in 0..1.
+    callback map-click(float, float);
+    padding: 16px;
+    padding-left: 14px;
+    padding-right: 14px;
+    spacing: 14px;
+    alignment: start;
+    // Map (`.map`). Tiles never mirror; the attribution stays visible (D14).
+    Rectangle {
+        height: 150px;
+        border-radius: Theme.radius-md;
+        border-width: 1px;
+        border-color: Theme.border-default;
+        background: Theme.surface-sunken;
+        clip: true;
+        if root.has-map: Image {
+            width: parent.width;
+            height: parent.height;
+            source: root.map;
+            image-fit: cover;
+        }
+        if !root.has-map: Rectangle {
+            // Placeholder streets while tiles load.
+            Rectangle { x: parent.width * 0.32; width: 8px; background: Theme.surface-control; }
+            Rectangle { x: parent.width * 0.7; width: 8px; background: Theme.surface-control; }
+            Rectangle { y: parent.height * 0.55; height: 8px; background: Theme.surface-control; }
+        }
+        if root.route-path != "": Path {
+            width: parent.width;
+            height: parent.height;
+            viewbox-width: 1000;
+            viewbox-height: 1000;
+            commands: root.route-path;
+            stroke: Theme.accent-fill;
+            stroke-width: 2.5px;
+            fill: transparent;
+        }
+        Rectangle {
+            x: parent.width * root.marker-x - 9px;
+            y: parent.height * root.marker-y - 9px;
+            width: 18px;
+            height: 18px;
+            border-radius: 9px;
+            background: Theme.accent-fill.with-alpha(0.25);
+            Rectangle {
+                width: 10px;
+                height: 10px;
+                border-radius: 5px;
+                background: Theme.accent-fill;
+                border-width: 2px;
+                border-color: #ffffff;
+            }
+        }
+        TouchArea {
+            mouse-cursor: crosshair;
+            clicked => { root.map-click(self.mouse-x / self.width, self.mouse-y / self.height); }
+        }
+        Rectangle {
+            x: parent.width - self.width - 4px;
+            y: parent.height - self.height - 4px;
+            width: attr.preferred-width + 8px;
+            height: 16px;
+            border-radius: 3px;
+            background: #ffffffcc;
+            attr := Text {
+                text: "© OpenStreetMap contributors";
+                font-size: 9px;
+                color: #333333;
+                font-family: Theme.font-ui;
+            }
+        }
+    }
+    // Coordinates (`.form2`).
+    property <length> half: (self.width - 28px - 10px) / 2;
+    Rectangle {
+        height: 2 * 51px + 10px;
+        for f[j] in [
+            { l: @tr("Latitude"), u: "°", v: root.vm.gps-lat, id: "gps.lat" },
+            { l: @tr("Longitude"), u: "°", v: root.vm.gps-lon, id: "gps.lon" },
+            { l: @tr("Altitude"), u: "m", v: root.vm.gps-alt, id: "gps.alt" },
+            { l: @tr("Bearing"), u: "°", v: root.vm.gps-bearing, id: "gps.bearing" },
+        ]: VerticalLayout {
+            property <int> column: Math.mod(j, 2);
+            x: Theme.rtl ? (1 - column) * (half + 10px) : column * (half + 10px);
+            y: floor(j / 2) * 61px;
+            width: half;
+            spacing: 5px;
+            T { height: 16px; text: f.l; role: Role.label; color: Theme.text-secondary; }
+            TextField {
+                text: f.v;
+                unit: f.u;
+                mono: true;
+                edited(t) => { root.action(f.id, t); }
+                accepted(t) => { root.action("gps.set", ""); }
+            }
+        }
+    }
+    Button {
+        kind: ButtonKind.primary;
+        text: @tr("Set location");
+        kbd: "↵";
+        clicked => { root.action("gps.set", ""); }
+    }
+    // Route replay (`.routecard`).
+    Rectangle {
+        height: root.vm.route-name != "" ? 136px : 74px;
+        border-radius: Theme.radius-lg;
+        background: Theme.surface-base;
+        border-width: 1px;
+        border-color: Theme.border-default;
+        if root.vm.route-name == "": T {
+            x: 12px;
+            y: 12px;
+            width: parent.width - 24px;
+            height: 18px;
+            text: @tr("Replay a GPX or KML route");
+            font-weight: 500;
+        }
+        if root.vm.route-name == "": Button {
+            x: Theme.rtl ? parent.width - 12px - self.width : 12px;
+            y: 38px;
+            small: true;
+            has-icon: true;
+            icon: Icons.route;
+            text: @tr("Choose a file…");
+            clicked => { root.action("gps.route.choose", ""); }
+        }
+        if root.vm.route-name != "": Rectangle {
+            Icon {
+                x: Theme.rtl ? parent.width - 12px - self.width : 12px;
+                y: 12px;
+                size: Theme.icon-sm;
+                source: Icons.route;
+            }
+            T {
+                x: Theme.rtl ? 80px : 32px;
+                y: 10px;
+                width: parent.width - 112px;
+                height: 18px;
+                text: root.vm.route-name;
+                role: Role.code;
+                ltr: true;
+            }
+            Button {
+                x: Theme.rtl ? 6px : parent.width - 6px - self.width;
+                y: 6px;
+                small: true;
+                kind: ButtonKind.tertiary;
+                text: @tr("Change…");
+                clicked => { root.action("gps.route.choose", ""); }
+            }
+            Rectangle {
+                x: 12px;
+                y: 36px;
+                width: parent.width - 24px;
+                height: 4px;
+                border-radius: 2px;
+                background: Theme.surface-sunken;
+                clip: true;
+                Rectangle {
+                    x: Theme.rtl ? parent.width - self.width : 0px;
+                    width: parent.width * clamp(root.vm.route-progress, 0, 1);
+                    background: Theme.accent-fill;
+                }
+            }
+            Button {
+                x: Theme.rtl ? parent.width - 12px - self.width : 12px;
+                y: 50px;
+                small: true;
+                icon-only: true;
+                has-icon: true;
+                icon: !root.vm.route-active ? Icons.play : root.vm.route-paused ? Icons.play : Icons.pause;
+                clicked => { root.action("gps.route.toggle", ""); }
+            }
+            Segmented {
+                x: Theme.rtl ? parent.width - 44px - self.width : 44px;
+                y: 47px;
+                width: 120px;
+                height: 30px;
+                items: ["1×", "2×", "4×"];
+                mono: true;
+                stretch: true;
+                selected: root.vm.route-speed;
+                changed(i) => { root.action("gps.route.speed", i); }
+            }
+            Checkbox {
+                x: Theme.rtl ? 12px : parent.width - 12px - self.width;
+                y: 53px;
+                text: @tr("Loop");
+                checked: root.vm.route-loop;
+                toggled(v) => { root.action("gps.route.loop", v ? "true" : "false"); }
+            }
+            T {
+                x: 12px;
+                y: 88px;
+                width: parent.width - 24px;
+                height: 36px;
+                text: root.vm.route-text;
+                role: Role.code;
+                font-size: 11px;
+                color: Theme.text-secondary;
+                wrap: word-wrap;
+                vertical-alignment: top;
+                ltr: true;
             }
         }
     }
