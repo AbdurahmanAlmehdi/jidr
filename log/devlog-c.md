@@ -178,3 +178,12 @@ Blocked on other streams:
 - Gaps: G8 (`jidr_root::provider()` ready for A to register), G9 (snapshot root tags, B 10b), G6 (lockfile FYI).
 
 Open gaps and notes: API 31 is the only arm64 `google_apis` image installed here (API 34 `default` and API 36 `google_apis` folders are empty); the API 36 Play Store ramdisk hashes the same as its rootAVD `.backup` and has no Magisk files (checked with `jidr-cpio`), so it's pristine.
+
+## Fix: emulator test cleanup (2026-10-14)
+
+A peer session found 13 orphaned emulators (Stream A's `agent-phone`, `jidr_resilience`) filling the Mac's memory. Forwarded to Stream A. Stream C's own e2e (`crates/jidr-root/tests/adb_emulator.rs`) also only stopped its emulator on the happy path, so a red run would leak too. Fixed:
+- `EmulatorGuard` (Drop) kills any `qemu-system` still running the test AVD: SIGTERM, then SIGKILL after 5 s.
+- A backstop before boot kills a leftover from a run whose process was SIGKILLed (nextest timeout or Ctrl-C), since Drop never runs there.
+- `JIDR_ROOT_E2E_FAIL_AFTER_BOOT=1` fails the test on purpose, to check the guard.
+
+Checked (regression): a deliberately failing run leaves no qemu. A test process SIGKILLed after boot leaves an orphan (ppid 1), which the next run's backstop kills before booting. A normal run passes (5/5) with no qemu left.
