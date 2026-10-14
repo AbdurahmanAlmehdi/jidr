@@ -37,9 +37,40 @@ fn mobile_data_off_reads_either_key() {
     assert!(!mobile_data_off("mobile_data_always_on=0\nmobile_data=1\n"));
 }
 
-fn wcdma_ss(reg: &str) -> Option<i32> {
-    let at = reg.find("CellSignalStrengthWcdma: ss=")? + "CellSignalStrengthWcdma: ss=".len();
-    reg[at..].split_whitespace().next()?.parse().ok()
+/// The signal level (0–4) telephony reports: the highest level of any radio
+/// in the `mSignalStrength` line. Images differ in which radio carries the
+/// signal (WCDMA on API 31 arm64, LTE on API 30 x86_64), and the others report
+/// level 0.
+fn signal_level(registry: &str) -> Option<u32> {
+    let line = registry.lines().find(|l| l.contains("mSignalStrength="))?;
+    line.replace(" = ", "=")
+        .split([' ', ',', '{', '}'])
+        .filter_map(|t| {
+            t.strip_prefix("level=")
+                .or_else(|| t.strip_prefix("mLevel="))
+        })
+        .filter_map(|v| v.parse().ok())
+        .max()
+}
+
+#[test]
+fn signal_level_reads_any_radio() {
+    // API 30 x86_64 after `gsm signal-profile 0` (CI run 38592875474): LTE is primary.
+    let lte = "  mSignalStrength=SignalStrength:{mCdma=CellSignalStrengthCdma: cdmaDbm=2147483647 level=0,mGsm=CellSignalStrengthGsm: rssi=2147483647 ber=2147483647 mTa=2147483647 mLevel=0,mWcdma=CellSignalStrengthWcdma: ss=2147483647 level=0,mLte=CellSignalStrengthLte: rssi=2147483647 rsrp=-140 rsrq=-3 rssnr=-20 cqi=0 ta=500 level=0 parametersUseForLevel=0,mNr=CellSignalStrengthNr:{ ssRsrp = 2147483647 level = 0 parametersUseForLevel = 0 },primary=CellSignalStrengthLte}";
+    assert_eq!(signal_level(lte), Some(0));
+    assert_eq!(
+        signal_level(&lte.replace(
+            "rsrp=-140 rsrq=-3 rssnr=-20 cqi=0 ta=500 level=0",
+            "rsrp=-85 level=4"
+        )),
+        Some(4)
+    );
+    assert_eq!(signal_level(&lte.replace("mLevel=0", "mLevel=3")), Some(3));
+    assert_eq!(
+        signal_level(&lte.replace("level = 0", "level = 2")),
+        Some(2)
+    );
+    assert_eq!(signal_level("mServiceState=x"), None);
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -93,6 +124,11 @@ async fn widgets_core_commands() {
         e.shell("settings get global wifi_on").trim() == "0"
     })
     .await;
+    // Diagnostics for API 35, where `svc data disable` leaves data on (CI run
+    // 38592875474): what it prints, and what data commands `cmd phone` offers.
+    let probe = env.shell(
+        "svc data disable 2>&1; echo \"svc exit=$?\"; cmd phone help 2>&1 | grep -i -A2 'data' | head -n 20",
+    );
     env.eventually_shell(
         "mobile data off",
         "settings list global; dumpsys telephony.registry",
@@ -103,6 +139,7 @@ async fn widgets_core_commands() {
             "mUserMobileDataState",
             "mServiceState",
         ],
+        &probe,
         mobile_data_off,
     )
     .await;
@@ -150,13 +187,13 @@ async fn widgets_core_commands() {
     // Mobile signal bars (R3): more bars, stronger reported signal.
     env.call("phone.gsm", json!({ "signal": 0 })).await;
     let registry = "dumpsys telephony.registry";
-    env.eventually_shell("weak signal", registry, &["mSignalStrength"], |out| {
-        wcdma_ss(out).is_some_and(|s| s <= -100)
+    env.eventually_shell("weak signal", registry, &["mSignalStrength"], "", |out| {
+        signal_level(out).is_some_and(|l| l <= 1)
     })
     .await;
     env.call("phone.gsm", json!({ "signal": 4 })).await;
-    env.eventually_shell("strong signal", registry, &["mSignalStrength"], |out| {
-        wcdma_ss(out).is_some_and(|s| s >= -60)
+    env.eventually_shell("strong signal", registry, &["mSignalStrength"], "", |out| {
+        signal_level(out).is_some_and(|l| l >= 3)
     })
     .await;
 

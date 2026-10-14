@@ -164,13 +164,14 @@ impl Env {
     }
 
     /// Like `eventually`, on the output of a device shell command. On timeout
-    /// the panic shows the last output's lines that contain any of `show`, so
-    /// a CI failure says what the device reported.
+    /// the panic shows the last output's lines that contain any of `show`, and
+    /// `context`, so a CI failure says what the device reported.
     pub async fn eventually_shell(
         &self,
         what: &str,
         cmd: &str,
         show: &[&str],
+        context: &str,
         ok: impl Fn(&str) -> bool,
     ) {
         let deadline = Instant::now() + Duration::from_secs(30);
@@ -187,7 +188,7 @@ impl Env {
             .filter(|l| show.iter().any(|k| l.contains(k)))
             .collect();
         panic!(
-            "timed out waiting for: {what}\n`{cmd}` showed:\n{}",
+            "timed out waiting for: {what}\n`{cmd}` showed:\n{}\n{context}",
             seen.join("\n")
         );
     }
