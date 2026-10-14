@@ -1,17 +1,23 @@
 ---
 import symbol from "../../public/symbol.svg?raw";
-import { links } from "../config";
+import Icon from "./Icon.astro";
+import { links, phase } from "../config";
+import { strings } from "../i18n";
 
+const t = strings(Astro.currentLocale);
 // The brand symbol inline, so it takes the text colour (D39).
 const mark = symbol.replace("<svg", '<svg class="mark" aria-hidden="true"');
 ---
 
 <header class="lp-nav">
-  <a class="logo" href="/"><Fragment set:html={mark} />Jidr <span lang="ar">جذر</span></a>
+  <a class="logo" href={t.home}><Fragment set:html={mark} /><bdi lang="en">Jidr</bdi> <span lang="ar">جذر</span></a>
   <span class="grow"></span>
-  <nav aria-label="Site">
-    <a class="hide-sm" href="#features">Features</a>
-    <a class="hide-sm" href="#root">Root</a>
+  <nav aria-label={t.nav.label}>
+    <a class="hide-sm" href="#features">{t.nav.features}</a>
+    <a class="hide-sm" href="#root">{t.nav.root}</a>
+    {phase === "launch" && <a class="hide-sm" href="#agents">{t.nav.agents}</a>}
+    {phase === "launch" && <a class="hide-sm" href="#docs">{t.nav.docs}</a>}
+    <a class="lang-switch" href={t.other.href} lang={t.other.lang} hreflang={t.other.lang}>{t.other.label}</a>
   </nav>
-  <a class="star" href={links.repo}><span><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg>Star</span></a>
+  <a class="star" href={links.repo}><span><Icon name="star" class="ic i14" />{t.nav.star}</span></a>
 </header>

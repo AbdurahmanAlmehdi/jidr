@@ -1,0 +1,19 @@
+---
+// From docs/design/screens/Landing.dc.html (D41), phase "launch". The docs
+// live in the repo for now.
+import Icon from "./Icon.astro";
+import { links } from "../config";
+import { strings } from "../i18n";
+
+const t = strings(Astro.currentLocale);
+---
+
+<section class="lp-sec" id="docs">
+  <h2 class="lp-h2">{t.docs.title}</h2>
+  <div class="docs">
+    {t.docs.items.map(([path, title, body]) => (
+      <a class="doc" href={links.doc(path)}><b>{title}<Icon name="arrow" class="ic i14" /></b><span>{body}</span></a>
+    ))}
+  </div>
+  {t.docs.note && <p class="fine" style="margin:0">{t.docs.note}</p>}
+</section>

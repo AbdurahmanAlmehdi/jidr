@@ -1,0 +1,39 @@
+---
+// The whole page, in the locale of the route that renders it (D33).
+import Base from "../layouts/Base.astro";
+import Nav from "./Nav.astro";
+import Hero from "./Hero.astro";
+import AppShot from "./AppShot.astro";
+import RootShowcase from "./RootShowcase.astro";
+import Features from "./Features.astro";
+import Compare from "./Compare.astro";
+import Agents from "./Agents.astro";
+import Ci from "./Ci.astro";
+import Docs from "./Docs.astro";
+import Sponsors from "./Sponsors.astro";
+import Footer from "./Footer.astro";
+import { phase } from "../config";
+import { strings } from "../i18n";
+
+const t = strings(Astro.currentLocale);
+---
+
+<Base>
+  <div class="site jidr-dark" dir={t.dir} lang={t.lang}>
+    <div class="wrap">
+      <Nav />
+      <main id="main">
+        <Hero />
+        <AppShot />
+        <RootShowcase />
+        <Features />
+        <Compare />
+        {phase === "launch" && <Agents />}
+        {phase === "launch" && <Ci />}
+        {phase === "launch" && <Docs />}
+        <Sponsors />
+      </main>
+      <Footer />
+    </div>
+  </div>
+</Base>

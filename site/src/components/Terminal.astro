@@ -1,0 +1,46 @@
+---
+// A command block (.cli in the design) with a Copy button. The button stays
+// hidden without JavaScript or a clipboard; the commands are plain text either
+// way. Astro bundles the script once, however many blocks a page has.
+import { strings } from "../i18n";
+
+interface Props {
+  title: string;
+  lines: string[];
+}
+
+const { title, lines } = Astro.props;
+const t = strings(Astro.currentLocale);
+---
+
+<div class="cli">
+  <div class="ch">
+    <span>{title}</span><span class="grow"></span>
+    <button class="btn btn-tertiary btn-sm" type="button" data-copy data-done={t.copy.done} aria-live="polite" hidden>{t.copy.label}</button>
+  </div>
+  <pre lang="en">{lines.map((line, i) => <>{i > 0 && "\n"}<span class="pr">$ </span>{line}</>)}</pre>
+</div>
+
+<script>
+  for (const button of document.querySelectorAll<HTMLButtonElement>("[data-copy]")) {
+    const pre = button.closest(".cli")?.querySelector("pre");
+    if (!pre || !navigator.clipboard) continue;
+    // The commands without their "$ " prompts.
+    const copy = pre.cloneNode(true) as HTMLElement;
+    copy.querySelectorAll(".pr").forEach((p) => p.remove());
+    const text = copy.textContent ?? "";
+    const label = button.textContent;
+    button.hidden = false;
+    button.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        // Clipboard refused: select the commands so ⌘C still works.
+        getSelection()?.selectAllChildren(pre);
+        return;
+      }
+      button.textContent = button.dataset.done ?? label;
+      setTimeout(() => (button.textContent = label), 2000);
+    });
+  }
+</script>

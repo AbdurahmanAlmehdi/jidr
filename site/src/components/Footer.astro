@@ -1,38 +1,31 @@
 ---
 // From docs/design/screens/Landing.dc.html (D41).
 import { links } from "../config";
+import { strings } from "../i18n";
+
+const t = strings(Astro.currentLocale);
+const f = t.footer;
 ---
 
 <footer class="lfoot">
   <div>
-    <h5 aria-level="3">Jidr <span lang="ar" style="font-family:var(--jidr-font-family-arabic);color:var(--jidr-color-root)">جذر</span></h5>
+    <h5 aria-level="2"><bdi lang="en">Jidr</bdi> <span lang="ar" style="color:var(--jidr-color-root)">جذر</span></h5>
     <ul>
-      <li>App: GPL-3.0; CLI and daemon: Apache-2.0</li>
-      <li><a href={links.repo}>Source on GitHub</a></li>
-      <li>© 2026 Jidr contributors</li>
+      <li>{f.licences}</li>
+      <li><a href={links.repo}>{f.source}</a></li>
+      <li>{f.copyright}</li>
     </ul>
   </div>
   <div>
-    <h5 aria-level="3">Downloaded on your Mac</h5>
-    <ul>
-      <li>Android Emulator and system images: Google, under the Android SDK License, accepted in the app</li>
-      <li>Magisk: GPL-3.0</li>
-    </ul>
+    <h5 aria-level="2">{f.downloaded}</h5>
+    <ul>{f.downloadedItems.map((item) => <li>{item}</li>)}</ul>
   </div>
   <div>
-    <h5 aria-level="3">Built with</h5>
-    <ul>
-      <li>Slint: GPL-3.0</li>
-      <li>Lucide icons: ISC</li>
-      <li>Geist, Geist Mono, Noto Kufi Arabic: OFL-1.1</li>
-      <li>Map data © OpenStreetMap contributors, ODbL</li>
-    </ul>
+    <h5 aria-level="2">{f.builtWith}</h5>
+    <ul>{f.builtWithItems.map((item) => <li>{item}</li>)}</ul>
   </div>
   <div>
-    <h5 aria-level="3">Trademarks</h5>
-    <ul>
-      <li>Android is a trademark of Google LLC.</li>
-      <li>Jidr is not affiliated with Google or Genymotion.</li>
-    </ul>
+    <h5 aria-level="2">{f.trademarks}</h5>
+    <ul>{f.trademarkItems.map((item) => <li>{item}</li>)}</ul>
   </div>
 </footer>
