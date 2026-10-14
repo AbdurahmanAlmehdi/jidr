@@ -124,10 +124,10 @@ async fn widgets_core_commands() {
         e.shell("settings get global wifi_on").trim() == "0"
     })
     .await;
-    // Diagnostics for API 35, where `svc data disable` leaves data on (CI run
-    // 38592875474): what it prints, and what data commands `cmd phone` offers.
+    // Diagnostics for API 35, where `svc data disable` exits 0 and leaves data
+    // on (CI run 38619907700): the `cmd phone data` subcommands.
     let probe = env.shell(
-        "svc data disable 2>&1; echo \"svc exit=$?\"; cmd phone help 2>&1 | grep -i -A2 'data' | head -n 20",
+        "cmd phone help 2>&1 | sed -n '/^  data/,/^  [a-z]/p' | head -n 40; echo ---; cmd phone data 2>&1 | head -n 20",
     );
     env.eventually_shell(
         "mobile data off",
@@ -158,10 +158,13 @@ async fn widgets_core_commands() {
     // Phone: an incoming call rings, ending it goes idle; SMS lands in the inbox.
     env.call("phone.call", json!({ "number": "+218 91 234 5678" }))
         .await;
-    env.eventually("ringing", |e| {
-        e.shell("dumpsys telephony.registry")
-            .contains("mCallState=1")
-    })
+    env.eventually_shell(
+        "ringing",
+        "dumpsys telephony.registry",
+        &["mCallState", "mCallIncomingNumber", "mVoiceRegState"],
+        "",
+        |out| out.contains("mCallState=1"),
+    )
     .await;
     env.call(
         "phone.call",
@@ -205,13 +208,27 @@ async fn widgets_core_commands() {
             .any(|l| l.contains("mCurrentFocus") && l.to_lowercase().contains("launcher"))
     })
     .await;
-    env.call("key.press", json!({ "key": "volume_up" })).await;
-    env.eventually("volume panel", |e| {
-        let w = e.shell("dumpsys window windows");
-        w.split("Window #")
+    // The volume panel shows for a few seconds after a press and then hides,
+    // and one `dumpsys window` can take that long on a CI runner. So press,
+    // watch for up to 4 s, and press again if it was missed.
+    let panel = |e: &common::Env| {
+        e.shell("dumpsys window windows")
+            .split("Window #")
             .any(|win| win.contains("VolumeDialogImpl") && win.contains("isVisible=true"))
-    })
-    .await;
+    };
+    let mut shown = false;
+    'press: for _ in 0..5 {
+        env.call("key.press", json!({ "key": "volume_up" })).await;
+        let until = std::time::Instant::now() + std::time::Duration::from_secs(4);
+        while std::time::Instant::now() < until {
+            if panel(&env) {
+                shown = true;
+                break 'press;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        }
+    }
+    assert!(shown, "volume panel never showed after 5 volume_up presses");
 
     // Developer toggles.
     env.call(
