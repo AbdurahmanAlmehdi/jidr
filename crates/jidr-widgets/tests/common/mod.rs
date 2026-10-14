@@ -149,9 +149,11 @@ impl Env {
         self.adb(&["shell", cmd])
     }
 
-    /// Polls `f` until it returns true (10 s).
+    /// Polls `f` until it returns true (30 s). The Linux KVM runners use
+    /// software rendering, and a snapshot restore or a telephony signal
+    /// refresh there can take longer than 10 s.
     pub async fn eventually(&self, what: &str, f: impl Fn(&Env) -> bool) {
-        let deadline = Instant::now() + Duration::from_secs(10);
+        let deadline = Instant::now() + Duration::from_secs(30);
         while Instant::now() < deadline {
             if f(self) {
                 return;
