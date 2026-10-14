@@ -16,25 +16,21 @@ fn rotation(env: &common::Env) -> Option<u32> {
     })
 }
 
-/// Whether `svc data disable` reached the settings. Depending on the image it
-/// writes the global `mobile_data` or the per-subscription `mobile_data<subId>`
-/// key; either one turning 0 counts.
-fn mobile_data_off(settings: &str) -> bool {
-    settings.lines().any(|l| {
-        l.split_once('=').is_some_and(|(k, v)| {
-            k.strip_prefix("mobile_data")
-                .is_some_and(|sub| sub.chars().all(|c| c.is_ascii_digit()))
-                && v.trim() == "0"
-        })
-    })
+/// Telephony's current service state line (`mServiceState={…}`); the rest of
+/// `dumpsys telephony.registry` holds older states.
+fn service_state(registry: &str) -> &str {
+    registry
+        .lines()
+        .find(|l| l.trim_start().starts_with("mServiceState="))
+        .unwrap_or("")
 }
 
 #[test]
-fn mobile_data_off_reads_either_key() {
-    assert!(mobile_data_off("wifi_on=0\nmobile_data=0\n"));
-    assert!(mobile_data_off("mobile_data=1\nmobile_data1=0\n"));
-    assert!(!mobile_data_off("mobile_data=1\nmobile_data1=1\n"));
-    assert!(!mobile_data_off("mobile_data_always_on=0\nmobile_data=1\n"));
+fn service_state_is_the_current_line() {
+    let reg = "  mServiceState={mVoiceRegState=0(IN_SERVICE), mDataRegState=1(OUT_OF_SERVICE)}\n  2026 - notifyServiceStateForSubscriber: state={mVoiceRegState=3(POWER_OFF), mDataRegState=0(IN_SERVICE)}";
+    assert!(service_state(reg).contains("mVoiceRegState=0("));
+    assert!(!service_state(reg).contains("mDataRegState=0("));
+    assert_eq!(service_state("nothing"), "");
 }
 
 /// The signal level (0–4) telephony reports: the highest level of any radio
@@ -124,25 +120,18 @@ async fn widgets_core_commands() {
         e.shell("settings get global wifi_on").trim() == "0"
     })
     .await;
-    // Diagnostics for API 35, where `svc data disable` exits 0 and leaves data
-    // on (CI run 38619907700): the `cmd phone data` subcommands.
-    let probe = env.shell(
-        "cmd phone help 2>&1 | sed -n '/^  data/,/^  [a-z]/p' | head -n 40; echo ---; cmd phone data 2>&1 | head -n 20",
-    );
+    // Mobile data is switched at the emulated radio (console `gsm data`).
+    let registry = "dumpsys telephony.registry";
     env.eventually_shell(
         "mobile data off",
-        "settings list global; dumpsys telephony.registry",
-        &[
-            "mobile_data",
-            "mDataEnabled",
-            "mDataConnectionState",
-            "mUserMobileDataState",
-            "mServiceState",
-        ],
-        &probe,
-        mobile_data_off,
+        registry,
+        &["mServiceState="],
+        "",
+        |out| !service_state(out).contains("mDataRegState=0("),
     )
     .await;
+    let net = env.call("network.get", json!({})).await;
+    assert_eq!(net["mobile"], false, "{net}");
     let status = env.adb(&["emu", "network", "status"]);
     assert!(status.contains("473600 bits/s"), "edge speed: {status}");
     env.call(
@@ -153,6 +142,23 @@ async fn widgets_core_commands() {
     env.eventually("Wi-Fi on", |e| {
         e.shell("settings get global wifi_on").trim() == "1"
     })
+    .await;
+    env.eventually_shell("mobile data on", registry, &["mServiceState="], "", |out| {
+        service_state(out).contains("mDataRegState=0(")
+    })
+    .await;
+    let net = env.call("network.get", json!({})).await;
+    assert_eq!(net["mobile"], true, "{net}");
+
+    // An incoming call is dropped while the radio isn't in service (on API 30
+    // CI it was restarting when the call came), so wait for voice service.
+    env.eventually_shell(
+        "voice in service",
+        registry,
+        &["mServiceState="],
+        "",
+        |out| service_state(out).contains("mVoiceRegState=0("),
+    )
     .await;
 
     // Phone: an incoming call rings, ending it goes idle; SMS lands in the inbox.
@@ -189,7 +195,6 @@ async fn widgets_core_commands() {
 
     // Mobile signal bars (R3): more bars, stronger reported signal.
     env.call("phone.gsm", json!({ "signal": 0 })).await;
-    let registry = "dumpsys telephony.registry";
     env.eventually_shell("weak signal", registry, &["mSignalStrength"], "", |out| {
         signal_level(out).is_some_and(|l| l <= 1)
     })

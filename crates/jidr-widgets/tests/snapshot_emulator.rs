@@ -40,8 +40,16 @@ async fn snapshot_round_trip_and_cross_root_refusal() {
     assert_eq!(marker(&env), "after");
     env.run("snapshot.load", json!({ "name": "Clean install" }))
         .await;
-    env.eventually("the marker back to before", |e| marker(e) == "before")
-        .await;
+    // Prints what adb sees on timeout: nothing at all means adb lost the
+    // device after the restore.
+    env.eventually_shell(
+        "the marker back to before",
+        "settings get global jidr_marker; echo boot_completed=$(getprop sys.boot_completed)",
+        &[""],
+        "",
+        |out| out.lines().next().is_some_and(|l| l.trim() == "before"),
+    )
+    .await;
 
     // What root.set does: the device's root mode changes.
     let id = env.daemon.state().device(&env.device).await.unwrap().id;
