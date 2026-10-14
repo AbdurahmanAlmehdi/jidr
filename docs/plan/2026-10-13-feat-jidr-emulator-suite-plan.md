@@ -266,28 +266,28 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 
 ### Phase 7a (B): UI shell
 - **Status:** Not started
-- **Scope:** Slint app shell, theme tokens from `docs/design/tokens.json` (Slint default style until it exists), app/window icon `apps/jidr-gui/assets/icons/app-icon-256.png` and the in-app symbol `apps/jidr-gui/assets/icons/symbol.svg` (tint with `colorize`; see `assets/brand/README.md`, D39), light/dark, `@tr` for every string, RTL mirroring check (D33), offscreen snapshot harness with golden PNGs per theme, daemon connection + reconnect.
+- **Scope:** Slint app shell in the **Workbench** direction (D41; `docs/design/README.md`, `docs/design/system/README.md`, screens `Main.dc.html` 1A). `crates/jidr-ui/build.rs` generates `ui/theme.slint` (`export global Theme`, dark + light) from `docs/design/tokens.json`, with no hand-copied hex. Bundle the Geist / Geist Mono / Noto Kufi Arabic fonts (OFL) in `apps/jidr-gui/assets/fonts/`. Lucide icons via `@image-url` + `colorize`. Components follow `docs/design/system/components/*/README.md`. app/window icon `apps/jidr-gui/assets/icons/app-icon-256.png` and the in-app symbol `apps/jidr-gui/assets/icons/symbol.svg` (tint with `colorize`; see `assets/brand/README.md`, D39), light/dark, `@tr` for every string, RTL mirroring check (D33), offscreen snapshot harness with golden PNGs per theme, daemon connection + reconnect.
 - **Files touched:** `crates/jidr-ui/**`, `apps/jidr-gui/**`
 - **Acceptance criteria:** the snapshot harness renders the shell in light, dark and RTL and matches the goldens.
 - **Validation:** `cargo nextest run -p jidr-ui && cargo run -p jidr-ui --example snapshot -- --check`
 
 ### Phase 7b (B): Launcher, first run, create/edit
 - **Status:** Not started
-- **Scope:** first-run wizard (SDK detection, license text with explicit accept, image download progress), device list with live status/root badge/disk usage, create/edit dialog (profile, Android version, root mode defaulting to `adb` where allowed with Magisk highlighted (D7), RAM/CPU, resolution/density), command palette (⌘K).
+- **Scope:** per `docs/design/screens/Setup.dc.html`, `Main.dc.html` (1A), `Create.dc.html` and `Settings.dc.html`: first-run wizard (SDK detection, license text with explicit accept, image download progress), device list with live status/root badge/disk usage, create/edit dialog (profile, Android version, root mode defaulting to `adb` where allowed with Magisk highlighted (D7), RAM/CPU, resolution/density), command palette (⌘K).
 - **Files touched:** `crates/jidr-ui/src/{launcher,wizard,device_form,palette}/**`
 - **Acceptance criteria:** golden snapshots for each screen and state (empty, populated, downloading, error); manual first-run walkthrough.
 - **Validation:** `cargo run -p jidr-ui --example snapshot -- --check`
 
 ### Phase 7c (B): Player window
 - **Status:** Not started
-- **Scope:** direct gRPC frame stream from `device.connect_info` (ADR-0001 transport), input (mouse, keyboard, multitouch via modifiers), right toolbar (volume, rotate, pixel-perfect, back/home/recents, power, screenshot, record), drag-drop (apk → install with signature-mismatch prompt; zip → Magisk module install + reboot on Full-root devices, otherwise pushed to `/sdcard/Download` with a note (D35); other → `/sdcard/Download`), shared clipboard toggle, widget panel host.
+- **Scope:** per `docs/design/screens/Device.dc.html` (concept 4A: docked widget panel): direct gRPC frame stream from `device.connect_info` (ADR-0001 transport), input (mouse, keyboard, multitouch via modifiers), right toolbar (volume, rotate, pixel-perfect, back/home/recents, power, screenshot, record), drag-drop (apk → install with signature-mismatch prompt; zip → Magisk module install + reboot on Full-root devices, otherwise pushed to `/sdcard/Download` with a note (D35); other → `/sdcard/Download`), shared clipboard toggle, widget panel host.
 - **Files touched:** `crates/jidr-ui/src/player/**`
 - **Acceptance criteria:** player hits the ADR-0001 budget on the dev Mac; drag-drop installs an APK; golden snapshots of the chrome.
 - **Validation:** `manual 1. start "Pixel-ish 6.1" 2. scroll Settings 30 s with the debug overlay on (≥30 fps) 3. drag an APK onto the screen and confirm it launches`
 
 ### Phase 8a (B): Core widgets
 - **Status:** Not started
-- **Scope:** `jidr-widgets` `CommandProvider` + panels: battery, rotation + motion sensors, network (Wi-Fi/mobile toggles, speed/delay profiles), phone/SMS + gsm baseband, Android controls, dev tools (show taps, pointer location, layout bounds, animation scales), clipboard, plus three single-command extras (D36): fingerprint recognised/unrecognised (`finger touch`/`remove`, R8), mobile signal bars (`gsm signal-profile`, R3), host webcam as camera (`-camera-back webcam0` via `LaunchOptions`, R7). Identifiers, audio injection, rich biometric scenarios and every other `docs/gaps.md` 🟠 item are post-MVP.
+- **Scope:** `jidr-widgets` `CommandProvider` + panels laid out as in `docs/design/screens/Device.dc.html`: battery, rotation + motion sensors, network (Wi-Fi/mobile toggles, speed/delay profiles), phone/SMS + gsm baseband, Android controls, dev tools (show taps, pointer location, layout bounds, animation scales), clipboard, plus three single-command extras (D36): fingerprint recognised/unrecognised (`finger touch`/`remove`, R8), mobile signal bars (`gsm signal-profile`, R3), host webcam as camera (`-camera-back webcam0` via `LaunchOptions`, R7). Identifiers, audio injection, rich biometric scenarios and every other `docs/gaps.md` 🟠 item are post-MVP.
 - **Files touched:** `crates/jidr-widgets/**`, `crates/jidr-ui/src/widgets/**`
 - **Acceptance criteria:** every widget command has an adb-observable assertion (`dumpsys battery`, `settings get`, etc.) in an emulator test.
 - **Validation:** `cargo nextest run -p jidr-widgets --features emulator`
@@ -308,7 +308,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 
 ### Phase 10b (B): Snapshot manager
 - **Status:** Not started
-- **Scope:** `snapshot.*` provider (list/save/load/delete with root-mode tags; refuse loading under a different root mode, D29) and the snapshot UI with thumbnails.
+- **Scope:** per `docs/design/screens/Snapshots.dc.html`: `snapshot.*` provider (list/save/load/delete with root-mode tags; refuse loading under a different root mode, D29) and the snapshot UI with thumbnails.
 - **Files touched:** `crates/jidr-widgets/src/snapshots.rs`, `crates/jidr-ui/src/snapshots/**`
 - **Acceptance criteria:** save → modify → load round-trip restores the state; a cross-root-mode load is refused.
 - **Validation:** `cargo nextest run -p jidr-widgets --features emulator -- snapshot`
@@ -350,21 +350,21 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 
 ### Phase 9e (C): Root UX
 - **Status:** Not started
-- **Scope:** root-mode cards in the create/edit dialog and a root section in the dev-tools widget, the "Rooted ✓ / unverified / failed" badge, the progress sequence and the failure/revert UI, the opt-in "auto-grant all" toggle (D22). Coordinate with stream B through gaps for slots in `jidr-ui` (C writes only `crates/jidr-ui/src/root/**`).
+- **Scope:** per `docs/design/screens/Root.dc.html` and `Create.dc.html`, plus the `RootBadge`/`RootModeSelector` component specs: root-mode cards in the create/edit dialog and a root section in the dev-tools widget, the "Rooted ✓ / unverified / failed" badge, the progress sequence and the failure/revert UI, the opt-in "auto-grant all" toggle (D22). Coordinate with stream B through gaps for slots in `jidr-ui` (C writes only `crates/jidr-ui/src/root/**`).
 - **Files touched:** `crates/jidr-ui/src/root/**`
 - **Acceptance criteria:** golden snapshots for each root state; a manual one-click Magisk flow on the dev Mac.
 - **Validation:** `cargo run -p jidr-ui --example snapshot -- --check`
 
 ### Phase 11a (C): Coming-soon site (day 1)
 - **Status:** Not started
-- **Scope:** Astro site in `site/`. Replace the placeholder favicon and logo with `assets/brand/web/*` copied into `site/public/` (favicon.svg/.ico/-32.png, apple-touch-icon, og-image.png for `og:image`/`twitter:image`, symbol.svg for the header; D39): pitch, root showcase, feature grid ("Genymotion's paid features, free"; text only, no logos), Star on GitHub button, Sponsors link, no email capture (D34). Uses the brand kit and design tokens when available.
+- **Scope:** Astro site in `site/`, built to `docs/design/screens/Landing.dc.html` (concept 8A) and `Landing-Soon-390.dc.html`. Generate `site/src/styles/tokens.css` from `docs/design/tokens.json` (no hand-copied values), and self-host the Geist fonts (D41). Replace the placeholder favicon and logo with `assets/brand/web/*` copied into `site/public/` (favicon.svg/.ico/-32.png, apple-touch-icon, og-image.png for `og:image`/`twitter:image`, symbol.svg for the header; D39): pitch, root showcase, feature grid ("Genymotion's paid features, free"; text only, no logos), Star on GitHub button, Sponsors link, no email capture (D34). Uses the brand kit and design tokens when available.
 - **Files touched:** `site/**`
 - **Acceptance criteria:** builds; Lighthouse performance and accessibility ≥ 95.
 - **Validation:** `cd site && npm ci && npm run build && npx @lhci/cli autorun --collect.staticDistDir=dist --assert.preset=lighthouse:recommended`
 
 ### Phase 11b (C): Launch site
 - **Status:** Not started
-- **Scope:** after the Magisk demo works (9d): full home page, root and agent/MCP sections, CLI snippet, download (GitHub Releases), docs links, Arabic version (D33); deploy to Cloudflare Pages on jidr.ly with getjidr.com redirecting (Abdurahman connects the domains).
+- **Scope:** after the Magisk demo works (9d), built to `Landing-Launch.dc.html` / `-390` and `Landing-AR.dc.html` / `-390`: full home page, root and agent/MCP sections, CLI snippet, download (GitHub Releases), docs links, Arabic version (D33); deploy to Cloudflare Pages on jidr.ly with getjidr.com redirecting (Abdurahman connects the domains).
 - **Files touched:** `site/**`
 - **Acceptance criteria:** same Lighthouse gate in both languages; RTL page renders correctly.
 - **Validation:** `cd site && npm ci && npm run build`
@@ -427,6 +427,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 | D38 | Gaps proofs run on a throwaway arm64 AVD; results recorded in `docs/gaps.md`. |
 | D39 | Brand assets live in `assets/brand/` (shared, read-only for streams; regenerated by `assets/brand/build.sh` from the approved symbol). App icons in `apps/jidr-gui/assets/` (`Jidr.icns`, in-app `symbol.svg`, menu-bar template); web set in `assets/brand/web/`, copied into `site/public/` by Stream C. Colours sampled from the board until `docs/design/tokens.json` exists. |
 | D40 | R15 WebRTC not needed: ADR-0001 passed with inline RGBA frames. Phase 9d adds `root.module.install` (D35). R5 becomes Phase 9f (MVP+). Repo made public (CI on standard runners is free). |
+| D41 | Design adopted: direction **Workbench** (dark-first). Tokens in `docs/design/tokens.json` are the single source; Slint `theme.slint` is generated by `jidr-ui/build.rs` (B) and the site's `tokens.css` by a site script (C). Fonts Geist / Geist Mono / Noto Kufi Arabic bundled (OFL). Lucide icons. Chosen concepts: launcher 1A (sidebar + detail), device window 4A (docked panel), landing 8A. Index: `docs/design/README.md`. The app icon keeps its approved gradient; the UI uses tokens only. |
 
 ## Alternative Approaches Considered
 

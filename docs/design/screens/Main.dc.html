@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Launcher A — sidebar list and device detail</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="jidr.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="board" style="width:3024px;height:3028px">
+<sc-for list="{{frames}}" as="f" hint-placeholder-count="6">
+<div class="cell">
+  <div class="cap">{{f.title}}<span>{{f.meta}}</span><sc-if value="{{f.opt}}" hint-placeholder-val="{{false}}"><em>Optional · not in daemon data</em></sc-if></div>
+  <div class="win frame {{f.cls}} {{f.size}}">
+    <div class="tbar">
+      <div class="lights"><span></span><span></span><span></span></div>
+      <div class="tab on"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>Library</div>
+      <sc-if value="{{f.pop}}" hint-placeholder-val="{{true}}">
+        <div class="tab"><span class="st p-positive"><svg class="ic fill i8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="4"/></svg></span>Pixel-ish 6.1<span class="kbds"><span class="kbd">⌘1</span></span></div>
+      </sc-if>
+      <div class="grow"></div>
+      <div class="tools"><button class="ib" aria-label="Toggle sidebar (⌘0)"><svg class="ic i16" viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></svg></button></div>
+    </div>
+    <div class="j-body">
+      <nav class="j-side" aria-label="Devices">
+        <label class="j-cmd"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span class="grow">Commands and devices</span><span class="kbd">⌘K</span></label>
+        <div class="j-sh"><span>Devices</span><button class="btn btn-tertiary btn-sm btn-icon" aria-label="New device (⌘N)"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14"/></svg></button></div>
+
+        <sc-if value="{{f.first}}" hint-placeholder-val="{{false}}">
+          <p class="mut" style="margin:4px 8px 0;font-size:12px;line-height:17px">No devices yet. They appear here once the SDK is ready.</p>
+          <div class="grow"></div>
+          <div class="j-sh"><span>Android SDK</span></div>
+          <div style="padding:0 8px 8px;display:flex;flex-direction:column;gap:8px">
+            <span class="sp p-neutral" style="align-self:flex-start"><svg class="ic i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.1 2.182a10 10 0 0 1 3.8 0M13.9 21.818a10 10 0 0 1-3.8 0M17.609 3.721a10 10 0 0 1 2.69 2.7M2.182 13.9a10 10 0 0 1 0-3.8M20.279 17.609a10 10 0 0 1-2.7 2.69M21.818 10.1a10 10 0 0 1 0 3.8M3.721 6.391a10 10 0 0 1 2.7-2.69M6.391 20.279a10 10 0 0 1-2.69-2.7"/></svg>Not installed</span>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{f.pop}}" hint-placeholder-val="{{true}}">
+          <a class="j-dev on" href="#">
+            <span class="l1"><span>Pixel-ish 6.1</span><span class="rb rb-s p-root-strong shape-solid"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="m9 12 2 2 4-4"/></svg>Rooted</span></span>
+            <span class="l2"><span class="st p-positive"><svg class="ic fill i8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="4"/></svg>Running · 2 h 14 m</span></span>
+          </a>
+          <a class="j-dev" href="#">
+            <span class="l1"><span>Tablet 11</span><span class="rb rb-s p-neutral shape-fill"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 17 6-6-6-6M12 19h8"/></svg>Shell</span></span>
+            <span class="l2"><span class="st mut"><svg class="ic i12" viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/></svg>Stopped</span></span>
+          </a>
+          <a class="j-dev" href="#">
+            <span class="l1"><span>Play Store test</span><span class="rgrp"><span class="rb rb-s p-root-soft shape-outline"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5"/></svg>Full</span><span class="tag p-warning">Beta</span></span></span>
+            <span class="l2"><span class="st p-transition"><svg class="ic i12 spin" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Booting Android… 62%</span></span>
+            <span class="mini-bar"><i style="width:62%"></i></span>
+          </a>
+          <a class="j-dev" href="#">
+            <span class="l1"><span>CI-runner-03</span><span class="rb rb-s shape-text-only"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>No root</span></span>
+            <span class="l2"><span class="st p-warning"><svg class="ic i12" viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Busy · in use by CLI</span></span>
+          </a>
+          <div class="j-sh"><span>Jobs</span><span class="ter" style="font-weight:500">1</span></div>
+          <div class="job p-transition">
+            <span class="jic"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></span>
+            <span class="jt"><b>Android 16 (API 36) image</b><span class="bar"><i style="width:67%"></i></span><span class="jm"><span>1.4 / 2.1 GB</span><span>2 min left</span></span></span>
+            <button class="btn btn-tertiary btn-sm btn-icon" aria-label="Cancel download (⌘.)"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+          </div>
+          <div class="grow"></div>
+        </sc-if>
+        <div class="j-foot"><svg class="ic i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7h-9M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>Settings<span class="kbd">⌘,</span></div>
+      </nav>
+
+      <main class="j-main">
+        <sc-if value="{{f.first}}" hint-placeholder-val="{{false}}">
+          <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:32px">
+            <div class="empty">
+              <span class="eic"><svg class="ic i24" viewBox="0 0 24 24" aria-hidden="true"><rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/></svg></span>
+              <h5>No devices yet</h5>
+              <p>Jidr needs Google's Android Emulator and one system image before it can create a device. Nothing downloads until you accept Google's license.</p>
+              <div class="callout">
+                <ul class="chk-list">
+                  <li><span class="sp sp-s p-neutral">1</span>Find an Android SDK on this Mac, or install one<span class="grow" style="flex:1"></span><span class="sp sp-s p-neutral">Not installed</span></li>
+                  <li><span class="sp sp-s p-neutral">2</span>Read and accept Google's SDK license</li>
+                  <li><span class="sp sp-s p-neutral">3</span>Download the emulator and Android 15 (API 35)<span style="flex:1"></span><span class="num mut" style="font-size:12px">2.3 GB</span></li>
+                </ul>
+                <div class="j-row">
+                  <button class="btn btn-primary">Set up Android SDK<span class="kbds"><span class="kbd">⌘</span><span class="kbd">↵</span></span></button>
+                  <button class="btn btn-tertiary">Use an SDK I already have…</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{f.pop}}" hint-placeholder-val="{{true}}">
+          <div class="j-scroll">
+            <div class="dd-head">
+              <div class="dd-sil on"><i></i></div>
+              <div class="dd-title">
+                <h1 class="t-hero">Pixel-ish 6.1</h1>
+                <span class="mut">Phone 6.1″ FHD+ · 1080×2400 · 420 dpi</span>
+                <div class="dd-badges">
+                  <span class="sp p-positive"><svg class="ic fill i8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="4"/></svg>Running · 2 h 14 m</span>
+                  <span class="rb p-root-strong shape-solid"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="m9 12 2 2 4-4"/></svg>Rooted · Magisk 30.7</span>
+                  <span class="num mut" style="font-size:12px">emulator-5556</span>
+                </div>
+              </div>
+              <div class="dd-acts">
+                <button class="btn btn-primary"><svg class="ic i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>Open<span class="kbd">↵</span></button>
+                <button class="btn"><svg class="ic i16" viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/></svg>Stop</button>
+                <button class="btn btn-icon" aria-label="More actions"><svg class="ic i16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+              </div>
+            </div>
+
+            <div class="dd-grid">
+              <section class="panel">
+                <h2 class="h-sec">Android</h2>
+                <dl class="kv"><dt>Version</dt><dd>Android 15 · API 35</dd><dt>Image</dt><dd>Google APIs</dd><dt>Profile</dt><dd>Phone 6.1″ FHD+</dd><dt>Serial</dt><dd class="num">emulator-5556</dd></dl>
+              </section>
+              <section class="panel">
+                <h2 class="h-sec">Hardware</h2>
+                <dl class="kv"><dt>RAM</dt><dd class="num">4 GB</dd><dt>CPU</dt><dd class="num">4 cores</dd><dt>Screen</dt><dd class="num">1080×2400 · 420 dpi</dd><dt>Disk</dt><dd class="num">6.8 GB</dd></dl>
+              </section>
+              <section class="panel">
+                <h2 class="h-sec">Root health</h2>
+                <dl class="kv"><dt>Mode</dt><dd>Full root</dd><dt>Magisk</dt><dd class="num">30.7</dd><dt>Verified</dt><dd>2 min ago · <span class="num">su -c id → uid=0</span></dd></dl>
+                <div class="j-row"><button class="btn btn-sm">Verify again</button><button class="btn btn-sm btn-tertiary"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>Revert to unrooted…</button></div>
+              </section>
+            </div>
+
+            <sc-if value="{{f.opt}}" hint-placeholder-val="{{false}}">
+              <section class="panel">
+                <div class="optband"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>Optional variant · needs per-device CPU and RAM samples from the daemon</div>
+                <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px">
+                  <div class="j-col"><div class="j-row"><span class="h-cap">CPU</span><span class="grow"></span><span class="t-metric">38%</span><span class="ter" style="font-size:12px">of 4 cores</span></div>
+                    <svg class="spark" viewBox="0 0 300 36" preserveAspectRatio="none" aria-hidden="true"><path d="M0 30L20 28 40 29 60 22 80 24 100 12 120 16 140 20 160 18 180 9 200 14 220 22 240 20 260 17 280 21 300 19" fill="none" stroke="var(--jidr-color-info)" stroke-width="1.75"/></svg></div>
+                  <div class="j-col"><div class="j-row"><span class="h-cap">RAM</span><span class="grow"></span><span class="t-metric">2.9 GB</span><span class="ter" style="font-size:12px">of 4 GB</span></div>
+                    <svg class="spark" viewBox="0 0 300 36" preserveAspectRatio="none" aria-hidden="true"><path d="M0 16L40 15 80 14 120 13 160 12 200 12 240 11 300 11" fill="none" stroke="var(--jidr-color-info)" stroke-width="1.75"/></svg></div>
+                </div>
+              </section>
+            </sc-if>
+
+            <section class="j-col" style="gap:12px">
+              <div class="j-row"><h2 class="h-sec">Snapshots</h2><span class="mut">3</span><span class="grow"></span><button class="btn btn-sm btn-tertiary">Manage snapshots<span class="kbds"><span class="kbd">⇧</span><span class="kbd">⌘</span><span class="kbd">S</span></span></button></div>
+              <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
+                <div class="snap"><span class="th"><i></i></span><span class="sm"><b>Clean install</b><span><span class="rb rb-s p-root-soft shape-outline"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/></svg>Full root</span><span class="num">2.1 GB</span></span></span><button class="btn btn-sm">Restore</button></div>
+                <div class="snap"><span class="th"><i></i></span><span class="sm"><b>Logged in test account</b><span><span class="rb rb-s p-root-soft shape-outline"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/></svg>Full root</span><span class="num">2.4 GB</span></span></span><button class="btn btn-sm">Restore</button></div>
+                <div class="snap"><span class="th auto"><i></i></span><span class="sm"><b>Quick boot</b><span><span class="tag p-neutral"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg>Auto</span>Saved on every stop</span></span><button class="btn btn-sm">Restore</button></div>
+              </div>
+            </section>
+
+            <section class="j-col" style="gap:10px">
+              <h2 class="h-sec">Session</h2>
+              <dl class="kv" style="font-size:13px;grid-template-columns:120px minmax(0,1fr)"><dt class="mut">Uptime</dt><dd class="num">2 h 14 m</dd><dt class="mut">Last started</dt><dd>Today, 12:18</dd><dt class="mut">Driven by</dt><dd>This window only</dd></dl>
+            </section>
+          </div>
+        </sc-if>
+      </main>
+    </div>
+  </div>
+</div>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":3024,"height":3028}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const F = (title, meta, cls, size, kind) => ({ title, meta, cls, size, first: kind === 'first', pop: kind !== 'first', opt: kind === 'opt' });
+    return {
+      frames: [
+        F('First run · SDK not installed', 'dark · 1440×900', 'jidr-dark', 's1440', 'first'),
+        F('First run · SDK not installed', 'light · 1440×900', 'jidr-light', 's1440', 'first'),
+        F('Populated', 'dark · 1440×900', 'jidr-dark', 's1440', 'pop'),
+        F('Populated', 'light · 1440×900', 'jidr-light', 's1440', 'pop'),
+        F('Populated', 'dark · 1280×800 check', 'jidr-dark', 's1280', 'pop'),
+        F('Live CPU and RAM', 'dark · 1440×900', 'jidr-dark', 's1440', 'opt')
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

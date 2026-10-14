@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Create device sheet</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="jidr.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="board" style="width:3024px;height:3028px">
+<sc-for list="{{frames}}" as="f" hint-placeholder-count="5">
+<div class="cell">
+  <div class="cap">{{f.title}}<span>{{f.meta}}</span></div>
+  <div class="win frame {{f.cls}} {{f.size}}">
+    <div class="tbar">
+      <div class="lights"><span></span><span></span><span></span></div>
+      <div class="tab on"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>Library</div>
+      <div class="tab">Pixel-ish 6.1<span class="kbd">⌘1</span></div>
+      <div class="grow"></div>
+    </div>
+    <div class="j-body">
+      <nav class="j-side" aria-label="Devices">
+        <label class="j-cmd"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span class="grow">Commands and devices</span><span class="kbd">⌘K</span></label>
+        <div class="j-sh"><span>Devices</span></div>
+        <a class="j-dev on" href="#"><span class="l1"><span>Pixel-ish 6.1</span></span><span class="l2"><span class="st p-positive"><svg class="ic fill i8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="4"/></svg>Running · 2 h 14 m</span></span></a>
+        <a class="j-dev" href="#"><span class="l1"><span>Tablet 11</span></span><span class="l2"><span class="st mut">Stopped</span></span></a>
+        <a class="j-dev" href="#"><span class="l1"><span>Play Store test</span></span><span class="l2"><span class="st p-transition">Booting Android… 62%</span></span></a>
+        <a class="j-dev" href="#"><span class="l1"><span>CI-runner-03</span></span><span class="l2"><span class="st p-warning">Busy · in use by CLI</span></span></a>
+      </nav>
+      <main class="j-main"><div class="j-scroll"><h1 class="t-hero">Pixel-ish 6.1</h1></div></main>
+    </div>
+
+    <div class="scrim">
+      <div class="sheet w-create" role="dialog" aria-label="New device">
+        <div class="sh"><h4>New device</h4><p>Defaults are filled in. Change what you need, then create.</p></div>
+        <div class="sb">
+          <div class="form2">
+            <div class="field"><label>Name</label><div class="inp is-focus"><input value="{{f.name}}" aria-label="Name"></div></div>
+            <div class="field"><label>Hardware profile</label><div class="inp"><span style="flex:1">Phone 6.1″ FHD+ · 1080×2400</span><svg class="ic i14 sel-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 15 5 5 5-5M7 9l5-5 5 5"/></svg></div></div>
+          </div>
+
+          <div class="field">
+            <div class="j-row"><span class="lbl">Android version</span><span class="grow"></span><span class="hint">Only images that run on Apple Silicon (arm64) are listed.</span></div>
+            <div class="imglist" role="listbox" aria-label="Android version">
+              <div class="ir dis" role="option"><span></span><span>Android 16 · API 36 · Google APIs</span><span class="r"><svg class="ic i12 spin" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Downloading · 1.4 / 2.1 GB</span></div>
+              <div class="ir {{f.v35}}" role="option"><sc-if value="{{f.ps}}" hint-placeholder-val="{{false}}"><span></span></sc-if><sc-if value="{{f.gapi}}" hint-placeholder-val="{{true}}"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true" style="color:var(--jidr-color-accent-text)"><path d="M20 6 9 17l-5-5"/></svg></sc-if><span>Android 15 · API 35 · Google APIs</span><span class="r">Installed · 2.0 GB</span></div>
+              <div class="ir" role="option"><span></span><span>Android 15 · API 35 · Play Store</span><span class="r"><svg class="ic i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Download</span></div>
+              <div class="ir" role="option"><span></span><span>Android 14 · API 34 · Google APIs</span><span class="r">Installed · 1.9 GB</span></div>
+              <div class="ir {{f.v33}}" role="option"><sc-if value="{{f.gapi}}" hint-placeholder-val="{{true}}"><span></span></sc-if><sc-if value="{{f.ps}}" hint-placeholder-val="{{false}}"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true" style="color:var(--jidr-color-accent-text)"><path d="M20 6 9 17l-5-5"/></svg></sc-if><span>Android 13 · API 33 · Play Store</span><span class="r">Installed · 1.8 GB</span></div>
+              <div class="ir" role="option"><span></span><span>Android 11 · API 30 · AOSP</span><span class="r">Installed · 1.2 GB</span></div>
+            </div>
+          </div>
+
+          <div class="field"><span class="lbl">Root mode</span>
+            <div class="rmode" role="radiogroup" aria-label="Root mode">
+              <label class="rcard {{f.noneOn}}"><span class="rh"><svg class="ic i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>None</span><p>A stock device. Test apps as users see them.</p><span class="box round {{f.noneOn}}"></span></label>
+              <sc-if value="{{f.gapi}}" hint-placeholder-val="{{true}}">
+                <label class="rcard on"><span class="rh"><svg class="ic i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 17 6-6-6-6M12 19h8"/></svg>Shell root (adb)</span><p>adb root works. Nothing on the system changes.</p><span class="box round on"></span></label>
+              </sc-if>
+              <sc-if value="{{f.ps}}" hint-placeholder-val="{{false}}">
+                <label class="rcard is-disabled"><span class="rh"><svg class="ic i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 17 6-6-6-6M12 19h8"/></svg>Shell root (adb)</span><p>adb root works. Nothing on the system changes.</p><span class="note">Play Store images don't allow adb root.</span><span class="box round"></span></label>
+              </sc-if>
+              <label class="rcard feat"><span class="rh"><svg class="ic i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5"/></svg>Full root<sc-if value="{{f.ps}}" hint-placeholder-val="{{false}}"><span class="tag p-warning"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2M8.5 2h7M7 16h10"/></svg>Beta</span></sc-if></span><p>Installs and verifies Magisk 30.7. Reboots once (about 40 s).</p>
+                <sc-if value="{{f.ps}}" hint-placeholder-val="{{false}}"><span class="note">Rooted emulators can't pass Play Integrity. Apps that check it will refuse to run.</span></sc-if>
+                <span class="box round"></span></label>
+            </div>
+          </div>
+
+          <div class="form3">
+            <div class="field"><label>RAM</label><div class="inp mono"><input value="4" aria-label="RAM"><span class="unit">GB</span></div><span class="hint">Your Mac has 16 GB.</span></div>
+            <div class="field"><label>CPU cores</label><div class="inp mono"><input value="4" aria-label="CPU cores"><span class="unit">of 10</span></div></div>
+            <div class="field"><label>Screen</label><div class="inp mono"><input value="1080×2400" aria-label="Screen resolution"><span class="unit">420 dpi</span></div><span class="hint">From the profile.</span></div>
+          </div>
+          <button class="btn btn-tertiary btn-sm" style="align-self:flex-start"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>Advanced: storage, GPU</button>
+        </div>
+        <div class="sf"><label class="chk"><span class="box on"><svg class="ic i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>Start after creating</label><span class="grow"></span><button class="btn">Cancel</button><button class="btn btn-primary">Create<span class="kbds"><span class="kbd">⌘</span><span class="kbd">↵</span></span></button></div>
+      </div>
+    </div>
+  </div>
+</div>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":3024,"height":3028}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const F = (title, meta, cls, size, ps) => ({ title, meta, cls, size, ps, gapi: !ps, v35: ps ? '' : 'on', v33: ps ? 'on' : '', noneOn: ps ? 'on' : '', name: ps ? 'Play Store test 2' : 'Checkout test' });
+    return {
+      frames: [
+        F('Default · Google APIs image', 'dark · Shell root preselected, Full root highlighted', 'jidr-dark', 's1440', false),
+        F('Default · Google APIs image', 'light', 'jidr-light', 's1440', false),
+        F('Play Store image picked', 'dark · Shell off, Full root Beta + Play Integrity note', 'jidr-dark', 's1440', true),
+        F('Play Store image picked', 'light', 'jidr-light', 's1440', true),
+        F('Default', 'dark · 1280×800 check', 'jidr-dark', 's1280', false)
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+<!-- @dsCard group="Landing page" height=420 width=1100 -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>AgentBlock — preview</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Noto+Kufi+Arabic:wght@400;500;600;700&display=swap"></head>
+<body style="margin:0;background:var(--jidr-color-surface-base)">
+<div class="ds-prev"><div class="lp"><div class="agent"><div class="stack" style="gap:10px"><h2 class="lp-h2" style="font-size:26px;line-height:32px">Let an agent drive. Watch it work.</h2><p class="c2" style="margin:0;font-size:15px;line-height:23px">Jidr runs an MCP server. Add it to Claude or any MCP client and the agent can see and operate a device while you watch the device window. The device shows Busy · in use by agent.</p><ul class="prose" style="margin:0;font-size:13px"><li><code>screenshot</code> PNG of the screen</li><li><code>tap</code> x, y in device pixels</li><li><code>type</code> text into the focused field</li><li><code>ui_tree</code> the current view hierarchy</li><li><code>logcat</code> filtered lines, streamed</li></ul></div><div class="cli"><div class="ch"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4 17 10 11 4 5" /> <line x1="12" x2="20" y1="19" y2="19" /></svg><span>claude_desktop_config.json</span><span class="grow"></span><button class="btn btn-tertiary btn-sm" data-copy="{
+  &quot;mcpServers&quot;: {
+    &quot;jidr&quot;: { &quot;command&quot;: &quot;jidr&quot;, &quot;args&quot;: [&quot;mcp&quot;] }
+  }
+}"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /> <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg><span>Copy</span></button></div><pre>{
+  <span class="k">"mcpServers"</span>: {
+    <span class="k">"jidr"</span>: {
+      <span class="k">"command"</span>: <span class="s">"jidr"</span>,
+      <span class="k">"args"</span>: [<span class="s">"mcp"</span>]
+    }
+  }
+}</pre></div></div></div></div>
+<script>
+document.querySelectorAll('[data-copy]').forEach(function(b){b.addEventListener('click',function(){var t=b.getAttribute('data-copy'),l=b.querySelector('span');
+function d(){if(l){var o=l.textContent;l.textContent='Copied';setTimeout(function(){l.textContent=o},1500)}}
+try{navigator.clipboard.writeText(t).then(d,function(){})}catch(e){}})});
+</script>
+</body>
+</html>
