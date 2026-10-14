@@ -96,6 +96,9 @@ jobs:
       - uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: GUI build deps
+        # `--workspace --features emulator` also builds the Slint crates.
+        run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev libxkbcommon-dev
       - uses: android-actions/setup-android@v3
         with:
           packages: ""
