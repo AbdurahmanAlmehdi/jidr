@@ -23,10 +23,20 @@ IMAGES="${JIDR_TEST_IMAGES:-system-images;android-31;google_apis;$ABI}"
 JIDR_HOME="$(mktemp -d /tmp/jidr-e2e-root.XXXXXX)"
 export JIDR_HOME
 cleanup() {
-  mkdir -p "$JIDR_HOME/cleanup-home"
-  HOME="$JIDR_HOME/cleanup-home" "$JIDR" --quiet uninstall --purge --yes >/dev/null 2>&1 || true
+  local code=$?
+  # Stop the daemon first; emulators outlive it and are re-adopted, but the
+  # happy path already stopped and deleted the device.
   "$JIDR" daemon stop >/dev/null 2>&1 || true
-  rm -rf "$JIDR_HOME"
+  if [ "$code" -ne 0 ] || [ "${JIDR_E2E_KEEP:-}" = 1 ]; then
+    # Keep the evidence: the emulator log that says why a boot hung lives
+    # under $JIDR_HOME/logs/devices/<avd>/emulator-*.log. `uninstall --purge`
+    # would delete it, so it is skipped here.
+    echo "e2e-root: keeping JIDR_HOME=$JIDR_HOME (logs: $JIDR_HOME/logs/devices)" >&2
+  else
+    mkdir -p "$JIDR_HOME/cleanup-home"
+    HOME="$JIDR_HOME/cleanup-home" "$JIDR" --quiet uninstall --purge --yes >/dev/null 2>&1 || true
+    rm -rf "$JIDR_HOME"
+  fi
 }
 trap cleanup EXIT
 trap 'exit 130' INT TERM
@@ -63,7 +73,7 @@ cycle() {
   before="$(pristine_hash "$img")"
   echo "e2e-root: image $img (pristine ramdisk $before)"
 
-  step "create" device create "$dev" --image "$img" --profile small-phone-5 --root-mode none
+  step "create" device create "$dev" --image "$img" --profile small-phone-5 --root none
   step "start"  device start "$dev" --timeout 300
 
   # none: the shell is not root.
