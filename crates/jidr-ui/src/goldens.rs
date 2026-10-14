@@ -325,6 +325,46 @@ pub fn cases() -> Vec<Case> {
             },
         },
         Case {
+            name: "snapshots-manager",
+            render: |v| {
+                let app = populated(v)?;
+                app.set_snapshots_open(true);
+                app.set_snap_banner("Every snapshot remembers the root mode it was taken with. Pixel-ish 6.1 is Full root now, so all 2 can be restored. 4.5 GB in total.".into());
+                shot(&app, 1440, 900)
+            },
+        },
+        Case {
+            name: "snapshots-refusal",
+            render: |v| {
+                let app = populated(v)?;
+                app.set_snapshots(model(fixtures::snapshots(RootMode::None)));
+                app.set_snapshots_open(true);
+                app.set_snap_banner_warning(true);
+                app.set_snap_banner("Pixel-ish 6.1 is Not rooted now. Snapshots taken with Full root can't be restored until Full root is set up again.".into());
+                app.set_refuse_name("Clean install".into());
+                app.set_refuse_snapshot_line("Taken with: Full root · Magisk 30.7".into());
+                app.set_refuse_device_line("Not rooted".into());
+                app.set_refuse_body("It was taken with Full root. Pixel-ish 6.1 is Not rooted now, so restoring it would bring back a root setup Jidr hasn't verified on this device.".into());
+                app.set_refuse_hint("Set up Full root first, then restore. Snapshots taken while Not rooted restore as usual.".into());
+                app.set_refuse_action("Set up Full root…".into());
+                app.set_refuse_open(true);
+                shot(&app, 1440, 900)
+            },
+        },
+        Case {
+            name: "snapshots-save",
+            render: |v| {
+                let app = populated(v)?;
+                app.set_snapshots_open(true);
+                app.set_save_name("Before checkout test".into());
+                app.set_save_root_kind(crate::RootKind::Full);
+                app.set_save_root_tag("Taken with: Full root".into());
+                app.set_save_hint("Its other snapshots are 2.1 and 2.4 GB.".into());
+                app.set_save_open(true);
+                shot(&app, 1440, 900)
+            },
+        },
+        Case {
             name: "player-running",
             render: |v| shot(&device_tab(v, 0)?, 1440, 900),
         },

@@ -118,3 +118,14 @@ Built: `crates/jidr-widgets/src/media/{mod,mp4}.rs`; GUI `src/recording.rs` (too
 Validation: `cargo nextest run -p jidr-widgets --features emulator -- media` → `media_screenshot_and_five_minute_recording` passed (397.5 s): screenshot 720×1280 PNG; recording returned 9000 frames in 300.1 s; `ffprobe` → `codec_name h264`, `duration 300.000000`, `nb_read_frames 9000` (needs ≥ 8100). Unit test `writes_an_mp4` encodes 2 s directly. `cargo xtask ci` ok (164 tests); 96 goldens incl. the recording pill.
 
 Not done: audio (post-MVP, D13). Rotating the device mid-recording pads/crops to the first frame's size.
+
+## 2026-10-14 · Phase 10b plan + done: snapshot manager
+
+Plan: `snapshot.list/save/load/delete` on the emulator's `SnapshotService`, with a root-mode tag per snapshot so a snapshot taken under another root mode is refused (D29); the Snapshots page per Snapshots.dc.html (banner, cards with the emulator's own `screenshot.png` thumbnails, save dialog with the tag preview, refusal dialog with "Set up … root" → `root.set`).
+
+Built:
+- `crates/jidr-widgets/src/snapshots.rs`: tags in `<avd>/jidr/snapshots.json` (atomic writes), list from `<avd>/snapshots/*` (works while stopped: size, time, thumbnail, `restorable`), save/load as locking jobs, delete over gRPC or from disk when stopped, name checks (no separators; `default_boot` is the quick-boot snapshot). Untagged snapshots (made outside Jidr) restore as usual.
+- `crates/jidr-ui/ui/snapshots.slint`, `src/snapshots/` (page, dialogs, banner copy, D29 refusal). The golden-case module is now `src/goldens.rs` so `src/snapshots/` matches the plan's path.
+- Gap B7: tags file and refusal shape, for Stream C's 9c/9d.
+
+Validation: `cargo nextest run -p jidr-widgets --features emulator -- snapshot` → `snapshot_round_trip_and_cross_root_refusal` passed (55.6 s): marker `before` → save "Clean install" (tag `none`) → marker `after` → load → marker `before`; after the device's root mode changes to Shell root (what `root.set` does), the load is refused ("taken with Not rooted … Shell root now", `refused = root_mode`) and the list shows `restorable: false`; delete removes it. Goldens 105 (manager, refusal, save dialog × 3). `cargo xtask ci` ok (169 tests).

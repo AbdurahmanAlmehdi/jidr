@@ -20,6 +20,7 @@ import { Palette } from "palette.slint";
 import { DeviceView, WidgetPanel } from "player.slint";
 import { BatteryPanel, NetworkPanel, SensorsPanel, MorePanel, GpsPanel } from "widgets/panels.slint";
 import { RootBadge } from "components/status.slint";
+import { SnapshotsPage, SaveSnapshotDialog, RefuseRestoreDialog } from "snapshots.slint";
 import { SetupWindow } from "wizard.slint";
 import { SettingsWindow } from "settings.slint";
 import { DeviceVm, JobVm, TabVm, SnapshotVm, DevState, RootKind, FormFactor, JobTone, ConnState, RootChoice, ImageRowVm, OptionVm, DeviceForm, DetectRow, PlanRow, UsageRow, PaletteKind, PaletteItem, LogLine, WidgetsVm } from "types.slint";
@@ -87,6 +88,23 @@ export component AppWindow inherits Window {
     in-out property <string> log-filter;
     in-out property <bool> log-following: true;
     in-out property <WidgetsVm> widgets;
+    // Snapshot manager.
+    in-out property <bool> snapshots-open;
+    in-out property <string> snap-banner;
+    in-out property <bool> snap-banner-warning;
+    in-out property <bool> snap-can-save: true;
+    in-out property <bool> save-open;
+    in-out property <string> save-name;
+    in-out property <RootKind> save-root-kind;
+    in-out property <string> save-root-tag;
+    in-out property <string> save-hint;
+    in-out property <bool> refuse-open;
+    in-out property <string> refuse-name;
+    in-out property <string> refuse-snapshot-line;
+    in-out property <string> refuse-device-line;
+    in-out property <string> refuse-body;
+    in-out property <string> refuse-hint;
+    in-out property <string> refuse-action;
     in-out property <image> gps-map;
     in-out property <bool> gps-has-map;
     in-out property <float> gps-marker-x: 0.5;
@@ -134,6 +152,10 @@ export component AppWindow inherits Window {
     callback widget-action(string, string);
     callback widget-tab(int);
     callback gps-map-click(float, float);
+    callback snapshot-save-request();
+    callback snapshot-save(string);
+    callback snapshot-delete(int);
+    callback refuse-act();
 
     title: "Jidr";
     icon: @image-url("../../../apps/jidr-gui/assets/icons/app-icon-256.png");
@@ -172,6 +194,8 @@ export component AppWindow inherits Window {
                 root.sheet-open = false;
                 root.palette-open = false;
                 root.confirm-open = false;
+                root.save-open = false;
+                root.refuse-open = false;
                 return accept;
             }
             if (ev.text == Key.Return && root.active-tab < 0 && root.selected >= 0) {
@@ -313,7 +337,18 @@ export component AppWindow inherits Window {
                     }
                 }
             }
-            if library && root.devices.length > 0 && root.selected >= 0: DeviceDetail {
+            if library && root.snapshots-open && root.selected >= 0: SnapshotsPage {
+                device: root.devices[root.selected];
+                snapshots: root.snapshots;
+                banner: root.snap-banner;
+                banner-warning: root.snap-banner-warning;
+                can-save: root.snap-can-save;
+                back => { root.snapshots-open = false; }
+                save => { root.snapshot-save-request(); }
+                restore(i) => { root.restore-snapshot(root.selected, i); }
+                delete(i) => { root.snapshot-delete(i); }
+            }
+            if library && !root.snapshots-open && root.devices.length > 0 && root.selected >= 0: DeviceDetail {
                 device: root.devices[root.selected];
                 snapshots: root.snapshots;
                 open => { root.open-device(root.selected); }
@@ -359,6 +394,43 @@ export component AppWindow inherits Window {
         }
         dismiss => {
             root.palette-open = false;
+            keys.focus();
+        }
+    }
+    if root.save-open: SaveSnapshotDialog {
+        y: titlebar.height;
+        height: root.height - titlebar.height;
+        name: root.save-name;
+        device-name: root.selected >= 0 ? root.devices[root.selected].name : "";
+        root-kind: root.save-root-kind;
+        root-tag: root.save-root-tag;
+        sizes-hint: root.save-hint;
+        save(n) => {
+            root.save-open = false;
+            keys.focus();
+            root.snapshot-save(n);
+        }
+        cancel => {
+            root.save-open = false;
+            keys.focus();
+        }
+    }
+    if root.refuse-open: RefuseRestoreDialog {
+        y: titlebar.height;
+        height: root.height - titlebar.height;
+        snapshot-name: root.refuse-name;
+        snapshot-line: root.refuse-snapshot-line;
+        device-line: root.refuse-device-line;
+        body: root.refuse-body;
+        hint: root.refuse-hint;
+        action: root.refuse-action;
+        act => {
+            root.refuse-open = false;
+            keys.focus();
+            root.refuse-act();
+        }
+        cancel => {
+            root.refuse-open = false;
             keys.focus();
         }
     }

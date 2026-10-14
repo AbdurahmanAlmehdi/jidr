@@ -306,7 +306,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `cargo nextest run -p jidr-widgets --features emulator -- media`
 
 ### Phase 10b (B): Snapshot manager
-- **Status:** Not started
+- **Status:** Done (`snapshot_round_trip_and_cross_root_refusal` passes on API 31 arm64; see log/devlog-b.md)
 - **Scope:** per `docs/design/screens/Snapshots.dc.html`: `snapshot.*` provider (list/save/load/delete with root-mode tags; refuse loading under a different root mode, D29) and the snapshot UI with thumbnails.
 - **Files touched:** `crates/jidr-widgets/src/snapshots.rs`, `crates/jidr-ui/src/snapshots/**`
 - **Acceptance criteria:** save → modify → load round-trip restores the state; a cross-root-mode load is refused.
