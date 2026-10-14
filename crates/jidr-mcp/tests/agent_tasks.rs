@@ -35,19 +35,19 @@ fn test_image() -> String {
     ImageRef::parse_package(&pkg).unwrap().package()
 }
 
-/// Center (device px) of the first node whose text or content-desc equals `label`.
-fn find(xml: &str, label: &str) -> Option<(u32, u32)> {
-    let attr = |node: &str, name: &str| -> Option<String> {
-        let start = node.find(&format!(" {name}=\""))? + name.len() + 3;
-        let end = node[start..].find('"')? + start;
-        Some(node[start..end].to_string())
-    };
+/// Reads attribute `name` of one `<node ...` fragment of a ui_dump.
+fn attr(node: &str, name: &str) -> Option<String> {
+    // The split leaves the first attribute without its leading space.
+    let node = format!(" {node}");
+    let start = node.find(&format!(" {name}=\""))? + name.len() + 3;
+    let end = node[start..].find('"')? + start;
+    Some(node[start..end].to_string())
+}
+
+/// Center (device px) of the first node matching `pred`.
+fn find_node(xml: &str, pred: impl Fn(&str) -> bool) -> Option<(u32, u32)> {
     xml.split("<node ").skip(1).find_map(|node| {
-        let matches = [attr(node, "text"), attr(node, "content-desc")]
-            .iter()
-            .flatten()
-            .any(|v| v.eq_ignore_ascii_case(label));
-        if !matches {
+        if !pred(node) {
             return None;
         }
         let b = attr(node, "bounds")?;
@@ -61,6 +61,34 @@ fn find(xml: &str, label: &str) -> Option<(u32, u32)> {
             _ => None,
         }
     })
+}
+
+/// Center (device px) of the first node whose text or content-desc equals `label`.
+fn find(xml: &str, label: &str) -> Option<(u32, u32)> {
+    find_node(xml, |node| {
+        [attr(node, "text"), attr(node, "content-desc")]
+            .iter()
+            .flatten()
+            .any(|v| v.eq_ignore_ascii_case(label))
+    })
+}
+
+/// The app drawer's search field. Its label differs by image (Pixel
+/// launcher on arm64, Launcher3 on the x86_64 CI images), so an agent
+/// would fall back to "the text field" or "the thing with search in its id".
+fn find_search_field(xml: &str) -> Option<(u32, u32)> {
+    find(xml, "Search your phone and more")
+        .or_else(|| find(xml, "Search apps"))
+        .or_else(|| {
+            find_node(xml, |node| {
+                attr(node, "class").is_some_and(|c| c.ends_with("EditText"))
+            })
+        })
+        .or_else(|| {
+            find_node(xml, |node| {
+                attr(node, "resource-id").is_some_and(|id| id.contains("search"))
+            })
+        })
 }
 
 /// Polls ui_dump until `pred` holds.
@@ -197,10 +225,18 @@ async fn five_agent_tasks() {
         mcp.ok("press_key", json!({ "device": dev, "key": "GoHome" }))
             .await;
         tokio::time::sleep(Duration::from_millis(1500)).await;
-        mcp.ok("swipe", json!({ "device": dev, "x1": w / 2.0, "y1": h * 0.85, "x2": w / 2.0, "y2": h * 0.2, "duration_ms": 400 })).await;
-        tokio::time::sleep(Duration::from_millis(1500)).await;
-        let xml = common::text(&mcp.call("ui_dump", json!({ "device": dev })).await);
-        let field = find(&xml, "Search your phone and more").or_else(|| find(&xml, "Search apps"));
+        // As in task 2, one swipe doesn't always open the drawer.
+        let mut xml = String::new();
+        let mut field = None;
+        for _ in 0..3 {
+            mcp.ok("swipe", json!({ "device": dev, "x1": w / 2.0, "y1": h * 0.85, "x2": w / 2.0, "y2": h * 0.2, "duration_ms": 400 })).await;
+            tokio::time::sleep(Duration::from_millis(1500)).await;
+            xml = common::text(&mcp.call("ui_dump", json!({ "device": dev })).await);
+            field = find_search_field(&xml);
+            if field.is_some() {
+                break;
+            }
+        }
         if let Some((fx, fy)) = field {
             mcp.ok(
                 "tap",
@@ -241,6 +277,9 @@ async fn five_agent_tasks() {
             "  task 3 attempt {attempt} didn't land (field found: {})",
             field.is_some()
         );
+        if field.is_none() {
+            println!("  drawer dump:\n{}", &xml[..xml.len().min(4000)]);
+        }
     }
     let results = typed.expect("typing into the launcher search never showed the text");
     assert!(results.contains("Clock"), "the search lists the Clock app");
@@ -315,4 +354,20 @@ fn ui_finder() {
     let xml = r#"<hierarchy><node index="0" text="" content-desc="Settings" bounds="[10,20][30,60]" /><node text="Other" bounds="[0,0][1,1]"/></hierarchy>"#;
     assert_eq!(find(xml, "settings"), Some((20, 40)));
     assert_eq!(find(xml, "Missing"), None);
+}
+
+/// Regression: on the x86_64 CI images (Launcher3) the drawer search field
+/// has neither Pixel label, so task 3 never found it.
+#[test]
+fn search_field_falls_back_to_the_text_field() {
+    let pixel = r#"<node text="Search your phone and more" class="android.widget.TextView" bounds="[0,100][200,140]" />"#;
+    assert_eq!(find_search_field(pixel), Some((100, 120)));
+    let launcher3 = r#"<node text="" class="android.widget.FrameLayout" bounds="[0,0][400,800]" /><node text="" resource-id="com.android.launcher3:id/search_box_input" class="com.android.launcher3.ExtendedEditText" bounds="[20,40][380,80]" />"#;
+    assert_eq!(find_search_field(launcher3), Some((200, 60)));
+    let by_id = r#"<node text="" resource-id="com.example:id/search_container" class="android.view.View" bounds="[0,0][10,10]" />"#;
+    assert_eq!(find_search_field(by_id), Some((5, 5)));
+    assert_eq!(
+        find_search_field(r#"<node text="Clock" bounds="[0,0][2,2]" />"#),
+        None
+    );
 }
