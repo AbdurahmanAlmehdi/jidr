@@ -217,3 +217,7 @@ Built:
 Validation: `npm ci && npm run build && npx @lhci/cli autorun --collect.staticDistDir=dist --assert.preset=lighthouse:recommended` → all assertions pass, 100/100/100/100 on three runs, FCP 0.7 s. The first run failed two error-level audits, both fixed: heading order (the design's `h4`/`h5` now carry `aria-level="3"`) and the font request chain (fonts preloaded; FCP went from 1.8 s to 0.7 s). Checked in the browser at 1440 (1180 px column, hero 64/66 Geist 700, no overflow) and 390 (hero 40 px, side panels and nav links hidden as designed, no overflow).
 
 Left out on purpose: the star count, the sponsor logo slots (no sponsors yet) and the العربية link (the Arabic page is 11b). Gap G13: `tokens.json` lacks the Arabic web type sizes that 11b needs.
+
+## Emulator test cleanup: switched to Stream A's helpers (2026-10-14)
+
+Merged `stream/a-core` (`0f32814`: Stream A's leak fix `9ee8eed`, main and the same rustfmt fix, merged cleanly). `crates/jidr-root/tests/adb_emulator.rs` now uses `jidr_backend::testing`: a per-process device name (`unique_avd`), an orphan sweep at start (`kill_orphans`) and `AvdGuard`, whose reaper process also covers a SIGKILLed test. Stream C's own guard and backstop are gone. Checked: a deliberately failing run and a passing run (5/5; cold boot 24.4 s, live adb root 1.4 s, cold boot + hook 15.4 s) both leave no qemu. Asked Stream A to add `binary(adb_emulator)` to the 1-thread `emulator` test group in `.config/nextest.toml`.
