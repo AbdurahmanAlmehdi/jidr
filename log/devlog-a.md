@@ -352,3 +352,8 @@ Open: `ui_dump` is slow (uiautomator, 4–6 s median); a faster accessibility pa
   - `scripts/e2e-cli.sh` cleans up with `uninstall --purge` on any exit, including Ctrl-C.
 - Port allocation: `allocate_avoiding` skips console/adb ports that live emulators report in their discovery files (two leaked emulators had both asked for 5554; a 127.0.0.1 bind test can miss a port held elsewhere). Regression test `ports::tests::skips_ports_live_emulators_hold`.
 - Verified: a run Ctrl-C'd mid-test and a deliberately failing test (`JIDR_TEST_FAIL_AFTER_BOOT=1`) both leave 0 emulators; the full `jidr-sdk`/`jidr-backend`/`jidr-mcp` emulator suites pass (59 tests) with 0 qemu processes and no reapers afterwards.
+
+## 2026-10-14: PR #2 emulator jobs (agent task 3 on x86_64 images)
+
+- PR #2's emulator jobs (Linux KVM, API 30/33/35, `google_apis;x86_64`) failed in `five_agent_tasks` task 3: the drawer search field was never found ("field found: false" ×3). The x86_64 images run Launcher3, whose drawer search has neither Pixel label the test looked for, and one swipe doesn't always open the drawer. Fix: `find_search_field` falls back to the drawer's `EditText`, then to a node whose `resource-id` contains `search`; task 3 swipes up to three times, as task 2 does, and prints the drawer dump when no field shows. `attr` now also reads a node's first attribute. Regression test `search_field_falls_back_to_the_text_field`. The arm64 API 31 run still passes (105 s).
+- `.config/nextest.toml`: the emulator test group filter is `binary(~_emulator) | binary(agent_tasks)`, so it covers Stream C's `jidr-root` `adb_emulator`. An exact `binary(adb_emulator)` fails nextest's config check on branches that lack that binary.
