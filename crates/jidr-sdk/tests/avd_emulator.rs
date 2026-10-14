@@ -59,17 +59,22 @@ fn create_clone_boot_delete() {
         .clone();
     let tools = sdks.tools().unwrap().clone();
 
+    // Per-process names, a guard that kills the clone's emulator however
+    // the test ends, and cleanup of orphans from earlier killed runs.
+    jidr_backend::testing::kill_orphans("jidr_e2e_clone-");
+    let src = jidr_backend::testing::unique_avd("jidr_e2e_src");
+    let clone_name = jidr_backend::testing::unique_avd("jidr_e2e_clone");
+    let _guard = jidr_backend::testing::AvdGuard::new(&clone_name);
     let avds = AvdManager::new(paths.avd_home());
     let spec = AvdSpec {
-        name: "jidr_e2e_src".into(),
+        name: src.clone(),
         display_name: "E2E source".into(),
         profile: profiles::find("small-phone-5").unwrap(),
         image: image.clone(),
         overrides: Default::default(),
     };
     avds.create(&spec).unwrap();
-    avds.clone_avd("jidr_e2e_src", "jidr_e2e_clone", "E2E clone")
-        .unwrap();
+    avds.clone_avd(&src, &clone_name, "E2E clone").unwrap();
 
     let listed = Command::new(tools.emulator())
         .arg("-list-avds")
@@ -79,7 +84,7 @@ fn create_clone_boot_delete() {
         .unwrap();
     let listed = String::from_utf8_lossy(&listed.stdout);
     assert!(
-        listed.contains("jidr_e2e_src") && listed.contains("jidr_e2e_clone"),
+        listed.contains(src.as_str()) && listed.contains(clone_name.as_str()),
         "{listed}"
     );
 
@@ -89,7 +94,7 @@ fn create_clone_boot_delete() {
     let mut child = Command::new(tools.emulator())
         .args([
             "-avd",
-            "jidr_e2e_clone",
+            &clone_name,
             "-no-window",
             "-no-audio",
             "-no-boot-anim",
@@ -135,8 +140,8 @@ fn create_clone_boot_delete() {
     assert_eq!(model, image.abi);
     println!("clone booted in {:.1} s", start.elapsed().as_secs_f64());
 
-    assert!(avds.disk_usage("jidr_e2e_clone").unwrap() > 0);
-    avds.delete("jidr_e2e_src").unwrap();
-    avds.delete("jidr_e2e_clone").unwrap();
+    assert!(avds.disk_usage(&clone_name).unwrap() > 0);
+    avds.delete(&src).unwrap();
+    avds.delete(&clone_name).unwrap();
     assert!(avds.list().unwrap().is_empty());
 }

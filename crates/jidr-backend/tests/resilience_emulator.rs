@@ -25,6 +25,12 @@ async fn double_launch_console_adopt_crash() {
         .await
         .unwrap();
 
+    // Cleanup check: a deliberately failing run must not leak its emulator.
+    assert!(
+        std::env::var_os("JIDR_TEST_FAIL_AFTER_BOOT").is_none(),
+        "deliberate failure after boot (JIDR_TEST_FAIL_AFTER_BOOT)"
+    );
+
     // Double launch refused while it runs.
     let err = backend
         .start(&f.spec, &quiet, &|_| {}, &Cancel::new())
@@ -37,7 +43,7 @@ async fn double_launch_console_adopt_crash() {
     let mut c = Console::connect(inst.console_port, token.as_deref())
         .await
         .unwrap();
-    assert_eq!(c.avd_name().await.unwrap(), "jidr_resilience");
+    assert_eq!(c.avd_name().await.unwrap(), f.spec.avd);
     c.network_speed("edge").await.unwrap();
     c.network_delay("gprs").await.unwrap();
     c.gsm_signal(10, None).await.unwrap();
@@ -58,7 +64,7 @@ async fn double_launch_console_adopt_crash() {
     assert!(restarted.is_alive(again).await);
 
     // Crash: kill -9 behind the backend's back.
-    let crash_dir = f.paths.device_logs("jidr_resilience");
+    let crash_dir = f.paths.device_logs(&f.spec.avd);
     let watcher = {
         let (inst, dir) = (inst.clone(), crash_dir.clone());
         tokio::spawn(async move { backend.crash_watch(&inst, &dir).await })
@@ -89,5 +95,5 @@ async fn double_launch_console_adopt_crash() {
     .unwrap();
     assert_eq!(adopted_report.kind, CrashKind::Exited);
 
-    f.avds.delete("jidr_resilience").unwrap();
+    f.avds.delete(&f.spec.avd).unwrap();
 }

@@ -105,6 +105,31 @@ Providers register commands with an id, a label, a params JSON Schema and three 
 
 <!-- commands:begin (generated from commands.list; JIDR_UPDATE_DOCS=1 cargo nextest run -p jidr-daemon protocol_doc) -->
 
+### `cache.*`
+
+#### `cache.import`
+
+Add a local file to the download cache (offline Magisk, D30)
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `path` | string | yes | A local file to add to the download cache (e.g. a Magisk APK for offline use). |
+| `sha256` | string |  | Its expected SHA-256; the import fails if the file doesn't match. |
+
+#### `cache.list`
+
+Files in the download cache (by SHA-256)
+
+No params.
+
+#### `cache.prune`
+
+Delete cached downloads (they're downloaded again when needed)
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `older_than_days` | integer |  | Only remove downloads older than this many days (default: all). |
+
 ### `daemon.*`
 
 #### `daemon.status`
@@ -138,17 +163,17 @@ Create a device from a profile and a system image
 
 | Param | Type | Required | Description |
 |---|---|---|---|
-| `agent_owned` | boolean |  | Agents may run destructive commands on it (D5). |
-| `cpus` | integer |  | Virtual CPU cores (overrides the profile). |
-| `data_mb` | integer |  | Data partition size in MB (overrides the profile). |
-| `density` | integer |  | Screen density in dpi (overrides the profile). |
-| `height` | integer |  | Screen height in pixels (overrides the profile). |
-| `image` | string | yes | System image: `35`, `35:google_apis`, `35:google_apis:arm64-v8a` or `system-images;android-35;google_apis;arm64-v8a`. |
 | `name` | string | yes | Unique device name. |
+| `image` | string | yes | System image: `35`, `35:google_apis`, `35:google_apis:arm64-v8a` or `system-images;android-35;google_apis;arm64-v8a`. |
 | `profile` | string |  | Hardware profile id (`profile.list`); default `phone-6.1-fhd`. |
 | `ram_mb` | integer |  | RAM in MB (overrides the profile). |
-| `root_mode` | `none` \| `adb` \| `magisk` |  | Default: `adb` where the image allows it, else `none` (D7). |
+| `cpus` | integer |  | Virtual CPU cores (overrides the profile). |
 | `width` | integer |  | Screen width in pixels (overrides the profile). |
+| `height` | integer |  | Screen height in pixels (overrides the profile). |
+| `density` | integer |  | Screen density in dpi (overrides the profile). |
+| `data_mb` | integer |  | Data partition size in MB (overrides the profile). |
+| `root_mode` | `none` \| `adb` \| `magisk` |  | Default: `adb` where the image allows it, else `none` (D7). |
+| `agent_owned` | boolean |  | Agents may run destructive commands on it (D5). |
 
 #### `device.delete`
 
@@ -172,20 +197,29 @@ Rename a device or change its hardware (stopped) · locks the device
 
 | Param | Type | Required | Description |
 |---|---|---|---|
-| `agent_owned` | boolean |  |  |
-| `cpus` | integer |  | Virtual CPU cores (overrides the profile). |
-| `density` | integer |  | Screen density in dpi (overrides the profile). |
 | `device` | string | yes | Device name or id. |
-| `height` | integer |  | Screen height in pixels (overrides the profile). |
 | `name` | string |  | New name. |
 | `ram_mb` | integer |  | RAM in MB (overrides the profile). |
+| `cpus` | integer |  | Virtual CPU cores (overrides the profile). |
 | `width` | integer |  | Screen width in pixels (overrides the profile). |
+| `height` | integer |  | Screen height in pixels (overrides the profile). |
+| `density` | integer |  | Screen density in dpi (overrides the profile). |
+| `agent_owned` | boolean |  |  |
 
 #### `device.list`
 
 All devices with their status
 
 No params.
+
+#### `device.logs`
+
+Zip a device's settings, emulator and crash logs and logcat for a bug report
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `output` | string |  | Where to write the zip (default: Jidr's logs folder). |
 
 #### `device.reset`
 
@@ -201,8 +235,8 @@ Start a device and wait until it has booted · long-running (job) · locks the d
 
 | Param | Type | Required | Description |
 |---|---|---|---|
-| `cold_boot` | boolean |  | Ignore the quick-boot snapshot. |
 | `device` | string | yes | Device name or id. |
+| `cold_boot` | boolean |  | Ignore the quick-boot snapshot. |
 
 #### `device.stop`
 
@@ -220,11 +254,11 @@ Install an APK on a running device · locks the device
 
 | Param | Type | Required | Description |
 |---|---|---|---|
-| `apk` | string | yes | Path of the APK on this machine. |
 | `device` | string | yes |  |
-| `downgrade` | boolean |  | Allow a version downgrade (`-d`). |
-| `grant_permissions` | boolean |  | Grant runtime permissions (`-g`). |
+| `apk` | string | yes | Path of the APK on this machine. |
 | `replace` | boolean |  | Replace an installed app (`-r`). |
+| `grant_permissions` | boolean |  | Grant runtime permissions (`-g`). |
+| `downgrade` | boolean |  | Allow a version downgrade (`-d`). |
 
 #### `file.pull`
 
@@ -233,8 +267,8 @@ Copy a file from a running device
 | Param | Type | Required | Description |
 |---|---|---|---|
 | `device` | string | yes |  |
-| `local` | string | yes |  |
 | `remote` | string | yes |  |
+| `local` | string | yes |  |
 
 #### `file.push`
 
@@ -316,8 +350,8 @@ Dump the device log
 | Param | Type | Required | Description |
 |---|---|---|---|
 | `device` | string | yes |  |
-| `filter` | string[] |  | logcat filter specs, e.g. `["ActivityManager:I", "*:S"]`. |
 | `lines` | integer |  | Only the last N lines. |
+| `filter` | string[] |  | logcat filter specs, e.g. `["ActivityManager:I", "*:S"]`. |
 
 ### `profile.*`
 
@@ -366,3 +400,4 @@ No params.
 | Version | Change |
 |---|---|
 | 0.1 | Initial protocol: hello, errors, jobs, events, core device/sdk/image/profile/file/logcat/jobs commands. |
+| 0.1 (additive) | Phase 5b: `cache.list`, `cache.import`, `cache.prune`, `device.logs`. No existing command changed. |
