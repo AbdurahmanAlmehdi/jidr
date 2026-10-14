@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Device window concepts</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="jidr.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="board" style="width:3024px;height:2032px">
+<sc-for list="{{frames}}" as="f" hint-placeholder-count="4">
+<div class="cell">
+  <div class="cap">{{f.title}}<span>{{f.meta}}</span></div>
+  <div class="win frame {{f.cls}} s1440">
+    <div class="tbar">
+      <div class="lights"><span></span><span></span><span></span></div>
+      <div class="tab"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>Library</div>
+      <div class="tab on"><span class="st p-positive"><svg class="ic fill i8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="4"/></svg></span>Pixel-ish 6.1<span class="x" aria-hidden="true"><svg class="ic i12" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></span></div>
+      <div class="tab"><span class="st p-transition"><svg class="ic i12 spin" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg></span>Play Store test</div>
+      <div class="grow"></div>
+      <div class="tools"><span class="rb rb-s p-root-strong shape-solid"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="m9 12 2 2 4-4"/></svg>Rooted · Magisk 30.7</span><span class="num mut" style="font-size:12px;align-self:center;padding:0 8px">emulator-5556</span></div>
+    </div>
+    <div class="j-body">
+      <nav class="j-side mini" aria-label="Devices">
+        <button class="ib on" aria-label="Pixel-ish 6.1, running"><svg class="ic i17" viewBox="0 0 24 24" aria-hidden="true"><rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/></svg></button>
+        <button class="ib" aria-label="Tablet 11, stopped"><svg class="ic i17" viewBox="0 0 24 24" aria-hidden="true"><rect width="16" height="20" x="4" y="2" rx="2"/><path d="M12 18h.01"/></svg></button>
+        <button class="ib" aria-label="Play Store test, booting"><svg class="ic i17" viewBox="0 0 24 24" aria-hidden="true"><rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/></svg></button>
+        <button class="ib" aria-label="CI-runner-03, busy"><svg class="ic i17" viewBox="0 0 24 24" aria-hidden="true"><rect width="12" height="18" x="6" y="3" rx="2"/><path d="M12 17h.01"/></svg></button>
+      </nav>
+
+      <sc-if value="{{f.a}}" hint-placeholder-val="{{true}}">
+        <div class="dv">
+          <div class="dv-stagecol">
+            <div class="dv-stage">
+              <div class="bezel phone"><div class="screen scr-l">
+                <div class="ascr"><div class="a-h"><small>Delivering to</small><b>Martyrs' Square, Tripoli</b></div><div class="a-map"><svg viewBox="0 0 300 240" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><path d="M0 0H300V58C262 70 228 50 190 62S118 76 78 66 24 80 0 74Z" fill="#C9D7E0"/><path d="M0 132H300M58 70V240M148 64V240M236 58V240M0 196L300 168" stroke="#FFFFFF" stroke-width="8" fill="none"/><path d="M148 132L190 170 236 182" stroke="#1F4FB8" stroke-width="3" stroke-dasharray="6 5" fill="none"/><circle cx="148" cy="132" r="22" fill="#1F4FB8" opacity=".16"/><circle cx="148" cy="132" r="8" fill="#1F4FB8" stroke="#FFFFFF" stroke-width="3"/></svg></div><div class="a-card"><b>Courier is 4 min away</b><span>3 items · paid</span></div><div class="a-btn">Track order</div><div class="a-list"><div><span>Bakery</span><span>0.4 km</span></div><div><span>Pharmacy</span><span>0.9 km</span></div></div><div class="a-grow"></div><div class="a-nav"><i></i></div></div>
+              </div></div>
+            </div>
+            <button class="lcbar-collapsed" aria-label="Open logcat (⌘L)"><svg class="ic i14 mut" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 12h-5M15 8h-5M19 17V5a2 2 0 0 0-2-2H4"/><path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"/></svg><b>Logcat</b><span class="num" style="color:var(--jidr-logcat-warn)">W Magisk  su: request from uid 10190 (com.example.shop)</span><span style="flex:1"></span><span class="kbd">⌘L</span></button>
+          </div>
+          <div class="vtool" role="toolbar" aria-label="Device controls">
+            <button class="ib" aria-label="Back"><svg class="ic i17" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19-7-7 7-7M19 12H5"/></svg></button>
+            <button class="ib" aria-label="Home"><svg class="ic i17" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/></svg></button>
+            <button class="ib" aria-label="Recent apps"><svg class="ic i17" viewBox="0 0 24 24" aria-hidden="true"><rect width="16" height="16" x="4" y="4" rx="2"/></svg></button>
+            <hr>
+            <button class="ib" aria-label="Volume up"><svg class="ic i17" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"/><path d="M16 9a5 5 0 0 1 0 6M19.364 18.364a9 9 0 0 0 0-12.728"/></svg></button>
+            <button class="ib" aria-label="Volume down"><svg class="ic i17" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"/><path d="M16 9a5 5 0 0 1 0 6"/></svg></button>
+            <hr>
+            <button class="ib" aria-label="Rotate left"><svg class="ic i17" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
+            <button class="ib" aria-label="Rotate right"><svg class="ic i17" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></button>
+            <button class="ib" aria-label="Power"><svg class="ic i17" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v10M18.4 6.6a9 9 0 1 1-12.77.04"/></svg></button>
+            <hr>
+            <button class="ib" aria-label="Take screenshot (⇧⌘S)"><svg class="ic i17" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg></button>
+            <button class="ib" aria-label="Record screen"><svg class="ic i17" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="1"/></svg></button>
+            <button class="ib" aria-label="Pixel-perfect 1:1 (⌥⌘0)"><svg class="ic i17" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/></svg></button>
+            <span class="grow"></span>
+            <button class="ib on" aria-label="Widgets panel (⌘J)"><svg class="ic i17" viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3v18"/></svg></button>
+          </div>
+          <aside class="wpanel" aria-label="Widgets">
+            <div class="wp-top">
+              <div class="seg" role="tablist" aria-label="Widget"><button role="tab">Battery</button><button role="tab" aria-selected="true">GPS</button><button role="tab">Network</button><button role="tab">Sensors</button><button role="tab" aria-label="More widgets">⋯</button></div>
+            </div>
+            <div class="wp-body">
+              <div class="map"><svg viewBox="0 0 300 176" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="300" height="176" fill="var(--jidr-color-surface-control)"/><path d="M0 0H300V40C250 50 210 32 160 42S70 56 0 46Z" fill="var(--jidr-status-transition-container)"/><path d="M0 96H300M70 46V176M160 42V176M240 36V176M0 140L300 120" stroke="var(--jidr-color-surface-raised)" stroke-width="6" fill="none"/><path d="M160 96L200 124 236 128 270 176" stroke="var(--jidr-color-accent-fill)" stroke-width="2.5" stroke-dasharray="5 4" fill="none"/><path d="M118 58L160 96" stroke="var(--jidr-color-accent-fill)" stroke-width="2.5" fill="none"/><circle cx="160" cy="96" r="14" fill="var(--jidr-color-accent-fill)" opacity=".2"/><circle cx="160" cy="96" r="6" fill="var(--jidr-color-accent-fill)" stroke="var(--jidr-color-surface-raised)" stroke-width="2"/></svg><span class="attr">© OpenStreetMap contributors</span></div>
+              <div class="form2" style="gap:10px"><div class="field"><label>Latitude</label><div class="inp mono"><input value="32.8954" aria-label="Latitude"><span class="unit">°</span></div></div><div class="field"><label>Longitude</label><div class="inp mono"><input value="13.1802" aria-label="Longitude"><span class="unit">°</span></div></div></div>
+              <button class="btn btn-primary">Set location<span class="kbd">↵</span></button>
+              <div class="routecard">
+                <div class="j-row"><svg class="ic i16 mut" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></svg><span class="num" style="font-size:12px">tripoli-airport-run.gpx</span><span class="grow"></span><button class="btn btn-sm btn-tertiary">Change…</button></div>
+                <div class="bar"><i style="width:38%;background:var(--jidr-color-accent-fill)"></i></div>
+                <div class="j-row"><button class="btn btn-sm btn-icon" aria-label="Pause route"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/></svg></button><div class="seg mono" role="radiogroup" aria-label="Speed"><button role="radio">1×</button><button role="radio" aria-checked="true">2×</button><button role="radio">4×</button></div><span class="grow"></span><span class="num mut" style="font-size:11px">4.1 / 10.8 km</span></div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{f.b}}" hint-placeholder-val="{{false}}">
+        <div class="dv">
+          <div class="dv-stagecol">
+            <div class="dv-stage">
+              <div class="ftool" role="toolbar" aria-label="Device controls">
+                <button class="ib" aria-label="Back"><svg class="ic i17" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19-7-7 7-7M19 12H5"/></svg></button>
+                <button class="ib" aria-label="Home"><svg class="ic i17" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/></svg></button>
+                <button class="ib" aria-label="Recent apps"><svg class="ic i17" viewBox="0 0 24 24" aria-hidden="true"><rect width="16" height="16" x="4" y="4" rx="2"/></svg></button>
+                <hr>
+                <button class="ib" aria-label="Rotate right"><svg class="ic i17" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></button>
+                <button class="ib" aria-label="Power"><svg class="ic i17" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v10M18.4 6.6a9 9 0 1 1-12.77.04"/></svg></button>
+                <button class="ib" aria-label="Take screenshot"><svg class="ic i17" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg></button>
+                <button class="ib" aria-label="More controls"><svg class="ic i17" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+              </div>
+              <div class="bezel phone"><div class="screen scr-l">
+                <div class="ascr"><div class="a-h"><small>Delivering to</small><b>Martyrs' Square, Tripoli</b></div><div class="a-map"><svg viewBox="0 0 300 240" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><path d="M0 0H300V58C262 70 228 50 190 62S118 76 78 66 24 80 0 74Z" fill="#C9D7E0"/><path d="M0 132H300M58 70V240M148 64V240M236 58V240M0 196L300 168" stroke="#FFFFFF" stroke-width="8" fill="none"/><path d="M148 132L190 170 236 182" stroke="#1F4FB8" stroke-width="3" stroke-dasharray="6 5" fill="none"/><circle cx="148" cy="132" r="22" fill="#1F4FB8" opacity=".16"/><circle cx="148" cy="132" r="8" fill="#1F4FB8" stroke="#FFFFFF" stroke-width="3"/></svg></div><div class="a-card"><b>Courier is 4 min away</b><span>3 items · paid</span></div><div class="a-btn">Track order</div><div class="a-list"><div><span>Bakery</span><span>0.4 km</span></div><div><span>Pharmacy</span><span>0.9 km</span></div></div><div class="a-grow"></div><div class="a-nav"><i></i></div></div>
+              </div></div>
+              <div class="flo" role="dialog" aria-label="GPS inspector">
+                <div class="flo-h"><svg class="ic i14 mut" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9" r="1"/><circle cx="19" cy="9" r="1"/><circle cx="5" cy="9" r="1"/><circle cx="12" cy="15" r="1"/><circle cx="19" cy="15" r="1"/><circle cx="5" cy="15" r="1"/></svg>GPS<span class="grow"></span><button class="btn btn-tertiary btn-sm btn-icon" aria-label="Detach into its own window"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 9V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10c0 1.1.9 2 2 2h4"/><rect width="10" height="7" x="12" y="13" rx="2"/></svg></button><button class="btn btn-tertiary btn-sm btn-icon" aria-label="Close inspector"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+                <div class="wp-body">
+                  <div class="seg" role="tablist" aria-label="Widget" style="display:flex"><button role="tab" style="flex:1;justify-content:center">Battery</button><button role="tab" aria-selected="true" style="flex:1;justify-content:center">GPS</button><button role="tab" style="flex:1;justify-content:center">Network</button><button role="tab" aria-label="More widgets">⋯</button></div>
+                  <div class="map" style="height:150px"><svg viewBox="0 0 300 176" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="300" height="176" fill="var(--jidr-color-surface-control)"/><path d="M0 0H300V40C250 50 210 32 160 42S70 56 0 46Z" fill="var(--jidr-status-transition-container)"/><path d="M0 96H300M70 46V176M160 42V176M240 36V176M0 140L300 120" stroke="var(--jidr-color-surface-raised)" stroke-width="6" fill="none"/><path d="M160 96L200 124 236 128 270 176" stroke="var(--jidr-color-accent-fill)" stroke-width="2.5" stroke-dasharray="5 4" fill="none"/><circle cx="160" cy="96" r="6" fill="var(--jidr-color-accent-fill)" stroke="var(--jidr-color-surface-raised)" stroke-width="2"/></svg><span class="attr">© OpenStreetMap contributors</span></div>
+                  <div class="form2" style="gap:10px"><div class="field"><label>Latitude</label><div class="inp mono"><input value="32.8954" aria-label="Latitude"><span class="unit">°</span></div></div><div class="field"><label>Longitude</label><div class="inp mono"><input value="13.1802" aria-label="Longitude"><span class="unit">°</span></div></div></div>
+                  <div class="routecard"><div class="j-row"><span class="num" style="font-size:12px">tripoli-airport-run.gpx</span><span class="grow"></span><div class="seg mono"><button>1×</button><button aria-checked="true">2×</button><button>4×</button></div></div><div class="bar"><i style="width:38%;background:var(--jidr-color-accent-fill)"></i></div></div>
+                </div>
+              </div>
+            </div>
+            <button class="lcbar-collapsed" aria-label="Open logcat (⌘L)"><b>Logcat</b><span class="num" style="color:var(--jidr-logcat-warn)">W Magisk  su: request from uid 10190 (com.example.shop)</span><span style="flex:1"></span><span class="kbd">⌘L</span></button>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+</div>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":3024,"height":2032}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const F = (title, meta, cls, a) => ({ title, meta, cls, a, b: !a });
+    return {
+      frames: [
+        F('A · Docked widget panel (chosen)', 'dark · stage | toolbar | panel', 'jidr-dark', true),
+        F('B · Floating inspector that detaches', 'dark · toolbar and panel float over the letterbox', 'jidr-dark', false),
+        F('A · Docked widget panel (chosen)', 'light', 'jidr-light', true),
+        F('B · Floating inspector that detaches', 'light', 'jidr-light', false)
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

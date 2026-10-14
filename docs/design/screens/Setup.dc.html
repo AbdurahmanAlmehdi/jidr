@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>First-run setup</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="jidr.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="board c4" style="width:3280px;height:1392px">
+<sc-for list="{{frames}}" as="f" hint-placeholder-count="8">
+<div class="cell">
+  <div class="cap">{{f.title}}<span>{{f.meta}}</span></div>
+  <div class="win frame {{f.cls}} s-setup">
+    <div class="setup">
+      <div class="setup-h"><div class="lights"><span></span><span></span><span></span></div><span class="wtitle-c">Set up Jidr</span><span style="width:68px"></span></div>
+      <div class="stepper" aria-label="Setup steps">
+        <span class="s {{f.c1}}"><span class="n">1</span>Find SDK</span><span class="sep"></span>
+        <span class="s {{f.c2}}"><span class="n">2</span>License</span><span class="sep"></span>
+        <span class="s {{f.c3}}"><span class="n">3</span>Download</span><span class="sep"></span>
+        <span class="s {{f.c4}}"><span class="n">4</span>First device</span>
+      </div>
+
+      <sc-if value="{{f.s1}}" hint-placeholder-val="{{true}}">
+        <div class="setup-b">
+          <div class="j-col"><h2 class="t-headline">No Android SDK on this Mac</h2><p class="mut" style="margin:0">Jidr looked in the usual places. It can install what it needs in its own folder and leave your other tools alone.</p></div>
+          <div class="detect">
+            <div><svg class="ic i16 ter" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg><span class="num" style="font-size:12px">~/Library/Android/sdk</span><span class="mut">Not found</span></div>
+            <div><svg class="ic i16 ter" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg><span class="num" style="font-size:12px">$ANDROID_HOME</span><span class="mut">Not set</span></div>
+            <div><svg class="ic i16 ter" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg><span class="num" style="font-size:12px">$ANDROID_SDK_ROOT</span><span class="mut">Not set</span></div>
+          </div>
+          <div class="j-col" style="gap:8px">
+            <span class="h-cap">Jidr will download, after you accept Google's license</span>
+            <div class="plan">
+              <span>Android Emulator</span><span class="num">0.3 GB</span>
+              <span>Android 15 (API 35) · Google APIs · arm64</span><span class="num">2.0 GB</span>
+              <span class="tot">Into <span class="num" style="font-weight:500">~/Library/Application Support/Jidr/sdk</span></span><span class="tot num">2.3 GB</span>
+            </div>
+          </div>
+        </div>
+        <div class="setup-f"><button class="btn btn-tertiary">Use an existing SDK…</button><span class="grow"></span><button class="btn">Quit</button><button class="btn btn-primary">Continue<span class="kbd">↵</span></button></div>
+      </sc-if>
+
+      <sc-if value="{{f.s2}}" hint-placeholder-val="{{false}}">
+        <div class="setup-b">
+          <div class="j-col"><h2 class="t-headline">Accept Google's SDK license</h2><p class="mut" style="margin:0">Jidr downloads Google's Android Emulator and a system image to your Mac. Google's license applies to those files. Jidr shows it in full, unchanged.</p></div>
+          <div class="lic-fade">
+            <div class="license" tabindex="0" aria-label="Android Software Development Kit License Agreement">
+              <h5>Android Software Development Kit License Agreement</h5>
+              <p>1. Introduction. The Android SDK is licensed to you subject to the terms of this agreement…</p>
+              <p>2. Accepting this License Agreement. In order to use the SDK, you must first agree…</p>
+              <p>3. SDK License from Google. Subject to the terms of this License Agreement, Google grants you a limited, worldwide, royalty-free, non-assignable…</p>
+              <p>3.7 You agree that you will not use Google's trademarks, service marks, trade names or logos…</p>
+              <p>4. Use of the SDK by You…</p>
+            </div>
+            <span class="scroll-thumb"></span>
+          </div>
+          <div class="j-row mut" style="font-size:12px"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>Scroll to the end to accept. Declining leaves the SDK uninstalled.</div>
+        </div>
+        <div class="setup-f"><button class="btn">Back</button><button class="btn">Decline</button><span class="grow"></span><span class="num mut" style="font-size:12px">Download: 2.3 GB</span><button class="btn btn-primary" disabled>I accept</button></div>
+      </sc-if>
+
+      <sc-if value="{{f.s3}}" hint-placeholder-val="{{false}}">
+        <div class="setup-b">
+          <div class="j-col"><h2 class="t-headline">Downloading</h2><p class="mut" style="margin:0">License accepted Oct 13, 14:01. You can close this window; downloads keep going in Jobs.</p></div>
+          <div class="dlrow p-positive"><span class="jic"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><span class="jt"><b>Android Emulator</b><span class="jm"><span>0.3 / 0.3 GB</span><span>Done</span></span></span></div>
+          <div class="dlrow p-transition"><span class="jic"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></span><span class="jt"><b>Android 15 (API 35) image</b><span class="bar"><i style="width:60%"></i></span><span class="jm"><span>1.2 / 2.0 GB · 18 MB/s</span><span>About 1 min left</span></span></span></div>
+          <div class="dlrow p-neutral"><span class="jic"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span><span class="jt"><b>Verify checksums</b><span class="jm"><span>Queued</span><span>After download</span></span></span></div>
+        </div>
+        <div class="setup-f"><button class="btn btn-tertiary">Continue in background</button><span class="grow"></span><button class="btn">Cancel<span class="kbd">⌘.</span></button><button class="btn btn-primary" disabled>Continue</button></div>
+      </sc-if>
+
+      <sc-if value="{{f.s4}}" hint-placeholder-val="{{false}}">
+        <div class="setup-b" style="gap:14px">
+          <div class="j-col"><h2 class="t-headline">Create your first device</h2><p class="mut" style="margin:0">Defaults are filled in. Change what you need, then create.</p></div>
+          <div class="form2">
+            <div class="field"><label>Name</label><div class="inp"><input value="Pixel-ish 6.1" aria-label="Name"></div></div>
+            <div class="field"><label>Hardware profile</label><div class="inp"><span style="flex:1">Phone 6.1″ FHD+ · 1080×2400</span><svg class="ic i14 sel-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 15 5 5 5-5M7 9l5-5 5 5"/></svg></div></div>
+          </div>
+          <div class="field"><label>Android version</label><div class="inp"><span style="flex:1">Android 15 · API 35 · Google APIs</span><span class="sp sp-s p-positive"><svg class="ic i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Installed · 2.0 GB</span><svg class="ic i14 sel-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 15 5 5 5-5M7 9l5-5 5 5"/></svg></div></div>
+          <div class="field"><span class="lbl">Root mode</span>
+            <div class="rmode" role="radiogroup" aria-label="Root mode">
+              <label class="rcard"><span class="rh"><svg class="ic i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>None</span><p>A stock device.</p><span class="box round"></span></label>
+              <label class="rcard on"><span class="rh"><svg class="ic i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 17 6-6-6-6M12 19h8"/></svg>Shell root</span><p>adb root works. Nothing changes.</p><span class="box round on"></span></label>
+              <label class="rcard feat"><span class="rh"><svg class="ic i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5"/></svg>Full root</span><p>Magisk, verified. One reboot.</p><span class="box round"></span></label>
+            </div>
+          </div>
+        </div>
+        <div class="setup-f"><button class="btn btn-tertiary">More options…</button><span class="grow"></span><label class="chk"><span class="box on"><svg class="ic i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>Start after creating</label><button class="btn btn-primary">Create<span class="kbds"><span class="kbd">⌘</span><span class="kbd">↵</span></span></button></div>
+      </sc-if>
+    </div>
+  </div>
+</div>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":3280,"height":1392}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const names = ['1 · SDK detection', '2 · Google license', '3 · Download', '4 · First device'];
+    const frames = [];
+    [['jidr-dark', 'dark'], ['jidr-light', 'light']].forEach(([cls, t]) => {
+      [1, 2, 3, 4].forEach((n) => {
+        const c = (i) => (i < n ? 'done' : i === n ? 'on' : '');
+        frames.push({ title: names[n - 1], meta: t + ' · 760×580', cls, s1: n === 1, s2: n === 2, s3: n === 3, s4: n === 4, c1: c(1), c2: c(2), c3: c(3), c4: c(4) });
+      });
+    });
+    return { frames };
+  }
+}
+</script>
+</body>
+</html>

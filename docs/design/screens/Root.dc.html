@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Root setup flow</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="jidr.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="board" style="width:3024px;height:4024px">
+<sc-for list="{{frames}}" as="f" hint-placeholder-count="8">
+<div class="cell">
+  <div class="cap">{{f.title}}<span>{{f.meta}}</span></div>
+  <div class="win frame {{f.cls}} s1440">
+    <div class="tbar">
+      <div class="lights"><span></span><span></span><span></span></div>
+      <div class="tab">Library</div>
+      <div class="tab on">{{f.dev}}</div>
+      <div class="grow"></div>
+    </div>
+    <div class="j-body">
+      <nav class="j-side mini" aria-label="Devices"></nav>
+      <div class="dv"><div class="dv-stagecol"><div class="dv-stage">
+        <div class="bezel phone"><div class="screen scr-l"><div class="ascr boot"><span>{{f.screen}}</span></div></div></div>
+      </div></div><div class="vtool"></div><aside class="wpanel"></aside></div>
+    </div>
+
+    <div class="scrim">
+      <div class="sheet w-root" role="dialog" aria-label="Root setup">
+        <div class="sh"><div class="j-row"><h4>Full root · {{f.dev}}</h4><span class="grow"></span><sc-if value="{{f.beta}}" hint-placeholder-val="{{false}}"><span class="tag p-warning"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2M8.5 2h7M7 16h10"/></svg>Beta · Play Store image</span></sc-if><span class="num mut" style="font-size:12px">{{f.serial}}</span></div></div>
+        <div class="sb">
+
+          <sc-if value="{{f.prog}}" hint-placeholder-val="{{true}}">
+            <div class="rhero">
+              <span class="seal wip"><svg class="ic i32" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5"/></svg></span>
+              <h2 class="t-hero">Setting up root…</h2>
+              <span class="rb p-root-soft shape-outline"><svg class="ic spin" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Setting up root… · step 3 of 5</span>
+              <p>Reboots the device to finish root setup (about 40 s). Leave it running; you can close this sheet.</p>
+            </div>
+            <div class="rsteps">
+              <div class="rstep p-positive"><span class="g"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><span class="d"><b>Download Magisk 30.7</b></span><span class="r">Done</span></div>
+              <div class="rstep p-positive"><span class="g"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><span class="d"><b>Patch boot image</b><span>Original kept for revert</span></span><span class="r">Done</span></div>
+              <div class="rstep now p-transition"><span class="g"><svg class="ic i14 spin" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg></span><span class="d"><b>Rebooting</b><span>Waiting for Android to report boot complete</span></span><span class="r">0:18</span></div>
+              <div class="rstep wait p-neutral"><span class="g"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span><span class="d"><b>Install Magisk app</b></span><span class="r">Queued</span></div>
+              <div class="rstep wait p-neutral"><span class="g"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span><span class="d"><b>Verify</b><span class="num">su -c id</span></span><span class="r">Queued</span></div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{f.ok}}" hint-placeholder-val="{{false}}">
+            <div class="rhero">
+              <span class="seal"><svg class="ic i32" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="m9 12 2 2 4-4"/></svg></span>
+              <h2 class="t-hero">Rooted</h2>
+              <span class="rb p-root-strong shape-solid"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="m9 12 2 2 4-4"/></svg>Rooted · Magisk 30.7 · <span class="ver">verified 2 min ago</span></span>
+              <p>Jidr checked that su really answers as root before saying so.</p>
+            </div>
+            <dl class="proof">
+              <dt>Check</dt><dd>su -c id → uid=0(root) gid=0(root)</dd>
+              <dt>Magisk</dt><dd>30.7 · app installed</dd>
+              <dt>Boot image</dt><dd>patched · original kept</dd>
+              <dt>Took</dt><dd>58 s · 5 of 5 steps</dd>
+            </dl>
+            <div class="banner p-warning"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M12 8v4M12 16h.01"/></svg><span>Rooted emulators can't pass Play Integrity. Apps that check it will refuse to run.</span></div>
+          </sc-if>
+
+          <sc-if value="{{f.fail}}" hint-placeholder-val="{{false}}">
+            <div class="rhero">
+              <span class="seal bad"><svg class="ic i32" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg></span>
+              <h2 class="t-hero">Root failed</h2>
+              <span class="rb p-negative shape-heavy-outline"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg>Root failed: boot timed out</span>
+              <p>Pixel-ish 6.1 didn't finish booting after the reboot (waited 120 s). Your data is intact and the original boot image is kept, so you can revert.</p>
+            </div>
+            <div class="rsteps">
+              <div class="rstep p-positive"><span class="g"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><span class="d"><b>Download Magisk 30.7</b></span><span class="r">Done</span></div>
+              <div class="rstep p-positive"><span class="g"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><span class="d"><b>Patch boot image</b></span><span class="r">Done</span></div>
+              <div class="rstep bad p-negative"><span class="g"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></span><span class="d"><b>Reboot</b><span>Boot complete never reported</span></span><span class="r">Failed · 2:00</span></div>
+              <div class="rstep wait p-neutral"><span class="g"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></span><span class="d"><b>Install Magisk app · Verify</b></span><span class="r">Not run</span></div>
+            </div>
+            <div class="logtail">14:20:31  jidr   reboot sent, waiting for sys.boot_completed
+14:21:02  emu  <span class="w">W init: Unable to set property 'ro.boot.verifiedbootstate'</span>
+14:22:31  jidr <span class="e">E boot timeout: sys.boot_completed not set after 120 s</span>
+14:22:31  jidr   root setup stopped at step 3 of 5</div>
+          </sc-if>
+
+          <sc-if value="{{f.beta}}" hint-placeholder-val="{{false}}">
+            <div class="rhero">
+              <span class="seal wip"><svg class="ic i32" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5"/></svg></span>
+              <h2 class="t-hero">Waiting to set up root</h2>
+              <span class="rgrp"><span class="rb p-root-soft shape-outline"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/></svg>Full root</span><span class="tag p-warning">Beta</span></span>
+              <p>Root setup starts when Android finishes its first boot. Play Store images are signed by Google, so this path is less tested.</p>
+            </div>
+            <div class="rsteps">
+              <div class="rstep now p-transition"><span class="g"><svg class="ic i14 spin" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg></span><span class="d"><b>Booting Android… 62%</b><span>First boot of a Play Store image</span></span><span class="r">62%</span></div>
+              <div class="rstep wait p-neutral"><span class="g"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span><span class="d"><b>Download Magisk 30.7 › Patch › Reboot › Install › Verify</b></span><span class="r">Queued</span></div>
+            </div>
+            <div class="banner p-warning"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M12 8v4M12 16h.01"/></svg><span><b>Rooted emulators can't pass Play Integrity.</b> Banking apps and some games from the Play Store will refuse to run on Play Store test once it is rooted.</span></div>
+          </sc-if>
+        </div>
+
+        <div class="sf">
+          <sc-if value="{{f.prog}}" hint-placeholder-val="{{true}}"><button class="btn btn-tertiary">Stop and revert</button><span class="grow"></span><button class="btn">Continue in background</button></sc-if>
+          <sc-if value="{{f.ok}}" hint-placeholder-val="{{false}}"><button class="btn btn-tertiary">Show steps</button><span class="grow"></span><button class="btn">Save snapshot…</button><button class="btn btn-primary">Done<span class="kbd">↵</span></button></sc-if>
+          <sc-if value="{{f.fail}}" hint-placeholder-val="{{false}}"><button class="btn btn-tertiary"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>Copy log</button><span class="grow"></span><button class="btn"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>Revert to unrooted</button><button class="btn btn-primary"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>Try again</button></sc-if>
+          <sc-if value="{{f.beta}}" hint-placeholder-val="{{false}}"><button class="btn btn-tertiary">Don't root this device</button><span class="grow"></span><button class="btn">Continue in background</button></sc-if>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":3024,"height":4024}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const rows = [
+      ['In progress · step 3 of 5', 'prog', 'Pixel-ish 6.1', 'Rebooting…'],
+      ['Success', 'ok', 'Pixel-ish 6.1', ''],
+      ['Failure', 'fail', 'Pixel-ish 6.1', 'Not responding'],
+      ['Play Store image · Beta', 'beta', 'Play Store test', 'Booting Android… 62%']
+    ];
+    const frames = [];
+    rows.forEach(([title, st, dev, screen]) => {
+      [['jidr-dark', 'dark'], ['jidr-light', 'light']].forEach(([cls, t]) => {
+        frames.push({ title, meta: t + ' · 1440×900', cls, dev, screen, serial: dev === 'Pixel-ish 6.1' ? 'emulator-5556' : 'emulator-5558', prog: st === 'prog', ok: st === 'ok', fail: st === 'fail', beta: st === 'beta' });
+      });
+    });
+    return { frames };
+  }
+}
+</script>
+</body>
+</html>

@@ -51,7 +51,7 @@ How to work:
 - Use CARGO_TARGET_DIR=target/agent-b.
 - The GUI is GPLv3 (D18); jidr-widgets is Apache-2.0 and must not depend on Slint.
 - The UI has no business logic: every action is a protocol call through jidr-client. Pure view state (window size, zoom, panel layout) stays local.
-- Styling: use docs/design/tokens.json and the design system when they exist. Until then use Slint's default style with theme tokens in one `global Theme` so restyling is a single-file change. Light and dark, every string via @tr, layouts checked with RTL mirroring (D33).
+- Styling (D41): generate `ui/theme.slint` from docs/design/tokens.json in jidr-ui's build.rs (never hand-copy hex), follow docs/design/system/README.md and the component specs, bundle the Geist / Geist Mono / Noto Kufi Arabic fonts, use Lucide icons, and build screens to docs/design/screens/ (launcher 1A `Main.dc.html`, device window 4A `Device.dc.html`, Setup/Create/Root/Snapshots/Settings). Dark first, then light; every string via @tr; layouts checked with RTL mirroring (D33).
 - Golden snapshot tests for every screen and state, in light, dark and RTL. Verify visual changes with the offscreen snapshot harness before committing.
 - Widgets: only the MVP set in Phase 8a/8b. Identifiers, audio injection, biometrics and every 🔎 NEEDS RESEARCH row are out of scope.
 - Use the sample data in docs/design/PRODUCT.md §7 for fixtures and goldens.
@@ -88,7 +88,7 @@ Root rules (D6, D7, D21, D22 and the research summary):
 - State plainly in the UI and docs that rooted emulators can't pass Play Integrity.
 - 9a: try (1) the overlay.d boot-script policy grant, (2) the uiautomator auto-tap, (3) the guided-tap beta, in that order. Write ADR-0002 with the result. Either a full-support pass or a documented beta pass completes 9a.
 
-Site rules (D16, D25, D33, D34): Astro + Vue islands only where interactive, Cloudflare Pages. The coming-soon page has no email capture. Feature grid "Genymotion's paid features, free" is text only, with no Genymotion, Google or Android logos. Use the brand kit and design tokens in docs/design/ when present; otherwise build a clean, token-driven placeholder that's easy to restyle. Arabic version at launch (11b). GitHub Sponsors link. Lighthouse ≥ 95.
+Site rules (D16, D25, D33, D34, D41): Astro + Vue islands only where interactive, Cloudflare Pages. Build to docs/design/screens/Landing*.dc.html (concept 8A) with site/src/styles/tokens.css generated from docs/design/tokens.json and self-hosted Geist fonts. The coming-soon page has no email capture. Feature grid "Genymotion's paid features, free" is text only, with no Genymotion, Google or Android logos. Use the brand kit and design tokens in docs/design/ when present; otherwise build a clean, token-driven placeholder that's easy to restyle. Arabic version at launch (11b). GitHub Sponsors link. Lighthouse ≥ 95.
 
 How to work:
 - Before each phase, write a short plan in log/devlog-c.md, then implement it.

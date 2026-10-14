@@ -1,0 +1,49 @@
+{
+  "v": 3,
+  "createdOnFiles": {"v": 1, "at": "2026-10-13T22:40:00Z"},
+  "title": "Jidr — key screens",
+  "launch": {"view": "canvas"},
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {"x": 0, "y": 0, "w": 3024, "h": 3028, "title": "1A · Launcher — sidebar list + device detail (chosen)"},
+    "Launcher-B.dc.html": {"x": 3104, "y": 0, "w": 3024, "h": 2032, "title": "1B · Launcher — card grid + command bar"},
+
+    "Setup.dc.html": {"x": 0, "y": 3448, "w": 3280, "h": 1392, "title": "2 · First-run setup window"},
+    "Create.dc.html": {"x": 3360, "y": 3448, "w": 3024, "h": 3028, "title": "3 · Create device sheet"},
+
+    "Device-Concepts.dc.html": {"x": 0, "y": 6896, "w": 3024, "h": 2032, "title": "4 · Device window — A docked panel vs B floating inspector"},
+    "Device.dc.html": {"x": 3104, "y": 6896, "w": 3024, "h": 6016, "title": "4 · Device window (A, chosen) — Pixel-ish 6.1"},
+
+    "Root.dc.html": {"x": 0, "y": 13332, "w": 3024, "h": 4024, "title": "5 · Root flow"},
+    "Snapshots.dc.html": {"x": 3104, "y": 13332, "w": 3024, "h": 3028, "title": "6 · Snapshots — Pixel-ish 6.1"},
+
+    "Settings.dc.html": {"x": 0, "y": 17776, "w": 3520, "h": 1512, "title": "7 · Settings window"},
+
+    "Landing-A.dc.html": {"x": 0, "y": 19708, "w": 1440, "h": 1180, "title": "8A · Landing concept — headline over the app (chosen)", "expand": "fill"},
+    "Landing-B.dc.html": {"x": 1520, "y": 19708, "w": 1440, "h": 1180, "title": "8B · Landing concept — split, terminal-led", "expand": "fill"},
+    "Landing.dc.html": {"x": 3040, "y": 19708, "w": 1440, "h": 3900, "title": "8 · jidr.ly — coming soon · 1440", "expand": "fill"},
+    "Landing-Launch.dc.html": {"x": 4560, "y": 19708, "w": 1440, "h": 5600, "title": "8 · jidr.ly — launch · 1440", "expand": "fill"},
+    "Landing-Soon-390.dc.html": {"x": 6080, "y": 19708, "w": 390, "h": 6400, "title": "8 · coming soon · 390", "expand": "fill"},
+    "Landing-Launch-390.dc.html": {"x": 6550, "y": 19708, "w": 390, "h": 9200, "title": "8 · launch · 390", "expand": "fill"},
+    "Landing-AR.dc.html": {"x": 7020, "y": 19708, "w": 1440, "h": 1180, "title": "8 · Arabic hero (RTL) · 1440", "expand": "fill"},
+    "Landing-AR-390.dc.html": {"x": 8540, "y": 19708, "w": 390, "h": 1000, "title": "8 · Arabic hero (RTL) · 390", "expand": "fill"}
+  },
+  "order": [
+    "Main.dc.html", "Launcher-B.dc.html",
+    "Setup.dc.html", "Create.dc.html",
+    "Device-Concepts.dc.html", "Device.dc.html",
+    "Root.dc.html", "Snapshots.dc.html",
+    "Settings.dc.html",
+    "Landing-A.dc.html", "Landing-B.dc.html", "Landing.dc.html", "Landing-Launch.dc.html",
+    "Landing-Soon-390.dc.html", "Landing-Launch-390.dc.html", "Landing-AR.dc.html", "Landing-AR-390.dc.html"
+  ],
+  "notes": {
+    "t1": {"x": 0, "y": -300, "text": "1 · Launcher — two structures, first run and populated", "kind": "title1", "maxW": 6128},
+    "t2": {"x": 0, "y": 3148, "text": "2 · First-run setup  ·  3 · Create device", "kind": "title1", "maxW": 6384},
+    "t4": {"x": 0, "y": 6596, "text": "4 · Device window — the Android screen is the hero", "kind": "title1", "maxW": 6128},
+    "t5": {"x": 0, "y": 13032, "text": "5 · Root flow  ·  6 · Snapshots", "kind": "title1", "maxW": 6128},
+    "t7": {"x": 0, "y": 17476, "text": "7 · Settings", "kind": "title1", "maxW": 3520},
+    "t8": {"x": 0, "y": 19408, "text": "8 · jidr.ly — concepts, then the chosen page", "kind": "title1", "maxW": 8930}
+  },
+  "designSystems": []
+}

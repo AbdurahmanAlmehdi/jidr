@@ -1,0 +1,63 @@
+<!-- @dsCard height=288 -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Jidr Design System</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;700&display=swap">
+<style>
+  html, body { margin:0; height:100%; }
+  body { background:var(--jidr-color-surface-base); color:var(--jidr-color-text-primary); font-family:var(--font-ui); overflow:hidden; }
+  .cover { position:relative; height:288px; overflow:hidden; }
+  .art { position:absolute; top:0; left:480px; width:480px; height:288px; overflow:hidden; }
+  .art svg { display:block; width:480px; height:288px; }
+  .accent { fill:var(--jidr-color-accent-fill); }
+  .tint { fill:var(--jidr-status-transition-border); }
+  .root { fill:var(--jidr-color-root); }
+  .ink { fill:var(--jidr-color-text-primary); }
+  .cut { fill:var(--jidr-color-surface-base); }
+  .ok { fill:var(--jidr-color-positive); }
+  .blk { rx:var(--jidr-radius-lg); }
+  .dev { rx:var(--jidr-frame-phone-radius); }
+  .pill { rx:4px; }
+  .words { position:absolute; left:24px; bottom:24px; max-width:440px; }
+  .name { margin:0; font-size:64px; line-height:.95; font-weight:700; letter-spacing:-.03em; color:var(--jidr-color-text-primary); }
+  .tag { margin:8px 0 0 2px; font-size:14px; line-height:20px; color:var(--jidr-color-text-secondary); }
+</style>
+</head>
+<body>
+<div class="cover">
+<div class="art" aria-hidden="true">
+<svg viewBox="0 0 480 288" width="480" height="288">
+<!--
+  blocks      accent-fill 144×232 bled off the top (the action colour) · status-transition-border 96×120 (tint; accent-container vanishes on the light ground) · root 144×96 (the name's meaning, Jidr = root) · text-primary 136×256 as the device slab bleeding off the right, corners frame-phone-radius · positive 32×8 once (only ever a state) — ≈35% of 960×288
+  arrangement one tall accent slab, a tint and a root block stepped beside it, then the device slab; bottoms on one line space-xl above the edge, space-lg gutters
+  pattern     pills from "pills for state, 8 for controls": space-sm-tall status pills at a space-lg pitch cut into the device slab in the ground colour, read as device rows; one Running pill in positive
+  scales      sides in space-sm multiples; gutters space-lg (16); pitch space-lg; corners radius-lg (12), device frame-phone-radius (34), pills rx 4 (half of space-sm)
+-->
+<rect class="accent blk" x="16" y="-16" width="144" height="248" rx="12"/>
+<rect class="tint blk" x="176" y="112" width="96" height="120" rx="12"/>
+<rect class="root blk" x="176" y="0" width="96" height="96" rx="12"/>
+<rect class="ink dev" x="288" y="24" width="208" height="296" rx="34"/>
+<rect class="pill cut" x="312" y="64" width="64" height="8" rx="4"/>
+<rect class="pill cut" x="384" y="64" width="40" height="8" rx="4"/>
+<rect class="pill ok" x="432" y="64" width="32" height="8" rx="4"/>
+<rect class="pill cut" x="312" y="96" width="48" height="8" rx="4"/>
+<rect class="pill cut" x="368" y="96" width="56" height="8" rx="4"/>
+<rect class="pill cut" x="312" y="128" width="72" height="8" rx="4"/>
+<rect class="pill cut" x="392" y="128" width="32" height="8" rx="4"/>
+<rect class="pill cut" x="312" y="160" width="40" height="8" rx="4"/>
+<rect class="pill cut" x="360" y="160" width="64" height="8" rx="4"/>
+<rect class="pill cut" x="312" y="192" width="56" height="8" rx="4"/>
+<rect class="pill cut" x="312" y="224" width="80" height="8" rx="4"/>
+<rect class="pill cut" x="40" y="200" width="48" height="8" rx="4"/>
+<rect class="pill cut" x="96" y="200" width="40" height="8" rx="4"/>
+</svg>
+</div>
+<div class="words">
+<p class="name">Jidr Design<br>System</p>
+<p class="tag">Tokens and components for the Slint app and jidr.ly, from one source.</p>
+</div>
+</div>
+</body>
+</html>
