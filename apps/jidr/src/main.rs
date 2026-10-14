@@ -169,8 +169,8 @@ async fn exec(client: &Client, out: Out, method: &str, params: Value) -> JidrRes
     follow(client, out, v, None).await
 }
 
-/// Root and snapshot commands come from other providers; say so clearly
-/// while they aren't registered.
+/// Root commands come from another provider; say so clearly while it isn't
+/// registered.
 fn missing_provider(method: &str, e: JidrError) -> JidrError {
     if e.code == ErrorCode::Usage && e.message.starts_with("unknown method") {
         let area = method.split('.').next().unwrap_or(method);
@@ -835,20 +835,24 @@ fn run_daemon(out: Out) -> u8 {
         Err(e) => return out.err(&JidrError::unexpected(format!("tokio runtime: {e}"))),
     };
     let result: JidrResult<()> = rt.block_on(async {
-        let paths = JidrPaths::discover()?;
-        let daemon = jidr_daemon::Daemon::builder(
-            jidr_daemon::DaemonConfig::new(paths),
-            Arc::new(jidr_backend::AospBackend::new()),
-        )
-        // Providers from jidr-widgets (B) and jidr-root (C) are registered
-        // here once they export `provider()` (docs/gaps.md A1/A2).
-        .build()?;
+        let daemon = build_daemon(JidrPaths::discover()?)?;
         daemon.serve(shutdown_signal()).await
     });
     match result {
         Ok(()) => 0,
         Err(e) => out.err(&e),
     }
+}
+
+/// The daemon `jidr daemon` serves: the AOSP backend plus every provider.
+fn build_daemon(paths: JidrPaths) -> JidrResult<Arc<jidr_daemon::Daemon>> {
+    jidr_daemon::Daemon::builder(
+        jidr_daemon::DaemonConfig::new(paths),
+        Arc::new(jidr_backend::AospBackend::new()),
+    )
+    .provider(jidr_widgets::provider())
+    // jidr-root (C) is registered here once it exports `provider()` (docs/gaps.md G7).
+    .build()
 }
 
 async fn shutdown_signal() {
@@ -870,5 +874,20 @@ async fn shutdown_signal() {
     #[cfg(not(unix))]
     {
         let _ = tokio::signal::ctrl_c().await;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // G6: without the widgets provider, the CLI and MCP reject every widget command.
+    #[test]
+    fn daemon_serves_widget_commands() {
+        let tmp = tempfile::tempdir().unwrap();
+        let daemon = build_daemon(JidrPaths::under(tmp.path())).unwrap();
+        for method in ["device.list", "gps.set", "battery.set", "snapshot.save"] {
+            assert!(daemon.registry().get(method).is_some(), "{method}");
+        }
     }
 }
