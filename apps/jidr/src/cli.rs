@@ -128,6 +128,12 @@ pub enum Cmd {
         #[command(subcommand)]
         cmd: JobsCmd,
     },
+    /// Serve MCP on stdio for AI agents (add to Claude: `claude mcp add jidr -- jidr mcp`).
+    Mcp {
+        /// Allow destructive commands (reset, delete…) on devices the agent didn't create (D5).
+        #[arg(long)]
+        allow_destructive: bool,
+    },
     /// List every protocol command (the same list the GUI and MCP see).
     Commands,
     /// Call any protocol command directly: `jidr call device.list` or

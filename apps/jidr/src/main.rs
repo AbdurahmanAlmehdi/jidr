@@ -624,6 +624,11 @@ async fn run(cli: Cli, out: Out) -> JidrResult<()> {
                 format!("Cancelling {job}.")
             });
         }
+        Cmd::Mcp { allow_destructive } => {
+            // MCP owns stdout from here on.
+            let opts = jidr_mcp::McpOptions { allow_destructive };
+            return jidr_mcp::serve_stdio(client, opts).await;
+        }
         Cmd::Commands => {
             let v = c.call("commands.list", json!({})).await?;
             out.ok(&v, output::commands);
