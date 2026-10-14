@@ -14,13 +14,10 @@ env:
   RUST_BACKTRACE: "1"
 
 jobs:
+  # Full gate: fmt, clippy, tests, license-check.
   check:
-    name: fmt, clippy, tests (${{ matrix.os }})
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, ubuntu-latest]
-    runs-on: ${{ matrix.os }}
+    name: fmt, clippy, tests, license-check (Linux)
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust (from rust-toolchain.toml)
@@ -32,10 +29,46 @@ jobs:
       - uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Linux GUI build deps
-        if: runner.os == 'Linux'
+      - name: GUI build deps
         run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev libxkbcommon-dev
       - run: cargo xtask ci
+
+  # Does this change touch anything but docs/, site/ or Markdown?
+  changes:
+    name: changed paths
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          predicate-quantifier: every
+          filters: |
+            code:
+              - '**'
+              - '!docs/**'
+              - '!site/**'
+              - '!**/*.md'
+
+  # macOS compile + lint gate for macOS-only code (VideoToolbox, Slint's
+  # macOS backend, bundling). Hosted macOS can't boot the emulator and queues
+  # slower, so tests run on Linux; skipped when only docs/site/Markdown change.
+  clippy-macos:
+    name: clippy (macOS)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust (from rust-toolchain.toml)
+        run: rustup show active-toolchain || rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+      - uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: cargo clippy --workspace --all-targets -- -D warnings
 
   emulator:
     # Emulator integration tests on Linux KVM with x86_64 images (D28).
