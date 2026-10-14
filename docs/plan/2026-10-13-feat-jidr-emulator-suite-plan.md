@@ -256,7 +256,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `cargo nextest run -p jidr && scripts/e2e-studio-untouched.sh`
 
 ### Phase 6 (A): MCP server
-- **Status:** Not started
+- **Status:** Done
 - **Scope:** `jidr mcp` over stdio (rmcp): generic `command_list` / `command_run` / `jobs_list` / `jobs_cancel`, plus typed `screenshot` (PNG ≤1024 px), `tap`, `swipe`, `type_text`, `ui_dump`, `logcat_tail`; annotation hints on every tool; destructive policy (D5); "Add Jidr to Claude" config snippet in `docs/mcp.md`; 5 scripted agent tasks; latency recorded (not gated).
 - **Files touched:** `crates/jidr-mcp/**`, `docs/mcp.md`
 - **Acceptance criteria:** the 5 agent tasks pass over MCP; destructive tools are refused without `--allow-destructive` on a non-`agent-owned` device.

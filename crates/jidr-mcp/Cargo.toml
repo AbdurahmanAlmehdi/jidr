@@ -9,6 +9,26 @@ repository.workspace = true
 authors.workspace = true
 publish.workspace = true
 
+[dependencies]
+jidr-core.workspace = true
+jidr-client.workspace = true
+jidr-adb.workspace = true
+jidr-proto.workspace = true
+jidr-backend.workspace = true
+rmcp = { workspace = true, features = ["server", "transport-io"] }
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+schemars.workspace = true
+tracing.workspace = true
+base64 = "0.22"
+uuid.workspace = true
+
+[dev-dependencies]
+jidr-daemon.workspace = true
+tempfile.workspace = true
+rmcp = { workspace = true, features = ["client", "transport-child-process"] }
+
 [lints]
 workspace = true
 

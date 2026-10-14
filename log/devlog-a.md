@@ -303,3 +303,31 @@ Built:
 - `scripts/e2e-cli.sh` now ends with a second running device and `uninstall --purge` under a scratch `HOME`, then checks no data/cache/logs/socket and no live emulator with a Jidr AVD (`scripts/lib/no_jidr_emulators.py`). `scripts/e2e-studio-untouched.sh` defaults to the sdk emulator tests + `e2e-cli.sh`.
 
 Validation `cargo nextest run -p jidr && scripts/e2e-studio-untouched.sh`: 16 CLI tests passed; full real-emulator flow (create → boot 26 s → install → logcat → stop → delete → second device booted → `uninstall --purge`) passed in 93 s, and all 296,062 Studio SDK/AVD files are unchanged.
+
+---
+
+## Phase 6: MCP server — plan
+
+Gaps: A1/A2/A3 open for B/C (not blocking); C1 FYI.
+
+`jidr-mcp` on rmcp 3.5 (hand-written `ServerHandler`, `transport-io` for stdio), `jidr mcp [--allow-destructive]` in `apps/jidr`:
+- Generic tools: `command_list {prefix?}` (from `commands.list`), `command_run {command, params, timeout_s}` (follows jobs; a job still running at the timeout is returned as is), `jobs_list {all}`, `jobs_cancel {job}`.
+- Typed hot paths: `screenshot {device}` (gRPC `getScreenshot` PNG, fitted in 1024×1024 per ADR-0001: width + height requested; returns the image + text with the screen size and scale), `tap`/`swipe` (coordinates in that screenshot's space by default, `coords: "device"` for raw pixels; `adb input`), `type_text` (gRPC `sendKey` text, optional Enter), `press_key` (Home/Back/AppSwitch/Enter… via gRPC `sendKey`), `ui_dump` (uiautomator XML), `logcat_tail {lines, filter}`.
+- Annotations on every tool (read-only / destructive / idempotent / open-world hints).
+- D5 policy: a destructive command (`CommandSpec.destructive`) is refused unless the server runs with `--allow-destructive` or the target device is `agent_owned`; `device.create` through MCP marks the device agent-owned unless told otherwise. Connection-scoped methods (`hello`, `events.subscribe`, `logcat.follow`, `daemon.shutdown`) aren't callable.
+- Jidr errors come back as tool results with `isError` + structured `{code, message, data}` so agents can act on them.
+- Tests: in-process (tokio duplex) rmcp client against `TestDaemon`: tool list + annotations, generic flow, D5 refusals/allowances, blocked methods. `--features emulator`: 5 scripted agent tasks on a real emulator through MCP (boot + screenshot, open Settings from the app drawer via ui_dump/tap, search Settings by typing, logcat_tail, stop + delete under the policy), with per-call latency printed (not gated).
+- `docs/mcp.md` with the "Add Jidr to Claude" snippets.
+
+## Phase 6: MCP server — done (2026-10-14)
+
+Built: `jidr-mcp` (rmcp 3.5, hand-written `ServerHandler`): `command_list`, `command_run` (follows jobs, timeout → job), `jobs_list`, `jobs_cancel`, `screenshot` (gRPC PNG fitted in 1024², width+height per ADR-0001), `tap`/`swipe` (screenshot or device coordinates, `adb input`), `type_text` (`adb input text`, shell-escaped), `press_key` (gRPC `sendKey`), `ui_dump`, `logcat_tail`; annotations on every tool; Jidr errors as `isError` results with structured codes; D5 policy (destructive needs `--allow-destructive` or an agent-owned device; `device.create` via MCP is agent-owned by default); connection-scoped methods blocked. `jidr mcp [--allow-destructive]`. `docs/mcp.md`.
+
+Validation `cargo nextest run -p jidr-mcp --features emulator`: 9 passed. Five scripted agent tasks on a real emulator (create+boot+screenshot, open Settings via the app drawer with ui_dump/tap, type into the launcher search, filtered logcat, stop+delete under D5); latency recorded in docs/mcp.md.
+
+Bugs/findings (with regression tests where code changed):
+1. `logcat.dump` with a filter + line count came back empty: logcat applies `-t N` to the raw buffer before tag filtering. Now we dump and keep the last N matching lines (`core_provider::tests::filtered_logcat_tails_after_filtering`).
+2. gRPC `sendKey` text injection sometimes coincided with the Settings search closing; switched `type_text` to `adb input text` (`device::tests::input_text_is_shell_safe`). Root cause of the closing turned out to be Settings Intelligence being killed during first-boot updates ("app died"), so task 3 now types into the launcher search instead.
+3. The launcher's first search shows "Always show keyboard here?"; the agent task answers it. The 2 GB profile starved first boot; tasks use the default 4 GB profile.
+
+Open: `ui_dump` is slow (uiautomator, 4–6 s median); a faster accessibility path could come later.

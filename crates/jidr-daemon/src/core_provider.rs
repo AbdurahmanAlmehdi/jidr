@@ -267,6 +267,27 @@ pub fn parse_image(sel: &str) -> JidrResult<ImageRef> {
     Ok(ImageRef { api, tag, abi })
 }
 
+/// `logcat -d` arguments. logcat applies `-t N` to the raw buffer *before*
+/// tag filtering, so with a filter we dump everything and keep the last N
+/// matching lines ourselves (`tail_lines`).
+pub fn logcat_args(lines: Option<u32>, filter: &[String]) -> Vec<String> {
+    let mut args = Vec::new();
+    if let (Some(n), true) = (lines, filter.is_empty()) {
+        args.extend(["-t".to_string(), n.to_string()]);
+    }
+    args.extend(filter.iter().cloned());
+    args
+}
+
+pub fn tail_lines(text: &str, n: usize) -> String {
+    let lines: Vec<&str> = text.lines().collect();
+    let mut out = lines[lines.len().saturating_sub(n)..].join("\n");
+    if !out.is_empty() {
+        out.push('\n');
+    }
+    out
+}
+
 fn validate_device_name(name: &str) -> JidrResult<()> {
     let name = name.trim();
     if name.is_empty() || name.len() > 64 || name.contains(['/', '\n', '\r']) {
@@ -889,13 +910,13 @@ impl CommandProvider for CoreProvider {
             "logcat.dump" => {
                 let p: LogcatDumpParams = parse_params(params)?;
                 let d = self.state.device(&p.device).await?;
-                let lines = p.lines.map(|n| n.to_string());
-                let mut args: Vec<&str> = Vec::new();
-                if let Some(n) = &lines {
-                    args.extend(["-t", n]);
-                }
-                args.extend(p.filter.iter().map(String::as_str));
+                let args = logcat_args(p.lines, &p.filter);
+                let args: Vec<&str> = args.iter().map(String::as_str).collect();
                 let text = self.adb(&d).await?.logcat_dump(&args).await?;
+                let text = match (p.lines, p.filter.is_empty()) {
+                    (Some(n), false) => tail_lines(&text, n as usize),
+                    _ => text,
+                };
                 Ok(json!({ "text": text }))
             }
             "device.logs" => {
@@ -977,6 +998,19 @@ mod tests {
         for bad in ["", "x", "35:a:b:c", "system-images;nope"] {
             assert!(parse_image(bad).is_err(), "{bad}");
         }
+    }
+
+    /// Regression: `logcat -d -t 500 Tag:I *:S` applies the 500 to the raw
+    /// buffer first, so a filtered tail came back empty on a busy device.
+    #[test]
+    fn filtered_logcat_tails_after_filtering() {
+        let f = vec!["ActivityManager:I".to_string(), "*:S".to_string()];
+        assert_eq!(logcat_args(Some(500), &f), f, "no -t with a filter");
+        assert_eq!(logcat_args(Some(50), &[]), vec!["-t", "50"]);
+        assert!(logcat_args(None, &[]).is_empty());
+        assert_eq!(tail_lines("a\nb\nc\n", 2), "b\nc\n");
+        assert_eq!(tail_lines("a\n", 5), "a\n");
+        assert_eq!(tail_lines("", 5), "");
     }
 
     #[test]
