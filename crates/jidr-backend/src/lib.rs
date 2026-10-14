@@ -9,6 +9,7 @@ pub mod discovery;
 pub mod fake;
 pub mod grpc;
 pub mod ports;
+pub mod testing;
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;

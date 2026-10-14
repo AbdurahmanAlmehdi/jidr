@@ -55,11 +55,22 @@ impl PortAllocator {
     }
 
     pub fn allocate(&self) -> JidrResult<Ports> {
+        self.allocate_avoiding(&HashSet::new())
+    }
+
+    /// Like `allocate`, also skipping `in_use` (ports live emulators hold
+    /// according to their discovery files: a bind test on 127.0.0.1 can
+    /// miss a port bound on another address).
+    pub fn allocate_avoiding(&self, in_use: &HashSet<u16>) -> JidrResult<Ports> {
         let mut reserved = self.reserved.lock().unwrap_or_else(|e| e.into_inner());
         let console = (FIRST_CONSOLE..=LAST_CONSOLE)
             .step_by(2)
             .find(|p| {
-                !reserved.contains(p) && !reserved.contains(&(p + 1)) && free(*p) && free(p + 1)
+                ![*p, p + 1]
+                    .iter()
+                    .any(|q| reserved.contains(q) || in_use.contains(q))
+                    && free(*p)
+                    && free(p + 1)
             })
             .ok_or_else(|| JidrError::busy("no free emulator console port pair"))?;
         let grpc = (0..20)
@@ -126,6 +137,17 @@ mod tests {
         };
         a.release(first);
         assert_ne!(a.allocate().unwrap().console, first.console);
+    }
+
+    /// Regression: two leaked emulators both asked for console 5554; ports
+    /// a live emulator reports in its discovery file are skipped.
+    #[test]
+    fn skips_ports_live_emulators_hold() {
+        let a = PortAllocator::new();
+        let first = a.allocate().unwrap();
+        a.release(first);
+        let held: HashSet<u16> = [first.console].into();
+        assert_ne!(a.allocate_avoiding(&held).unwrap().console, first.console);
     }
 
     #[test]

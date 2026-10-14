@@ -26,10 +26,15 @@ fi
 JIDR_HOME="$(mktemp -d /tmp/jidr-e2e.XXXXXX)"
 export JIDR_HOME
 cleanup() {
+  # Stops devices, the daemon and any leftover emulator of this run, even
+  # after a failure or Ctrl-C (scratch HOME: real MCP configs untouched).
+  mkdir -p "$JIDR_HOME/cleanup-home"
+  HOME="$JIDR_HOME/cleanup-home" "$JIDR" --quiet uninstall --purge --yes >/dev/null 2>&1 || true
   "$JIDR" daemon stop >/dev/null 2>&1 || true
   rm -rf "$JIDR_HOME"
 }
 trap cleanup EXIT
+trap 'exit 130' INT TERM
 
 # Runs `jidr --json …`, checks the exit code and that ok == true, prints the result.
 step() {

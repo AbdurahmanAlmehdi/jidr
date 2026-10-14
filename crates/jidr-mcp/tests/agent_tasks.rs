@@ -113,7 +113,12 @@ async fn five_agent_tasks() {
         McpOptions::default(),
     )
     .await;
-    let dev = "agent-phone";
+    // A per-process device name, a guard that kills its emulator however
+    // the test ends, and cleanup of orphans from earlier killed runs.
+    jidr_backend::testing::kill_orphans("agent-phone-");
+    let dev_name = jidr_backend::testing::unique_avd("agent-phone");
+    let dev = dev_name.as_str();
+    let _guard = jidr_backend::testing::AvdGuard::new(dev);
 
     // Task 1: create and boot a device, then look at it.
     let t = Instant::now();
