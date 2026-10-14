@@ -1,6 +1,10 @@
 //! Snapshot manager (Phase 10b): the emulator's `SnapshotService` plus a
 //! root-mode tag per snapshot, kept in `<avd>/jidr/snapshots.json`. A
 //! snapshot taken under one root mode is refused under another (D29).
+//!
+//! Jidr picks the on-disk id itself ([`snapshot_id`]): emulator builds differ
+//! in how they store names with spaces, so the name the user typed is kept as
+//! the tag's `label`.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -20,6 +24,9 @@ pub const QUICK_BOOT: &str = "default_boot";
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Tag {
+    /// The name as typed, when it differs from the id.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
     pub root_mode: RootMode,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub magisk_version: Option<String>,
@@ -103,6 +110,55 @@ pub fn check_name(n: &str) -> JidrResult<&str> {
     Ok(n)
 }
 
+/// The snapshot's folder name: ASCII letters, digits, `-`, `.` and `_` stay,
+/// other ASCII becomes `_`, and other characters become `x<hex>` so names in
+/// other scripts stay distinct.
+pub fn snapshot_id(name: &str) -> String {
+    let mut id = String::with_capacity(name.len());
+    for c in name.chars() {
+        if c.is_ascii_alphanumeric() || matches!(c, '-' | '.' | '_') {
+            id.push(c);
+        } else if c.is_ascii() {
+            id.push('_');
+        } else {
+            id.push_str(&format!("x{:x}", u32::from(c)));
+        }
+    }
+    id
+}
+
+/// The id to save `name` under: [`snapshot_id`], with `-2`, `-3`… when
+/// another snapshot already holds that id. Saving the same name again
+/// replaces it.
+fn free_id(avd: &Path, tags: &BTreeMap<String, Tag>, name: &str) -> String {
+    let base = snapshot_id(name);
+    let mut id = base.clone();
+    for n in 2.. {
+        let taken = match tags.get(&id) {
+            Some(t) => t.label.as_deref().unwrap_or(&id) != name,
+            None => id != name && avd.join("snapshots").join(&id).is_dir(),
+        };
+        if !taken {
+            break;
+        }
+        id = format!("{base}-{n}");
+    }
+    id
+}
+
+/// The id of the snapshot a user or client named: a tag's label, an existing
+/// folder, or the id Jidr would give that name.
+pub fn resolve(avd: &Path, tags: &BTreeMap<String, Tag>, name: &str) -> String {
+    if let Some((id, _)) = tags.iter().find(|(_, t)| t.label.as_deref() == Some(name)) {
+        return id.clone();
+    }
+    let safe = !name.is_empty() && !name.contains(['/', '\\']) && !name.starts_with('.');
+    if safe && avd.join("snapshots").join(name).is_dir() {
+        return name.to_string();
+    }
+    snapshot_id(name)
+}
+
 /// D29: may this snapshot be restored on a device in `mode`? Untagged
 /// snapshots (made outside Jidr) and the quick-boot one restore as usual.
 pub fn check_root(name: &str, tag: Option<&Tag>, mode: RootMode) -> JidrResult<()> {
@@ -184,11 +240,15 @@ pub async fn call(ctx: &CallCtx, method: &str, params: Value) -> JidrResult<Valu
             let tags = read_tags(&avd);
             let list: Vec<Value> = on_disk(&avd)
                 .into_iter()
-                .map(|(name, size, created, thumb)| {
-                    let tag = tags.get(&name);
+                .map(|(id, size, created, thumb)| {
+                    let tag = tags.get(&id);
+                    let name = tag
+                        .and_then(|t| t.label.clone())
+                        .unwrap_or_else(|| id.clone());
                     json!({
                         "name": name,
-                        "quick_boot": name == QUICK_BOOT,
+                        "id": id,
+                        "quick_boot": id == QUICK_BOOT,
                         "root_mode": tag.map(|t| t.root_mode),
                         "magisk_version": tag.and_then(|t| t.magisk_version.clone()),
                         "created_at": tag.map(|t| t.created_at).or(created),
@@ -204,37 +264,45 @@ pub async fn call(ctx: &CallCtx, method: &str, params: Value) -> JidrResult<Valu
             let p: NameParams = parse_params(params)?;
             let name = check_name(&p.name)?.to_string();
             let t = target(ctx, &p.device).await?;
+            let avd = avd_dir(ctx, &t.device);
+            let mut tags = read_tags(&avd);
+            let id = free_id(&avd, &tags, &name);
+            if id == QUICK_BOOT {
+                return Err(JidrError::usage(
+                    "default_boot is the quick-boot snapshot; pick another name",
+                ));
+            }
             ctx.report(None, "Saving memory and disk");
             let r = t
                 .snapshots()
                 .await?
                 .save_snapshot(pb::SnapshotPackage {
-                    snapshot_id: name.clone(),
+                    snapshot_id: id.clone(),
                     ..Default::default()
                 })
                 .await
                 .map_err(grpc_err("SaveSnapshot"))?
                 .into_inner();
             failed("saving the snapshot", &r)?;
-            let avd = avd_dir(ctx, &t.device);
-            let mut tags = read_tags(&avd);
             tags.insert(
-                name.clone(),
+                id.clone(),
                 Tag {
+                    label: Some(name.clone()).filter(|n| *n != id),
                     root_mode: t.device.root.mode,
                     magisk_version: t.device.root.magisk_version.clone(),
                     created_at: Utc::now(),
                 },
             );
             write_tags(&avd, &tags)?;
-            Ok(json!({ "name": name, "root_mode": t.device.root.mode }))
+            Ok(json!({ "name": name, "id": id, "root_mode": t.device.root.mode }))
         }
         "snapshot.load" => {
             let p: NameParams = parse_params(params)?;
             let d = ctx.daemon.device(&p.device).await?;
             let avd = avd_dir(ctx, &d);
             let tags = read_tags(&avd);
-            check_root(&p.name, tags.get(&p.name), d.root.mode)?;
+            let id = resolve(&avd, &tags, &p.name);
+            check_root(&p.name, tags.get(&id), d.root.mode)?;
             if !matches!(d.status, DeviceStatus::Running) {
                 return Err(JidrError::not_found(format!(
                     "start {} to restore a snapshot",
@@ -247,7 +315,7 @@ pub async fn call(ctx: &CallCtx, method: &str, params: Value) -> JidrResult<Valu
                 .snapshots()
                 .await?
                 .load_snapshot(pb::SnapshotPackage {
-                    snapshot_id: p.name.clone(),
+                    snapshot_id: id,
                     ..Default::default()
                 })
                 .await
@@ -260,13 +328,15 @@ pub async fn call(ctx: &CallCtx, method: &str, params: Value) -> JidrResult<Valu
             let p: NameParams = parse_params(params)?;
             let d = ctx.daemon.device(&p.device).await?;
             let avd = avd_dir(ctx, &d);
+            let mut tags = read_tags(&avd);
+            let id = resolve(&avd, &tags, &p.name);
             if matches!(d.status, DeviceStatus::Running) {
                 let t = target(ctx, &p.device).await?;
                 let r = t
                     .snapshots()
                     .await?
                     .delete_snapshot(pb::SnapshotPackage {
-                        snapshot_id: p.name.clone(),
+                        snapshot_id: id.clone(),
                         ..Default::default()
                     })
                     .await
@@ -274,17 +344,14 @@ pub async fn call(ctx: &CallCtx, method: &str, params: Value) -> JidrResult<Valu
                     .into_inner();
                 failed("deleting the snapshot", &r)?;
             } else {
-                let dir = avd
-                    .join("snapshots")
-                    .join(check_name(&p.name).unwrap_or(&p.name));
+                let dir = avd.join("snapshots").join(&id);
                 if !dir.starts_with(avd.join("snapshots")) || !dir.is_dir() {
                     return Err(JidrError::not_found(format!("no snapshot {:?}", p.name)));
                 }
                 std::fs::remove_dir_all(&dir)
                     .map_err(|e| JidrError::unexpected(format!("{}: {e}", dir.display())))?;
             }
-            let mut tags = read_tags(&avd);
-            if tags.remove(&p.name).is_some() {
+            if tags.remove(&id).is_some() {
                 write_tags(&avd, &tags)?;
             }
             Ok(json!({ "deleted": p.name }))
@@ -299,6 +366,7 @@ mod tests {
 
     fn tag(m: RootMode) -> Tag {
         Tag {
+            label: None,
             root_mode: m,
             magisk_version: None,
             created_at: Utc::now(),
@@ -335,6 +403,35 @@ mod tests {
         for bad in ["", "a/b", "../x", ".hidden", "default_boot", "a\nb"] {
             assert!(check_name(bad).is_err(), "{bad:?}");
         }
+    }
+
+    /// Regression: the Linux emulator stored "Clean install" as
+    /// `Clean_install`, so the tag keyed by the typed name went missing.
+    #[test]
+    fn ids_are_folder_safe_and_names_resolve_through_labels() {
+        assert_eq!(snapshot_id("Clean install"), "Clean_install");
+        assert_eq!(snapshot_id("v1.2-beta_3"), "v1.2-beta_3");
+        assert_eq!(snapshot_id("لقطة"), "x644x642x637x629");
+        assert_ne!(snapshot_id("لقطة"), snapshot_id("قطة"));
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(tmp.path().join("snapshots/made outside")).unwrap();
+        let mut t = BTreeMap::new();
+        t.insert(
+            "Clean_install".to_string(),
+            Tag {
+                label: Some("Clean install".into()),
+                ..tag(RootMode::None)
+            },
+        );
+        assert_eq!(resolve(tmp.path(), &t, "Clean install"), "Clean_install");
+        assert_eq!(resolve(tmp.path(), &t, "made outside"), "made outside");
+        assert_eq!(resolve(tmp.path(), &t, "Logged in"), "Logged_in");
+        assert_eq!(resolve(tmp.path(), &t, "../x"), ".._x");
+
+        // Saving the same name replaces it; a different name gets a suffix.
+        assert_eq!(free_id(tmp.path(), &t, "Clean install"), "Clean_install");
+        assert_eq!(free_id(tmp.path(), &t, "Clean_install"), "Clean_install-2");
+        assert_eq!(free_id(tmp.path(), &t, "made outside"), "made_outside");
     }
 
     #[test]
