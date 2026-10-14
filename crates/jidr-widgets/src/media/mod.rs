@@ -70,7 +70,13 @@ pub fn default_path(dir: &Path, name: &str, ext: &str) -> PathBuf {
     let stamp = chrono::Local::now().format("%Y-%m-%d at %H.%M.%S");
     let safe: String = name
         .chars()
-        .map(|c| if c == '/' || c == ':' { '-' } else { c })
+        .map(|c| {
+            if matches!(c, '/' | ':' | '\\' | '"') || c.is_control() {
+                '-'
+            } else {
+                c
+            }
+        })
         .collect();
     let mut p = dir.join(format!("{safe} {stamp}.{ext}"));
     let mut n = 2;
@@ -211,6 +217,25 @@ struct Latest {
     frame: Option<(u32, u32, Vec<u8>)>,
 }
 
+/// Copies frames into `slot` until the stream ends, then sets `ended`: when
+/// the device stops or crashes the encoder finishes the file instead of
+/// repeating the last frame until `max_seconds`.
+#[cfg(target_os = "macos")]
+async fn pump<S>(mut frames: S, slot: Arc<Mutex<Latest>>, ended: Arc<AtomicBool>)
+where
+    S: tokio_stream::Stream<Item = Result<pb::Image, tonic::Status>> + Unpin,
+{
+    use tokio_stream::StreamExt as _;
+    while let Some(Ok(img)) = frames.next().await {
+        if let (Some(f), false) = (img.format, img.image.is_empty())
+            && let Ok(mut l) = slot.lock()
+        {
+            l.frame = Some((f.width, f.height, img.image));
+        }
+    }
+    ended.store(true, Ordering::Relaxed);
+}
+
 #[cfg(target_os = "macos")]
 async fn record(
     ctx: &CallCtx,
@@ -225,7 +250,7 @@ async fn record(
     let latest: Arc<Mutex<Latest>> = Arc::default();
     // Frame stream (emulator → latest slot).
     let mut grpc = t.grpc().await?;
-    let mut stream = grpc
+    let stream = grpc
         .stream_screenshot(pb::ImageFormat {
             format: pb::image_format::ImgFormat::Rgba8888 as i32,
             width: w,
@@ -235,16 +260,7 @@ async fn record(
         .await
         .map_err(grpc_err("streamScreenshot"))?
         .into_inner();
-    let slot = latest.clone();
-    let reader = tokio::spawn(async move {
-        while let Ok(Some(img)) = stream.message().await {
-            if let (Some(f), false) = (img.format, img.image.is_empty())
-                && let Ok(mut l) = slot.lock()
-            {
-                l.frame = Some((f.width, f.height, img.image));
-            }
-        }
-    });
+    let reader = tokio::spawn(pump(stream, latest.clone(), stop.clone()));
     // Encoder on its own thread at a constant rate; duplicates the last
     // frame when the screen doesn't change.
     let cancel = ctx.cancel.clone();
@@ -389,6 +405,47 @@ mod tests {
                 .to_string_lossy()
                 .starts_with("Pixel-ish ")
         );
+    }
+
+    /// Device names may hold `\` and `"`; file names never do (they reach
+    /// the GUI's pasteboard script).
+    #[test]
+    fn default_paths_drop_quotes_backslashes_and_controls() {
+        let tmp = tempfile::tempdir().unwrap();
+        let p = default_path(tmp.path(), "a\\\"&(x)\n--", "png");
+        let name = p.file_name().unwrap().to_string_lossy().into_owned();
+        assert!(name.starts_with("a--&(x)--- "), "{name}");
+        assert_eq!(p.parent(), Some(tmp.path()));
+    }
+
+    /// Regression (review of PR #3): when the frame stream ended (device
+    /// stopped), the encoder kept repeating the last frame until
+    /// `max_seconds`, and `media.record` stayed busy for up to an hour.
+    #[cfg(target_os = "macos")]
+    #[tokio::test]
+    async fn the_recorder_stops_when_the_frame_stream_ends() {
+        let img = pb::Image {
+            format: Some(pb::ImageFormat {
+                width: 2,
+                height: 1,
+                ..Default::default()
+            }),
+            image: vec![1; 8],
+            ..Default::default()
+        };
+        for frames in [
+            vec![Ok(img.clone())],
+            vec![Ok(img.clone()), Err(tonic::Status::unavailable("gone"))],
+        ] {
+            let slot: Arc<Mutex<Latest>> = Arc::default();
+            let ended = Arc::new(AtomicBool::new(false));
+            pump(tokio_stream::iter(frames), slot.clone(), ended.clone()).await;
+            assert!(ended.load(Ordering::Relaxed));
+            assert_eq!(
+                slot.lock().unwrap().frame.as_ref().map(|f| (f.0, f.1)),
+                Some((2, 1))
+            );
+        }
     }
 
     /// Encodes 2 s of frames and checks the file is a valid MP4.
