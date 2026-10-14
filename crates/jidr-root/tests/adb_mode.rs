@@ -146,18 +146,6 @@ async fn play_store_images_refuse_adb_root() {
 }
 
 #[tokio::test]
-async fn magisk_mode_is_refused_until_phase_9d() {
-    let env = Env::start().await;
-    env.create("phone", "35:google_apis", None).await;
-    let err = env
-        .call("root.set", json!({ "device": "phone", "mode": "magisk" }))
-        .await
-        .unwrap_err();
-    assert_eq!(err.code, ErrorCode::Usage);
-    assert_eq!(env.device("phone").await.root.mode, RootMode::Adb);
-}
-
-#[tokio::test]
 async fn verify_records_a_lost_root_as_failed() {
     let env = Env::start().await;
     env.create("phone", "35:google_apis", Some("adb")).await;

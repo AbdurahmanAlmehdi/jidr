@@ -23,6 +23,9 @@ pub struct Verification {
     pub ok: bool,
     pub health: RootHealth,
     pub verified_at: DateTime<Utc>,
+    /// For Magisk mode, the version reported by `magisk -v`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub magisk_version: Option<String>,
 }
 
 /// What `adb shell` runs to check `mode`.
@@ -65,19 +68,41 @@ pub(crate) async fn probe(adb: &Adb, mode: RootMode) -> JidrResult<u32> {
 }
 
 /// Probes, stores `health` and `verified_at`, and fails with `root_failed`
-/// when the uid doesn't match the mode.
+/// when the uid doesn't match the mode. Magisk mode additionally checks
+/// `magisk -v`.
 pub(crate) async fn verify(ctx: &CallCtx, device: &Device) -> JidrResult<Verification> {
     let adb = device_adb(ctx, device).await?;
     let mode = device.root.mode;
     let uid = probe(&adb, mode).await?;
-    record(ctx, device, mode, uid).await
+    let version = if mode == RootMode::Magisk {
+        Some(magisk_version(&adb).await?)
+    } else {
+        None
+    };
+    record(ctx, device, mode, uid, version).await
 }
 
+/// The Magisk version reported by `su -c 'magisk -v'`.
+pub(crate) async fn magisk_version(adb: &Adb) -> JidrResult<String> {
+    let (status, out) = adb.shell_status("su -c 'magisk -v'").await?;
+    let version = out.trim();
+    if status == 0 && !version.is_empty() {
+        Ok(version.to_string())
+    } else {
+        Err(JidrError::root_failed(format!(
+            "`su -c 'magisk -v'` reported no version: {}",
+            out.trim()
+        )))
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn record(
     ctx: &CallCtx,
     device: &Device,
     mode: RootMode,
     uid: u32,
+    magisk_version: Option<String>,
 ) -> JidrResult<Verification> {
     let ok = uid_matches(mode, uid);
     let health = if ok {
@@ -103,6 +128,7 @@ pub(crate) async fn record(
         ok,
         health,
         verified_at: now,
+        magisk_version,
     };
     if ok {
         Ok(v)

@@ -24,3 +24,10 @@ Third-party attributions:
 - crates/jidr-proto/proto/*.proto: the Android Emulator's public gRPC
   definitions, Copyright (C) 2018 The Android Open Source Project, licensed
   under the Apache License 2.0.
+- crates/jidr-root/src/magisk/: the Magisk ramdisk patch and environment
+  layout (payload extraction, `.backup/.magisk` config, `overlay.d/sbin`
+  entries, su-policy grant) is ported from avdroot, Copyright (c) 2026
+  ejfkdev, licensed under the MIT License
+  (https://github.com/ejfkdev/avdroot). Magisk itself is GPL-3.0-only and is
+  never bundled; only its documented, machine-observable ramdisk layout is
+  reproduced (see docs/clean-room.md).
