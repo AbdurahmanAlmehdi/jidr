@@ -184,6 +184,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Files touched:** `Cargo.toml`, `crates/*/Cargo.toml` + `src/lib.rs` stubs, `apps/*/`, `xtask/src/{main,license_check}.rs`, `.github/workflows/ci.yml`, `AGENTS.md`, `CLAUDE.md`, `LICENSE-APACHE`, `crates/jidr-ui/LICENSE-GPL`, `apps/jidr-gui/LICENSE-GPL`, `NOTICE`, `docs/{clean-room,gaps,parity}.md`
 - **Acceptance criteria:** `cargo xtask ci` is green; `cargo xtask license-check` fails when `slint` is temporarily added to `apps/jidr` (shown by a test).
 - **Validation:** `cargo xtask ci`
+- **Notes:** 2026-10-14: CI slimmed. Linux runs the full `cargo xtask ci`; macOS runs only `cargo clippy --workspace --all-targets -- -D warnings` as a compile and lint gate for macOS-only code, skipped on PRs that only touch `docs/`, `site/` or `*.md`; the Linux KVM emulator job is unchanged.
 
 ### Phase 1 (A): Display + input spike (go/no-go)
 - **Status:** Done (pass: 59.9 fps, ~13.5 ms touch → frame; see ADR-0001). Manual step 2 (a mouse click opens Settings) still needs a human run.
