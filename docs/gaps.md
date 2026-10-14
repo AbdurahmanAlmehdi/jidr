@@ -579,6 +579,8 @@ Streams: **A** core (daemon, CLI, MCP, backend, SDK) · **B** player and widgets
 | G3 | A rooted on-device helper channel so widgets can run privileged actions (R1, R2, R4, R6, R9) | B | A | first 🟠 widget (post-MVP) | one on-device `jidr-helper` with a typed RPC the daemon proxies (O2) | Open (post-MVP) | |
 | G4 | Confirm the guest kernel's cgroup version, network interface names and block devices on our target images (R2, R6) | A | A | before R2/R6 build | an "image facts" table in `docs/research/` per API level | In progress: API 31 done | `docs/research/2026-10-13-image-facts-api31-arm64.md` |
 | G5 | Generated gRPC stubs from pinned AOSP emulator protos | B | A | before 7c | SDK proto + vendored fallback in `jidr-proto` | Planned | Phase 3a |
+| A1 | `jidr-widgets` exports `pub fn provider() -> std::sync::Arc<dyn jidr_core::provider::CommandProvider>` (contract in `crates/jidr-core/src/provider.rs`). A then registers it in `jidr daemon` (`apps/jidr`). | A | B | none (A wires it when it lands) | — | Open | |
+| A2 | `jidr-root` exports the same `pub fn provider()`; use `CommandProvider::on_booted` for `adb root` after each boot, and `Device.launch` (`ramdisk`, `force_cold_boot`) + `DaemonContext::stop_device/start_device` for Magisk. | A | C | none (A wires it when it lands) | — | Open | |
 
 **Status:** Open → Planned → In progress → Done (link the commit) / Won't do (with reason).
 

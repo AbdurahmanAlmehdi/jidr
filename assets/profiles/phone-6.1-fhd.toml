@@ -1,0 +1,9 @@
+id = "phone-6.1-fhd"
+name = "Phone 6.1″ FHD+"
+form_factor = "phone"
+width = 1080
+height = 2400
+density = 420
+ram_mb = 4096
+cpus = 4
+data_mb = 6144
