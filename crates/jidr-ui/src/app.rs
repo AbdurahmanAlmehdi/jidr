@@ -272,6 +272,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     ctx.apply_appearance();
     crate::launcher::wire(&ctx);
     crate::player::wire(&ctx);
+    crate::widgets::wire(&ctx);
     auto_open(&ctx);
     bridge.connect(paths, sink(app.as_weak()));
     app.run()?;

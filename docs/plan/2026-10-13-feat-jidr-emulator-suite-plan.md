@@ -285,7 +285,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `manual 1. start "Pixel-ish 6.1" 2. scroll Settings 30 s with the debug overlay on (≥30 fps) 3. drag an APK onto the screen and confirm it launches`
 
 ### Phase 8a (B): Core widgets
-- **Status:** Not started
+- **Status:** Done (`widgets_core_commands` passes on API 31 arm64: every command checked through adb; see log/devlog-b.md)
 - **Scope:** `jidr-widgets` `CommandProvider` + panels laid out as in `docs/design/screens/Device.dc.html`: battery, rotation + motion sensors, network (Wi-Fi/mobile toggles, speed/delay profiles), phone/SMS + gsm baseband, Android controls, dev tools (show taps, pointer location, layout bounds, animation scales), clipboard, plus three single-command extras (D36): fingerprint recognised/unrecognised (`finger touch`/`remove`, R8), mobile signal bars (`gsm signal-profile`, R3), host webcam as camera (`-camera-back webcam0` via `LaunchOptions`, R7). Identifiers, audio injection, rich biometric scenarios and every other `docs/gaps.md` 🟠 item are post-MVP.
 - **Files touched:** `crates/jidr-widgets/**`, `crates/jidr-ui/src/widgets/**`
 - **Acceptance criteria:** every widget command has an adb-observable assertion (`dumpsys battery`, `settings get`, etc.) in an emulator test.

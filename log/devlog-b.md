@@ -76,3 +76,23 @@ Not covered by a human yet: a physical Finder drag and a real trackpad scroll (t
 Validation: `cargo nextest run -p jidr-ui -p jidr-widgets` (36 passed), `cargo run -p jidr-ui --example snapshot -- --check` (81 renders ok incl. 8 player states × 3), `cargo xtask ci` ok.
 
 Open: rotation's touch mapping and the multi-touch gestures were exercised only by unit tests (to check with 8a's `sensor.rotate` on the emulator). Gap B6 (module zip install comes with C's 9d).
+
+## 2026-10-14 · Phase 8a plan: core widgets
+
+- `jidr-widgets` commands (all through the daemon, so CLI and MCP get them too): `battery.get/set` (gRPC), `sensor.rotate/set/get` (physical model; motion sensors via `setSensor`), `network.get/set` (`svc wifi|data`, console speed/delay profiles), `phone.call/sms` (gRPC) and `phone.gsm` (signal bars via `gsm signal-profile`, R3; data/voice state), `key.press` (W3C keys), `dev.get/set` (show taps, pointer location, layout bounds, animation scales), `clipboard.get/set`, `fingerprint.touch/remove` (console `finger`, R8), `camera.get/set` (`-camera-back/-front` in the device's launch args, R7, next start).
+- Panels in `crates/jidr-ui/ui/widgets/` laid out like Device.dc.html: Battery, Network, Sensors (rotation + motion/environment), and a ⋯ menu for Phone, Controls, Dev tools, Clipboard, Biometrics, Camera.
+- `tests/widgets_emulator.rs` (`--features emulator`): a real daemon with the widgets provider boots one device from `JIDR_TEST_IMAGE` and checks every command with an adb-observable assertion (`dumpsys battery`, `settings get`, `getprop`, `dumpsys telephony.registry`, `adb emu …`). Emulator tests serialise on a file lock so parallel nextest runs don't boot several emulators at once.
+
+## 2026-10-14 · Phase 8a done: core widgets
+
+Built (`jidr-widgets`, all daemon commands): `battery.get/set`, `sensor.rotate/set/get`, `network.get/set` (7 named speed/delay profiles), `phone.call/sms/gsm` (signal bars 0–4 via `gsm signal-profile`), `key.press` (hardware buttons as evdev down/up, other keys as W3C names), `dev.get/set`, `clipboard.get/set`, `fingerprint.touch/remove`, `camera.get/set`. GUI panels (`ui/widgets/panels.slint`, `src/widgets/`): Battery (metric, slider + field, charging, quick set), Network (Wi-Fi, mobile data, profile list, signal bars), Sensors (rotation, motion presets, light/temperature/pressure/humidity, proximity), ⋯ (phone + SMS, D-pad + media keys, dev toggles + animation scale, clipboard, fingerprint, back camera). The toolbar's hardware keys and rotation now go through `key.press` / `sensor.rotate` like the CLI.
+
+Findings on the API 31 arm64 emulator (35.6.11):
+- Home as evdev `KEY_HOMEPAGE` (172) does nothing; the W3C name `GoHome` works. Back (158), Recents (580) and the volume keys work as evdev.
+- Volume keys raise Android's volume panel but the emulator's stream volumes stay fixed, so the test checks the panel window.
+- Rotation shows in `dumpsys window` (`mRotation=1`), not in `dumpsys input`'s `SurfaceOrientation`; the Pixel launcher is portrait-only, so the test rotates over Settings.
+- `gsm signal-profile N` shows up as WCDMA `ss` (−105 dBm at 0 … −55 at 4).
+
+Validation: `cargo nextest run -p jidr-widgets --features emulator` → 11 passed (`widgets_core_commands` 76 s incl. a 30 s cold boot). `cargo run -p jidr-ui --example snapshot -- --check` → 90 renders. `cargo xtask ci` ok (152 tests).
+
+Open: fingerprint "recognised" needs a finger enrolled once in the guest (the panel says so); rich biometric scenarios stay post-MVP (D36).

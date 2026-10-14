@@ -154,3 +154,32 @@ export struct LogLine {
     tag: string,
     msg: string,
 }
+
+/// What the widget panels show for the active device (loaded from the
+/// `*.get` commands, updated after each `*.set`).
+export struct WidgetsVm {
+    battery-level: int,
+    charging: bool,
+    battery-health: string,
+    wifi: bool,
+    mobile: bool,
+    /// Index into the network profiles (Full, LTE, HSDPA, UMTS, EDGE, GPRS, GSM).
+    profile: int,
+    signal: int,
+    rotation: int,
+    show-taps: bool,
+    pointer-location: bool,
+    layout-bounds: bool,
+    /// Index into 0, 0.5, 1, 1.5, 2, 5, 10.
+    animation: int,
+    clipboard: string,
+    phone-number: string,
+    sms-text: string,
+    /// Index into Emulated, Webcam, Virtual scene, None.
+    camera-back: int,
+    light: string,
+    temperature: string,
+    pressure: string,
+    humidity: string,
+    proximity-near: bool,
+}

@@ -1,0 +1,450 @@
+// Widget panels for the docked panel (Device.dc.html): Battery, Network,
+// Sensors and ⋯ (phone, controls, dev tools, clipboard, biometrics, camera).
+// Every control calls a protocol command through Rust (`widget-action`).
+
+import { Theme } from "../theme.slint";
+import { Icons } from "../icons.slint";
+import { T, Role, Tone, Icon, Button, ButtonKind, Pill, Toggle, Segmented, TextField, Hint, Scroll } from "../components/base.slint";
+import { WidgetsVm } from "../types.slint";
+
+/// Slider (`.slider`) 0–100 with a linked value field.
+export component Slider inherits Rectangle {
+    in-out property <float> value;
+    in property <float> maximum: 100;
+    callback released(float);
+    height: 30px;
+    property <length> track-w: self.width - 88px;
+    track := Rectangle {
+        x: Theme.rtl ? 88px : 0px;
+        width: track-w;
+        height: 4px;
+        border-radius: 2px;
+        background: Theme.surface-sunken;
+        Rectangle {
+            x: Theme.rtl ? parent.width - self.width : 0px;
+            width: parent.width * clamp(root.value / root.maximum, 0, 1);
+            border-radius: 2px;
+            background: Theme.accent-fill;
+        }
+        Rectangle {
+            property <length> pos: parent.width * clamp(root.value / root.maximum, 0, 1);
+            x: (Theme.rtl ? parent.width - pos : pos) - 8px;
+            width: 16px;
+            height: 16px;
+            border-radius: 8px;
+            background: Theme.text-on-accent;
+            border-width: 1px;
+            border-color: Theme.border-strong;
+            drop-shadow-blur: 2px;
+            drop-shadow-color: #00000040;
+        }
+        TouchArea {
+            y: -10px;
+            height: 24px;
+            moved => {
+                if (self.pressed) {
+                    let f = clamp((Theme.rtl ? parent.width - self.mouse-x : self.mouse-x) / parent.width, 0, 1);
+                    root.value = round(f * root.maximum);
+                }
+            }
+            pointer-event(ev) => {
+                if (ev.kind == PointerEventKind.down) {
+                    let f = clamp((Theme.rtl ? parent.width - self.mouse-x : self.mouse-x) / parent.width, 0, 1);
+                    root.value = round(f * root.maximum);
+                }
+                if (ev.kind == PointerEventKind.up) {
+                    root.released(root.value);
+                }
+            }
+        }
+    }
+    TextField {
+        x: Theme.rtl ? 0px : parent.width - 76px;
+        width: 76px;
+        text: round(root.value);
+        unit: "%";
+        mono: true;
+        accepted(t) => {
+            root.value = clamp(t.to-float(), 0, root.maximum);
+            root.released(root.value);
+        }
+    }
+}
+
+/// Caption above a group (`.h-cap`).
+component Cap inherits T {
+    role: Role.caption;
+    font-weight: 600;
+    color: Theme.text-secondary;
+    height: 14px;
+}
+
+/// A labelled toggle row.
+component ToggleRow inherits Rectangle {
+    in property <string> text;
+    in property <string> hint;
+    in property <bool> checked;
+    callback toggled(bool);
+    height: hint != "" ? 40px : 22px;
+    T {
+        x: Theme.rtl ? 44px : 0px;
+        y: 0px;
+        width: parent.width - 44px;
+        height: 20px;
+        text: root.text;
+    }
+    Toggle {
+        x: Theme.rtl ? 0px : parent.width - self.width;
+        y: 1px;
+        checked: root.checked;
+        toggled(v) => { root.toggled(v); }
+    }
+    if root.hint != "": Hint {
+        x: 0px;
+        y: 22px;
+        width: parent.width - 44px;
+        height: 16px;
+        text: root.hint;
+    }
+}
+
+export component BatteryPanel inherits VerticalLayout {
+    in property <WidgetsVm> vm;
+    callback action(string, string);
+    padding: 16px;
+    padding-left: 14px;
+    padding-right: 14px;
+    spacing: 18px;
+    alignment: start;
+    VerticalLayout {
+        spacing: 10px;
+        Cap { text: @tr("Battery level"); }
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: Theme.rtl ? LayoutAlignment.end : LayoutAlignment.start;
+            T { text: root.vm.battery-level + "%"; role: Role.metric-lg; width: self.preferred-width; height: 28px; }
+            Pill {
+                y: 4px;
+                small: true;
+                has-icon: false;
+                tone: root.vm.charging ? Tone.positive : Tone.neutral;
+                text: root.vm.charging ? @tr("Charging") : @tr("Discharging");
+            }
+        }
+        Slider {
+            value: root.vm.battery-level;
+            released(v) => { root.action("battery.level", round(v)); }
+        }
+    }
+    VerticalLayout {
+        spacing: 6px;
+        ToggleRow {
+            text: @tr("Charging");
+            checked: root.vm.charging;
+            toggled(v) => { root.action("battery.charging", v ? "true" : "false"); }
+        }
+        Hint {
+            height: 30px;
+            text: @tr("Off: the level drops as Android uses power. Turn on to simulate a charger.");
+        }
+    }
+    VerticalLayout {
+        spacing: 10px;
+        Cap { text: @tr("Quick set"); }
+        HorizontalLayout {
+            spacing: 6px;
+            alignment: Theme.rtl ? LayoutAlignment.end : LayoutAlignment.start;
+            Button { small: true; text: @tr("5% · low battery"); clicked => { root.action("battery.level", "5"); } }
+            Button { small: true; text: "15%"; clicked => { root.action("battery.level", "15"); } }
+            Button { small: true; text: @tr("100% · full"); clicked => { root.action("battery.level", "100"); } }
+        }
+    }
+}
+
+export component NetworkPanel inherits VerticalLayout {
+    in property <WidgetsVm> vm;
+    callback action(string, string);
+    padding: 16px;
+    padding-left: 14px;
+    padding-right: 14px;
+    spacing: 16px;
+    alignment: start;
+    ToggleRow {
+        text: @tr("Wi-Fi");
+        checked: root.vm.wifi;
+        toggled(v) => { root.action("network.wifi", v ? "true" : "false"); }
+    }
+    ToggleRow {
+        text: @tr("Mobile data");
+        checked: root.vm.mobile;
+        toggled(v) => { root.action("network.mobile", v ? "true" : "false"); }
+    }
+    VerticalLayout {
+        spacing: 8px;
+        Cap { text: @tr("Speed and latency"); }
+        Rectangle {
+            height: 7 * 34px + 2px;
+            border-radius: Theme.radius-md;
+            border-width: 1px;
+            border-color: Theme.border-default;
+            background: Theme.surface-control;
+            clip: true;
+            for p[i] in [
+                { n: @tr("Full speed"), d: @tr("No limit · no added delay") },
+                { n: "LTE", d: "≈ 58 Mbit/s · no added delay" },
+                { n: "HSDPA", d: "≈ 14 Mbit/s · 3G delay" },
+                { n: "UMTS", d: "≈ 384 kbit/s · 3G delay" },
+                { n: "EDGE", d: "≈ 474 kbit/s · 80–400 ms" },
+                { n: "GPRS", d: "≈ 40 kbit/s · 150–550 ms" },
+                { n: "GSM", d: "≈ 14 kbit/s · 150–550 ms" },
+            ]: Rectangle {
+                y: 1px + i * 34px;
+                height: 34px;
+                background: i == root.vm.profile ? Theme.accent-container : ta.has-hover ? Theme.surface-control-hover : transparent;
+                if i > 0: Rectangle { y: 0px; height: 1px; background: Theme.border-subtle; }
+                Rectangle {
+                    x: Theme.rtl ? parent.width - 26px : 10px;
+                    width: 16px;
+                    height: 16px;
+                    border-radius: 8px;
+                    border-width: i == root.vm.profile ? 5px : 1px;
+                    border-color: i == root.vm.profile ? Theme.accent-fill : Theme.border-strong;
+                    background: i == root.vm.profile ? Theme.text-on-accent : Theme.surface-control;
+                }
+                T {
+                    x: Theme.rtl ? 10px : 36px;
+                    width: 80px;
+                    text: p.n;
+                    font-weight: 500;
+                }
+                T {
+                    x: Theme.rtl ? 10px : 116px;
+                    width: parent.width - 126px;
+                    text: p.d;
+                    role: Role.caption;
+                    color: Theme.text-secondary;
+                    horizontal-alignment: Theme.rtl ? TextHorizontalAlignment.left : TextHorizontalAlignment.right;
+                }
+                ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.action("network.profile", i); }
+                }
+            }
+        }
+    }
+    VerticalLayout {
+        spacing: 8px;
+        Cap { text: @tr("Mobile signal"); }
+        Segmented {
+            items: ["0", "1", "2", "3", "4"];
+            mono: true;
+            stretch: true;
+            selected: root.vm.signal;
+            changed(i) => { root.action("phone.signal", i); }
+        }
+        Hint { height: 15px; text: @tr("Bars shown in Android's status bar."); }
+    }
+}
+
+component NumberRow inherits Rectangle {
+    in property <string> label;
+    in property <string> unit;
+    in property <string> value;
+    callback set(string);
+    height: 30px;
+    T {
+        x: Theme.rtl ? parent.width - 110px : 0px;
+        width: 110px;
+        text: root.label;
+        color: Theme.text-secondary;
+    }
+    TextField {
+        x: Theme.rtl ? 0px : 116px;
+        width: parent.width - 116px;
+        text: root.value;
+        unit: root.unit;
+        mono: true;
+        accepted(t) => { root.set(t); }
+    }
+}
+
+export component SensorsPanel inherits VerticalLayout {
+    in property <WidgetsVm> vm;
+    callback action(string, string);
+    padding: 16px;
+    padding-left: 14px;
+    padding-right: 14px;
+    spacing: 16px;
+    alignment: start;
+    VerticalLayout {
+        spacing: 8px;
+        Cap { text: @tr("Rotation"); }
+        Segmented {
+            items: ["0°", "90°", "180°", "270°"];
+            mono: true;
+            stretch: true;
+            selected: root.vm.rotation;
+            changed(i) => { root.action("sensor.rotate", i * 90); }
+        }
+        Hint { height: 15px; text: @tr("Turns the device; apps that allow rotation follow."); }
+    }
+    VerticalLayout {
+        spacing: 8px;
+        Cap { text: @tr("Motion"); }
+        HorizontalLayout {
+            spacing: 6px;
+            alignment: Theme.rtl ? LayoutAlignment.end : LayoutAlignment.start;
+            Button { small: true; text: @tr("Upright"); clicked => { root.action("sensor.motion", "upright"); } }
+            Button { small: true; text: @tr("Flat on a table"); clicked => { root.action("sensor.motion", "flat"); } }
+            Button { small: true; text: @tr("Upside down"); clicked => { root.action("sensor.motion", "upside-down"); } }
+        }
+    }
+    VerticalLayout {
+        spacing: 8px;
+        Cap { text: @tr("Environment"); }
+        NumberRow { label: @tr("Light"); unit: "lux"; value: root.vm.light; set(t) => { root.action("sensor.light", t); } }
+        NumberRow { label: @tr("Temperature"); unit: "°C"; value: root.vm.temperature; set(t) => { root.action("sensor.temperature", t); } }
+        NumberRow { label: @tr("Pressure"); unit: "hPa"; value: root.vm.pressure; set(t) => { root.action("sensor.pressure", t); } }
+        NumberRow { label: @tr("Humidity"); unit: "%"; value: root.vm.humidity; set(t) => { root.action("sensor.humidity", t); } }
+        ToggleRow {
+            text: @tr("Something near the screen");
+            hint: @tr("Proximity sensor: covers the screen during calls.");
+            checked: root.vm.proximity-near;
+            toggled(v) => { root.action("sensor.proximity", v ? "near" : "far"); }
+        }
+    }
+}
+
+/// ⋯ panel: the remaining widgets as sections in one scrolling column.
+export component MorePanel inherits Rectangle {
+    in property <WidgetsVm> vm;
+    callback action(string, string);
+    Scroll {
+        content-height: 1010px;
+        VerticalLayout {
+            padding: 16px;
+            padding-left: 14px;
+            padding-right: 14px;
+            spacing: 18px;
+            alignment: start;
+            // Phone and SMS.
+            VerticalLayout {
+                spacing: 8px;
+                Cap { text: @tr("Phone"); }
+                TextField {
+                    text: root.vm.phone-number;
+                    placeholder: "+218 91 234 5678";
+                    mono: true;
+                    edited(t) => { root.action("phone.number", t); }
+                }
+                HorizontalLayout {
+                    spacing: 6px;
+                    alignment: Theme.rtl ? LayoutAlignment.end : LayoutAlignment.start;
+                    Button { small: true; has-icon: true; icon: Icons.phone; text: @tr("Incoming call"); clicked => { root.action("phone.call", "incoming"); } }
+                    Button { small: true; text: @tr("Answer"); clicked => { root.action("phone.call", "accept"); } }
+                    Button { small: true; has-icon: true; icon: Icons.phone-off; text: @tr("End"); clicked => { root.action("phone.call", "end"); } }
+                }
+                TextField {
+                    text: root.vm.sms-text;
+                    placeholder: @tr("SMS text");
+                    edited(t) => { root.action("phone.sms-text", t); }
+                }
+                HorizontalLayout {
+                    alignment: Theme.rtl ? LayoutAlignment.end : LayoutAlignment.start;
+                    Button { small: true; has-icon: true; icon: Icons.message-square; text: @tr("Send SMS"); clicked => { root.action("phone.sms", ""); } }
+                }
+            }
+            // Android controls.
+            VerticalLayout {
+                spacing: 8px;
+                Cap { text: @tr("Android controls"); }
+                HorizontalLayout {
+                    spacing: 16px;
+                    alignment: Theme.rtl ? LayoutAlignment.end : LayoutAlignment.start;
+                    // D-pad (never mirrored: it maps to device directions).
+                    Rectangle {
+                        width: 96px;
+                        height: 96px;
+                        for k in [
+                            { id: "dpad_up", x: 32px, y: 0px, icon: Icons.chevron-up },
+                            { id: "dpad_left", x: 0px, y: 32px, icon: Icons.chevron-left },
+                            { id: "dpad_center", x: 32px, y: 32px, icon: Icons.circle },
+                            { id: "dpad_right", x: 64px, y: 32px, icon: Icons.chevron-right },
+                            { id: "dpad_down", x: 32px, y: 64px, icon: Icons.chevron-down },
+                        ]: Button {
+                            x: k.x;
+                            y: k.y;
+                            icon-only: true;
+                            has-icon: true;
+                            icon: k.icon;
+                            clicked => { root.action("key.press", k.id); }
+                        }
+                    }
+                    VerticalLayout {
+                        spacing: 6px;
+                        Button { small: true; has-icon: true; icon: Icons.skip-back; text: @tr("Previous"); clicked => { root.action("key.press", "previous"); } }
+                        Button { small: true; has-icon: true; icon: Icons.play; text: @tr("Play / pause"); clicked => { root.action("key.press", "play_pause"); } }
+                        Button { small: true; has-icon: true; icon: Icons.skip-forward; text: @tr("Next"); clicked => { root.action("key.press", "next"); } }
+                    }
+                }
+            }
+            // Developer tools.
+            VerticalLayout {
+                spacing: 10px;
+                Cap { text: @tr("Developer tools"); }
+                ToggleRow { text: @tr("Show taps"); checked: root.vm.show-taps; toggled(v) => { root.action("dev.show_taps", v ? "true" : "false"); } }
+                ToggleRow { text: @tr("Pointer location"); checked: root.vm.pointer-location; toggled(v) => { root.action("dev.pointer_location", v ? "true" : "false"); } }
+                ToggleRow { text: @tr("Layout bounds"); checked: root.vm.layout-bounds; toggled(v) => { root.action("dev.layout_bounds", v ? "true" : "false"); } }
+                T { height: 16px; text: @tr("Animation scale"); color: Theme.text-secondary; }
+                Segmented {
+                    items: ["0", "0.5", "1", "1.5", "2", "5", "10"];
+                    mono: true;
+                    stretch: true;
+                    selected: root.vm.animation;
+                    changed(i) => { root.action("dev.animation", i); }
+                }
+            }
+            // Clipboard.
+            VerticalLayout {
+                spacing: 8px;
+                Cap { text: @tr("Clipboard"); }
+                TextField {
+                    text: root.vm.clipboard;
+                    placeholder: @tr("Text for the device clipboard");
+                    edited(t) => { root.action("clipboard.text", t); }
+                }
+                HorizontalLayout {
+                    spacing: 6px;
+                    alignment: Theme.rtl ? LayoutAlignment.end : LayoutAlignment.start;
+                    Button { small: true; text: @tr("Send to device"); clicked => { root.action("clipboard.set", ""); } }
+                    Button { small: true; kind: ButtonKind.tertiary; text: @tr("Read from device"); clicked => { root.action("clipboard.get", ""); } }
+                }
+            }
+            // Biometrics (R8).
+            VerticalLayout {
+                spacing: 8px;
+                Cap { text: @tr("Fingerprint"); }
+                HorizontalLayout {
+                    spacing: 6px;
+                    alignment: Theme.rtl ? LayoutAlignment.end : LayoutAlignment.start;
+                    Button { small: true; has-icon: true; icon: Icons.fingerprint; text: @tr("Recognised"); clicked => { root.action("fingerprint.touch", "1"); } }
+                    Button { small: true; text: @tr("Unrecognised"); clicked => { root.action("fingerprint.touch", "9"); } }
+                    Button { small: true; kind: ButtonKind.tertiary; text: @tr("Lift"); clicked => { root.action("fingerprint.remove", ""); } }
+                }
+                Hint { height: 30px; text: @tr("Recognised uses finger 1; enrol it once in Android's Security settings."); }
+            }
+            // Camera (R7).
+            VerticalLayout {
+                spacing: 8px;
+                Cap { text: @tr("Back camera"); }
+                Segmented {
+                    items: [@tr("Emulated"), @tr("Webcam"), @tr("Scene"), @tr("None")];
+                    stretch: true;
+                    selected: root.vm.camera-back;
+                    changed(i) => { root.action("camera.back", i); }
+                }
+                Hint { height: 15px; text: @tr("Applies the next time the device starts."); }
+            }
+        }
+    }
+}

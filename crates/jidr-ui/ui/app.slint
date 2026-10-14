@@ -18,12 +18,13 @@ import { DeviceSheet } from "device_form.slint";
 import { ConfirmDialog } from "forms.slint";
 import { Palette } from "palette.slint";
 import { DeviceView, WidgetPanel } from "player.slint";
+import { BatteryPanel, NetworkPanel, SensorsPanel, MorePanel } from "widgets/panels.slint";
 import { RootBadge } from "components/status.slint";
 import { SetupWindow } from "wizard.slint";
 import { SettingsWindow } from "settings.slint";
-import { DeviceVm, JobVm, TabVm, SnapshotVm, DevState, RootKind, FormFactor, JobTone, ConnState, RootChoice, ImageRowVm, OptionVm, DeviceForm, DetectRow, PlanRow, UsageRow, PaletteKind, PaletteItem, LogLine } from "types.slint";
+import { DeviceVm, JobVm, TabVm, SnapshotVm, DevState, RootKind, FormFactor, JobTone, ConnState, RootChoice, ImageRowVm, OptionVm, DeviceForm, DetectRow, PlanRow, UsageRow, PaletteKind, PaletteItem, LogLine, WidgetsVm } from "types.slint";
 
-export { Theme, Icons, DeviceVm, JobVm, TabVm, SnapshotVm, DevState, RootKind, FormFactor, JobTone, ConnState, RootChoice, ImageRowVm, OptionVm, DeviceForm, DetectRow, PlanRow, UsageRow, PaletteKind, PaletteItem, LogLine, SetupWindow, SettingsWindow }
+export { Theme, Icons, DeviceVm, JobVm, TabVm, SnapshotVm, DevState, RootKind, FormFactor, JobTone, ConnState, RootChoice, ImageRowVm, OptionVm, DeviceForm, DetectRow, PlanRow, UsageRow, PaletteKind, PaletteItem, LogLine, WidgetsVm, SetupWindow, SettingsWindow }
 
 export component AppWindow inherits Window {
     in-out property <[DeviceVm]> devices;
@@ -84,6 +85,7 @@ export component AppWindow inherits Window {
     in-out property <int> log-level: 1;
     in-out property <string> log-filter;
     in-out property <bool> log-following: true;
+    in-out property <WidgetsVm> widgets;
 
     callback select-device(int);
     callback open-device(int);
@@ -122,6 +124,9 @@ export component AppWindow inherits Window {
     callback log-clear();
     callback log-toggle-follow();
     callback log-open(bool);
+    /// A widget control changed: (action id, value).
+    callback widget-action(string, string);
+    callback widget-tab(int);
 
     title: "Jidr";
     icon: @image-url("../../../apps/jidr-gui/assets/icons/app-icon-256.png");
@@ -271,13 +276,30 @@ export component AppWindow inherits Window {
                 meta-key(t, a, sh) => { root.meta-key(t, a, sh); }
                 WidgetPanel {
                     tab <=> root.player-panel-tab;
-                    T {
+                    tab-changed(i) => { root.widget-tab(i); }
+                    if root.player-panel-tab == 0: BatteryPanel {
+                        vm: root.widgets;
+                        action(a, v) => { root.widget-action(a, v); }
+                    }
+                    if root.player-panel-tab == 1: T {
                         x: 14px;
                         y: 16px;
                         width: parent.width - 28px;
                         height: 18px;
-                        text: @tr("Widgets for this device appear here.");
+                        text: @tr("GPS");
                         color: Theme.text-secondary;
+                    }
+                    if root.player-panel-tab == 2: NetworkPanel {
+                        vm: root.widgets;
+                        action(a, v) => { root.widget-action(a, v); }
+                    }
+                    if root.player-panel-tab == 3: SensorsPanel {
+                        vm: root.widgets;
+                        action(a, v) => { root.widget-action(a, v); }
+                    }
+                    if root.player-panel-tab == 4: MorePanel {
+                        vm: root.widgets;
+                        action(a, v) => { root.widget-action(a, v); }
                     }
                 }
             }

@@ -26,6 +26,7 @@ pub mod palette;
 pub mod player;
 pub mod settings;
 pub mod snapshots;
+pub mod widgets;
 pub mod wizard;
 
 pub use app::run;
