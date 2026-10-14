@@ -84,7 +84,8 @@ impl Default for LaunchOptions {
 /// A valid `-camera-back` / `-camera-front` value.
 pub fn valid_camera(v: &str) -> bool {
     matches!(v, "emulated" | "virtualscene" | "none")
-        || v.strip_prefix("webcam").is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()))
+        || v.strip_prefix("webcam")
+            .is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()))
 }
 
 pub fn default_gpu() -> &'static str {

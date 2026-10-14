@@ -282,7 +282,10 @@ impl DaemonContext for State {
             lock(&self.instances).remove(&id);
         }
         let (spec, _) = self.launch_spec(&device)?;
-        for cam in [&device.launch.camera_back, &device.launch.camera_front].into_iter().flatten() {
+        for cam in [&device.launch.camera_back, &device.launch.camera_front]
+            .into_iter()
+            .flatten()
+        {
             if !jidr_backend::valid_camera(cam) {
                 return Err(JidrError::usage(format!(
                     "invalid camera {cam:?}: use emulated, virtualscene, none or webcamN"
