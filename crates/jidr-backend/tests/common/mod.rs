@@ -30,10 +30,18 @@ pub struct Fixture {
     pub avds: AvdManager,
     pub image_sdk: Sdk,
     pub spec: LaunchSpec,
+    /// Kills the emulator however the test ends (drop, or the reaper if the
+    /// test process is killed).
+    pub _guard: jidr_backend::testing::AvdGuard,
 }
 
-/// Creates AVD `name` and a launch spec for it.
-pub fn fixture(name: &str) -> Fixture {
+/// Creates AVD `<base>-<pid>` and a launch spec for it. Orphaned emulators
+/// of earlier, killed runs are cleaned up first.
+pub fn fixture(base: &str) -> Fixture {
+    jidr_backend::testing::kill_orphans(&format!("{base}-"));
+    let name_owned = jidr_backend::testing::unique_avd(base);
+    let name = name_owned.as_str();
+    let guard = jidr_backend::testing::AvdGuard::new(name);
     let tmp = tempfile::tempdir().unwrap();
     let paths = JidrPaths::under(tmp.path());
     let sdks = SdkSet {
@@ -69,5 +77,6 @@ pub fn fixture(name: &str) -> Fixture {
         avds,
         image_sdk,
         spec,
+        _guard: guard,
     }
 }

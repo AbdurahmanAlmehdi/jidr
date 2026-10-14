@@ -330,7 +330,15 @@ impl Backend for AospBackend {
         {
             return Err(JidrError::busy(format!("{} is already starting", spec.avd)));
         }
-        let result = match self.ports.allocate() {
+        let mut in_use = HashSet::new();
+        for d in crate::discovery::scan() {
+            if let Some(p) = d.ports()
+                && process_alive(d.pid).await
+            {
+                in_use.extend([p.console, p.adb]);
+            }
+        }
+        let result = match self.ports.allocate_avoiding(&in_use) {
             Ok(ports) => {
                 let r = self.launch(spec, opts, ports, progress, cancel).await;
                 if r.is_err() {

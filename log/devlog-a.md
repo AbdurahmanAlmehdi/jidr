@@ -339,3 +339,16 @@ Open: `ui_dump` is slow (uiautomator, 4–6 s median); a faster accessibility pa
 - Merged `main` (d47a49b): took main's `docs/gaps.md` and plan, re-added my Part B rows (G1/G5 marked Done with commits; A1–A3 became G6–G8) and the Status lines of Phases 0–6.
 - Phase 3b follow-up (R7, D36): `LaunchOptions.camera_back/camera_front` → `-camera-back/-camera-front` (`emulated`, `virtualscene`, `none`, `webcamN`; validated, `jidr_backend::valid_camera`), persisted per device as `Device.launch.camera_back/front` so the Phase 8a webcam widget sets them and restarts. `-gpu host` remains the macOS default (ADR-0001). The backend emulator test now cold-boots with `camera_back = emulated` and checks `hw.camera.back` in the emulator's `hardware-qemu.ini`.
 - CI slimmed (`.github/workflows/ci.yml`): `check` (ubuntu-latest) runs the full `cargo xtask ci`; `clippy-macos` (macos-latest, rust-cache, protoc) runs only `cargo clippy --workspace --all-targets -- -D warnings`, skipped via a `changes` job (dorny/paths-filter, `predicate-quantifier: every`) when a PR only touches `docs/`, `site/` or `*.md`; the Linux KVM `emulator` job is unchanged. The repo is public so runners are free, but hosted macOS queues slower and can't boot the emulator.
+
+## 2026-10-14: CI fixes for Stream C's PR (G10, G11) and the emulator leak
+
+- G10: `spikes/display/build.rs` falls back to the vendored protos when the SDK has no emulator (CI runners). G11: the emulator CI job installs `libfontconfig1-dev libxkbcommon-dev` (the workspace build includes Slint). Pushed as fb8d18e.
+- Leak report (from Stream C, via a RAM-usage session): 13 orphaned emulators (12 × `agent-phone` from `jidr-mcp`'s agent tasks, 1 × `jidr_resilience`) used ~66 GB on the 16 GB Mac. Cause: my emulator tests had no cleanup on failure, and a killed test process (Ctrl-C, nextest timeout) never runs `Drop`; the in-process daemon's emulators outlive it by design. Fix (`jidr_backend::testing`):
+  - `AvdGuard`: kills the AVD's emulator on drop (pass, failure, panic);
+  - a per-test-process reaper (`sh` in its own process group) that waits for the test process to die, then kills every registered AVD's emulator, covering SIGKILL/Ctrl-C/timeouts;
+  - `kill_orphans(prefix)`: at test start, kills orphaned (ppid 1) qemu of earlier runs;
+  - per-process AVD names (`unique_avd`) so cleanup never touches another run;
+  - `.config/nextest.toml`: emulator-booting test binaries run one at a time (four in parallel starved the Mac and flaked the UI tasks);
+  - `scripts/e2e-cli.sh` cleans up with `uninstall --purge` on any exit, including Ctrl-C.
+- Port allocation: `allocate_avoiding` skips console/adb ports that live emulators report in their discovery files (two leaked emulators had both asked for 5554; a 127.0.0.1 bind test can miss a port held elsewhere). Regression test `ports::tests::skips_ports_live_emulators_hold`.
+- Verified: a run Ctrl-C'd mid-test and a deliberately failing test (`JIDR_TEST_FAIL_AFTER_BOOT=1`) both leave 0 emulators; the full `jidr-sdk`/`jidr-backend`/`jidr-mcp` emulator suites pass (59 tests) with 0 qemu processes and no reapers afterwards.
