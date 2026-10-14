@@ -1,0 +1,10 @@
+# Tests that boot a real emulator run one at a time: each one takes 2–4 GB
+# of RAM, and several in parallel starve a 16 GB Mac (UI tests then flake).
+# `~_emulator` (contains) also covers other streams' `*_emulator` binaries,
+# such as jidr-root's adb_emulator, without failing on branches that lack them.
+[test-groups]
+emulator = { max-threads = 1 }
+
+[[profile.default.overrides]]
+filter = 'binary(~_emulator) | binary(agent_tasks)'
+test-group = 'emulator'

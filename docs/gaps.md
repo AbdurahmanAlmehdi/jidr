@@ -574,11 +574,14 @@ Streams: **A** core (daemon, CLI, MCP, backend, SDK) · **B** player and widgets
 
 | ID | Needs | Requested by | Owner | Blocking phase | Proposed shape | Status | Resolved in |
 |---|---|---|---|---|---|---|---|
-| G1 | `LaunchOptions.ramdisk` / `extra_args` so a device can boot a patched ramdisk (and pass `-prop`, R5) | C | A | 9d | `LaunchOptions { ramdisk, extra_args, cold_boot, wipe }` in `jidr-backend` | Planned | Phase 3b |
+| G1 | `LaunchOptions.ramdisk` / `extra_args` so a device can boot a patched ramdisk (and pass `-prop`, R5) | C | A | 9d | `LaunchOptions { ramdisk, extra_args, cold_boot, wipe }` in `jidr-backend` | Done: also persisted per device as `Device.launch` (`ramdisk`, `extra_args`, `force_cold_boot`) | Phase 3b (ccbd9f0), 4a (02aa6d6) |
 | G2 | ~~Bake Magisk into an image at creation~~ | C | A | — | — | Won't do: it duplicates Phase 9d and would bundle GPL Magisk (plan constraint 2) | — |
 | G3 | A rooted on-device helper channel so widgets can run privileged actions (R1, R2, R4, R6, R9) | B | A | first 🟠 widget (post-MVP) | one on-device `jidr-helper` with a typed RPC the daemon proxies (O2) | Open (post-MVP) | |
 | G4 | Confirm the guest kernel's cgroup version, network interface names and block devices on our target images (R2, R6) | A | A | before R2/R6 build | an "image facts" table in `docs/research/` per API level | In progress: API 31 done | `docs/research/2026-10-13-image-facts-api31-arm64.md` |
-| G5 | Generated gRPC stubs from pinned AOSP emulator protos | B | A | before 7c | SDK proto + vendored fallback in `jidr-proto` | Planned | Phase 3a |
+| G5 | Generated gRPC stubs from pinned AOSP emulator protos | B | A | before 7c | SDK proto + vendored fallback in `jidr-proto` | Done | Phase 3a (a90110d) |
+| G6 | `jidr-widgets` exports `pub fn provider() -> Arc<dyn jidr_core::provider::CommandProvider>` so `jidr daemon` can register it | A | B | none (A wires it when it lands) | contract in `crates/jidr-core/src/provider.rs` | Open | |
+| G7 | `jidr-root` exports the same `pub fn provider()`; it uses `CommandProvider::on_booted` for `adb root` after each boot, and `Device.launch` (`ramdisk`, `force_cold_boot`) + `DaemonContext::stop_device/start_device` for Magisk | A | C | none (A wires it when it lands) | as G6 | Open | |
+| G8 | `root.set` accepts an optional `magisk_sha256`: an APK already in the download cache (`jidr root set <dev> magisk --magisk <apk>` imports it via `cache.import` first, D30) | A | C | none | `jidr_sdk::DownloadCache::new(paths.downloads())`: `get_verified(sha)` offline, `fetch(url, sha, …)` for the pinned release | Open | |
 
 **Status:** Open → Planned → In progress → Done (link the commit) / Won't do (with reason).
 
