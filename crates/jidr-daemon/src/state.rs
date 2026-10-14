@@ -282,8 +282,17 @@ impl DaemonContext for State {
             lock(&self.instances).remove(&id);
         }
         let (spec, _) = self.launch_spec(&device)?;
+        for cam in [&device.launch.camera_back, &device.launch.camera_front].into_iter().flatten() {
+            if !jidr_backend::valid_camera(cam) {
+                return Err(JidrError::usage(format!(
+                    "invalid camera {cam:?}: use emulated, virtualscene, none or webcamN"
+                )));
+            }
+        }
         let opts = LaunchOptions {
             ramdisk: device.launch.ramdisk.clone(),
+            camera_back: device.launch.camera_back.clone(),
+            camera_front: device.launch.camera_front.clone(),
             extra_args: device.launch.extra_args.clone(),
             gpu: device.launch.gpu.clone(),
             cold_boot: cold_boot || device.launch.force_cold_boot,

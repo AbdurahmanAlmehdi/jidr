@@ -331,3 +331,10 @@ Bugs/findings (with regression tests where code changed):
 3. The launcher's first search shows "Always show keyboard here?"; the agent task answers it. The 2 GB profile starved first boot; tasks use the default 4 GB profile.
 
 Open: `ui_dump` is slow (uiautomator, 4–6 s median); a faster accessibility path could come later.
+
+---
+
+## 2026-10-14: merge of main (D35–D40, gaps research), camera options, CI
+
+- Merged `main` (d47a49b): took main's `docs/gaps.md` and plan, re-added my Part B rows (G1/G5 marked Done with commits; A1–A3 became G6–G8) and the Status lines of Phases 0–6.
+- Phase 3b follow-up (R7, D36): `LaunchOptions.camera_back/camera_front` → `-camera-back/-camera-front` (`emulated`, `virtualscene`, `none`, `webcamN`; validated, `jidr_backend::valid_camera`), persisted per device as `Device.launch.camera_back/front` so the Phase 8a webcam widget sets them and restarts. `-gpu host` remains the macOS default (ADR-0001). The backend emulator test now cold-boots with `camera_back = emulated` and checks `hw.camera.back` in the emulator's `hardware-qemu.ini`.
