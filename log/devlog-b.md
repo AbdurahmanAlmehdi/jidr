@@ -158,3 +158,13 @@ The first GitHub CI run found three Stream B problems my Mac runs couldn't show:
 - The media test skips its recording half off macOS (recording uses VideoToolbox).
 
 On Linux KVM API 30, `gps_fix_and_route_replay` and the media test (screenshot half) passed. The API 33 job failed in Stream A's `five_agent_tasks` ("UI never matched"). It passed on API 30, on main's last run, and this branch doesn't touch jidr-mcp, so it looks flaky.
+
+## 2026-10-14: PR #3 review blockers
+
+Branch `fix/b-review-blockers` (from `fix/b-player-emulator-waits`). Each fix has a regression test.
+1. Snapshot path traversal: `resolve("..")` gave the id `..`, and `snapshot.delete` on a stopped device removed the whole AVD folder. Now `snapshot_id` never starts with `.`, `check_id` refuses anything but one plain folder name, `resolve` returns an error for bad ids (including a tag whose key is bad), and delete builds the path through `snapshot_dir`. Test: `names_never_reach_outside_the_snapshots_folder`.
+2. AppleScript injection in the screenshot copy: the path went into the script text with only `"` escaped. Now it's passed as `argv` (`on run argv`). `media::default_path` also drops `\`, `"` and control characters. Tests: `the_image_path_is_an_argument_not_script`, `osascript_takes_the_path_from_argv` (runs osascript with a hostile path and checks it comes back verbatim and nothing ran), `default_paths_drop_quotes_backslashes_and_controls`.
+3. A recording kept repeating the last frame until `max_seconds` after the device's frame stream ended. The reader (`pump`) now sets `stop` when the stream ends. Test: `the_recorder_stops_when_the_frame_stream_ends`.
+4. GUI recording state was one global flag. It's now per device (`recording::Active`), and `player::sync` shows the active tab's device. Test: `recording_state_is_per_device`.
+
+Not done in this pass (review follow-ups 5–9): unplayable MP4 after a push timeout, "Clear cache" also removing the daemon's downloads/, `media.screenshot` overwriting an existing path, logcat not restarting after reconnect, nits.

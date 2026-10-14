@@ -47,6 +47,12 @@ impl Drop for Player {
     }
 }
 
+/// The active tab's device id.
+pub fn active_id(ctx: &Ctx) -> Option<Uuid> {
+    let st = ctx.state.borrow();
+    st.active.and_then(|i| st.tabs.get(i)).copied()
+}
+
 /// The active tab's device id and whether it is running.
 fn active_device(ctx: &Ctx) -> Option<(Uuid, bool, Screen, RootMode)> {
     let st = ctx.state.borrow();
@@ -64,12 +70,12 @@ fn active_device(ctx: &Ctx) -> Option<(Uuid, bool, Screen, RootMode)> {
 /// close otherwise. Called after every tab or data change.
 pub fn sync(ctx: &Rc<Ctx>) {
     let active = active_device(ctx);
+    crate::recording::show(ctx, active.as_ref().map(|a| a.0));
     let mut p = ctx.player.borrow_mut();
     let want = active.filter(|a| a.1).map(|a| a.0);
     if p.session.as_ref().map(|s| s.device) != want {
         p.session = None;
         ctx.app.set_player_has_frame(false);
-        ctx.app.set_player_recording(false);
         ctx.app.set_player_clipboard(false);
     }
     if p.log_device != want {

@@ -110,13 +110,13 @@ pub fn check_name(n: &str) -> JidrResult<&str> {
     Ok(n)
 }
 
-/// The snapshot's folder name: ASCII letters, digits, `-`, `.` and `_` stay,
-/// other ASCII becomes `_`, and other characters become `x<hex>` so names in
-/// other scripts stay distinct.
+/// The snapshot's folder name: ASCII letters, digits, `-`, `.` and `_` stay
+/// (but never a leading `.`), other ASCII becomes `_`, and other characters
+/// become `x<hex>` so names in other scripts stay distinct.
 pub fn snapshot_id(name: &str) -> String {
     let mut id = String::with_capacity(name.len());
     for c in name.chars() {
-        if c.is_ascii_alphanumeric() || matches!(c, '-' | '.' | '_') {
+        if c.is_ascii_alphanumeric() || matches!(c, '-' | '_') || (c == '.' && !id.is_empty()) {
             id.push(c);
         } else if c.is_ascii() {
             id.push('_');
@@ -125,6 +125,23 @@ pub fn snapshot_id(name: &str) -> String {
         }
     }
     id
+}
+
+/// An id that is one plain folder name inside `<avd>/snapshots`: not empty,
+/// no separators, no leading `.` (so never `.` or `..`).
+pub fn check_id(id: &str) -> JidrResult<&str> {
+    let mut parts = Path::new(id).components();
+    let plain =
+        matches!(parts.next(), Some(std::path::Component::Normal(_))) && parts.next().is_none();
+    if !plain
+        || id.len() > 255
+        || id.starts_with('.')
+        || id.contains(['/', '\\'])
+        || id.chars().any(char::is_control)
+    {
+        return Err(JidrError::usage(format!("not a snapshot: {id:?}")));
+    }
+    Ok(id)
 }
 
 /// The id to save `name` under: [`snapshot_id`], with `-2`, `-3`… when
@@ -147,16 +164,23 @@ fn free_id(avd: &Path, tags: &BTreeMap<String, Tag>, name: &str) -> String {
 }
 
 /// The id of the snapshot a user or client named: a tag's label, an existing
-/// folder, or the id Jidr would give that name.
-pub fn resolve(avd: &Path, tags: &BTreeMap<String, Tag>, name: &str) -> String {
-    if let Some((id, _)) = tags.iter().find(|(_, t)| t.label.as_deref() == Some(name)) {
-        return id.clone();
-    }
-    let safe = !name.is_empty() && !name.contains(['/', '\\']) && !name.starts_with('.');
-    if safe && avd.join("snapshots").join(name).is_dir() {
-        return name.to_string();
-    }
-    snapshot_id(name)
+/// folder, or the id Jidr would give that name. Always passes [`check_id`].
+pub fn resolve(avd: &Path, tags: &BTreeMap<String, Tag>, name: &str) -> JidrResult<String> {
+    let name = name.trim();
+    let id = if let Some((id, _)) = tags.iter().find(|(_, t)| t.label.as_deref() == Some(name)) {
+        id.clone()
+    } else if check_id(name).is_ok() && avd.join("snapshots").join(name).is_dir() {
+        name.to_string()
+    } else {
+        snapshot_id(name)
+    };
+    check_id(&id)?;
+    Ok(id)
+}
+
+/// `<avd>/snapshots/<id>`, refusing anything that isn't one plain folder name.
+fn snapshot_dir(avd: &Path, id: &str) -> JidrResult<PathBuf> {
+    Ok(avd.join("snapshots").join(check_id(id)?))
 }
 
 /// D29: may this snapshot be restored on a device in `mode`? Untagged
@@ -267,6 +291,7 @@ pub async fn call(ctx: &CallCtx, method: &str, params: Value) -> JidrResult<Valu
             let avd = avd_dir(ctx, &t.device);
             let mut tags = read_tags(&avd);
             let id = free_id(&avd, &tags, &name);
+            check_id(&id)?;
             if id == QUICK_BOOT {
                 return Err(JidrError::usage(
                     "default_boot is the quick-boot snapshot; pick another name",
@@ -301,7 +326,7 @@ pub async fn call(ctx: &CallCtx, method: &str, params: Value) -> JidrResult<Valu
             let d = ctx.daemon.device(&p.device).await?;
             let avd = avd_dir(ctx, &d);
             let tags = read_tags(&avd);
-            let id = resolve(&avd, &tags, &p.name);
+            let id = resolve(&avd, &tags, &p.name)?;
             check_root(&p.name, tags.get(&id), d.root.mode)?;
             if !matches!(d.status, DeviceStatus::Running) {
                 return Err(JidrError::not_found(format!(
@@ -329,7 +354,7 @@ pub async fn call(ctx: &CallCtx, method: &str, params: Value) -> JidrResult<Valu
             let d = ctx.daemon.device(&p.device).await?;
             let avd = avd_dir(ctx, &d);
             let mut tags = read_tags(&avd);
-            let id = resolve(&avd, &tags, &p.name);
+            let id = resolve(&avd, &tags, &p.name)?;
             if matches!(d.status, DeviceStatus::Running) {
                 let t = target(ctx, &p.device).await?;
                 let r = t
@@ -344,8 +369,8 @@ pub async fn call(ctx: &CallCtx, method: &str, params: Value) -> JidrResult<Valu
                     .into_inner();
                 failed("deleting the snapshot", &r)?;
             } else {
-                let dir = avd.join("snapshots").join(&id);
-                if !dir.starts_with(avd.join("snapshots")) || !dir.is_dir() {
+                let dir = snapshot_dir(&avd, &id)?;
+                if !dir.is_dir() {
                     return Err(JidrError::not_found(format!("no snapshot {:?}", p.name)));
                 }
                 std::fs::remove_dir_all(&dir)
@@ -423,15 +448,55 @@ mod tests {
                 ..tag(RootMode::None)
             },
         );
-        assert_eq!(resolve(tmp.path(), &t, "Clean install"), "Clean_install");
-        assert_eq!(resolve(tmp.path(), &t, "made outside"), "made outside");
-        assert_eq!(resolve(tmp.path(), &t, "Logged in"), "Logged_in");
-        assert_eq!(resolve(tmp.path(), &t, "../x"), ".._x");
+        let r = |n: &str| resolve(tmp.path(), &t, n).unwrap();
+        assert_eq!(r("Clean install"), "Clean_install");
+        assert_eq!(r("made outside"), "made outside");
+        assert_eq!(r("Logged in"), "Logged_in");
+        assert_eq!(r("../x"), "_._x");
 
         // Saving the same name replaces it; a different name gets a suffix.
         assert_eq!(free_id(tmp.path(), &t, "Clean install"), "Clean_install");
         assert_eq!(free_id(tmp.path(), &t, "Clean_install"), "Clean_install-2");
         assert_eq!(free_id(tmp.path(), &t, "made outside"), "made_outside");
+    }
+
+    /// Regression (review of PR #3): `..` resolved to the id `..`, and
+    /// `snapshot.delete` on a stopped device removed the whole AVD folder.
+    #[test]
+    fn names_never_reach_outside_the_snapshots_folder() {
+        for n in ["..", ".", "...", ".hidden", "", "   "] {
+            let id = snapshot_id(n.trim());
+            assert!(!id.starts_with('.'), "{n:?} -> {id:?}");
+        }
+        let tmp = tempfile::tempdir().unwrap();
+        let avd = tmp.path().join("dev.avd");
+        std::fs::create_dir_all(avd.join("snapshots/keep")).unwrap();
+        let tags = BTreeMap::new();
+        for n in ["..", ".", "../..", "a/../..", "/etc", "\\x", ""] {
+            if let Ok(id) = resolve(&avd, &tags, n) {
+                let dir = snapshot_dir(&avd, &id).unwrap();
+                assert_eq!(dir.parent(), Some(avd.join("snapshots").as_path()), "{n:?}");
+                assert!(
+                    !id.starts_with('.') && !id.contains(['/', '\\']),
+                    "{n:?} -> {id:?}"
+                );
+            }
+        }
+        assert!(resolve(&avd, &tags, "").is_err());
+        for id in ["..", ".", "", "a/b", "a\\b", "/abs", ".x"] {
+            assert!(snapshot_dir(&avd, id).is_err(), "{id:?}");
+        }
+        // A tag can't smuggle a bad id in either.
+        let mut evil = BTreeMap::new();
+        evil.insert(
+            "..".to_string(),
+            Tag {
+                label: Some("Evil".into()),
+                ..tag(RootMode::None)
+            },
+        );
+        assert!(resolve(&avd, &evil, "Evil").is_err());
+        assert!(avd.join("snapshots/keep").is_dir());
     }
 
     #[test]
