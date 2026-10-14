@@ -4,7 +4,7 @@ Attach `docs/design/PRODUCT.md` to every prompt. Run them in order: **1 → (you
 
 ---
 
-## 1. Visual directions (app + landing page)
+## 1. Visual directions (app + landing page) ✅ done: Workbench (D41)
 
 ```
 I'm designing Jidr (جذر, pronounced JID-er, Arabic for "root"), a free, open-source Android emulator for the Mac. It's a desktop app (plus a CLI and an AI-agent/MCP server) that creates and runs virtual Android phones and tablets. It does what Genymotion Desktop does (device manager, a device window, sensor controls such as GPS, battery and network), but everything is free, and its headline feature is one-click rooted devices: pick "Full root" when you create a device and, about a minute later, it shows "Rooted ✓ · Magisk 30.7". I've attached PRODUCT.md, which describes exactly what it does, who uses it, the data the app really has, the statuses, and sample data. Read it fully first: it's the source of truth.
@@ -63,7 +63,7 @@ Be opinionated. Tell me which direction you'd pick and why.
 
 ---
 
-## 2. Design system
+## 2. Design system ✅ done: `docs/design/tokens.json`, `docs/design/system/`
 
 ```
 Going with direction [NAME] for Jidr (جذر) from the [Jidr — Visual directions] design: [link]. Build the design system as a reference page, with light and dark versions side by side. PRODUCT.md is attached again; it's the source of truth for statuses and data.
@@ -113,7 +113,7 @@ Rules to write down
 
 ---
 
-## 3. Key screens: app + landing page
+## 3. Key screens: app + landing page ✅ done: `docs/design/screens/`
 
 ```
 Using the Jidr (جذر) design system ([link]) and the [NAME] direction I chose ([link]), design the key screens of each part of the product so I can see how the whole thing feels in practice and finalize the structure. PRODUCT.md (the product, the data the daemon really returns, the sample data) and the logo and icon (if ready) are attached.

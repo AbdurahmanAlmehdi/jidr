@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Settings window</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="jidr.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="board c4" style="width:3520px;height:1512px">
+<sc-for list="{{frames}}" as="f" hint-placeholder-count="8">
+<div class="cell">
+  <div class="cap">{{f.title}}<span>{{f.meta}}</span></div>
+  <div class="win frame {{f.cls}} s-settings">
+    <div class="settings">
+      <div class="set-tb">
+        <div class="t1"><div class="lights"><span></span><span></span><span></span></div><span class="wtitle-c">{{f.title}}</span><span style="width:68px"></span></div>
+        <div class="set-tabs" role="tablist">
+          <button class="set-tab {{f.tg}}" role="tab"><svg class="ic i20" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7h-9M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>General</button>
+          <button class="set-tab {{f.ts}}" role="tab"><svg class="ic i20" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 12H2M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11zM6 16h.01M10 16h.01"/></svg>Storage</button>
+          <button class="set-tab {{f.ta}}" role="tab"><svg class="ic i20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>Agents</button>
+          <button class="set-tab {{f.tb}}" role="tab"><svg class="ic i20" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>About</button>
+        </div>
+      </div>
+
+      <sc-if value="{{f.gen}}" hint-placeholder-val="{{false}}">
+        <div class="set-b">
+          <div class="set-row"><span class="lbl">Default root mode</span><div class="ctl">
+            <div class="rmode" role="radiogroup" aria-label="Default root mode" style="gap:8px">
+              <label class="rcard" style="padding:10px"><span class="rh"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>None</span><span class="box round"></span></label>
+              <label class="rcard on" style="padding:10px"><span class="rh"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 17 6-6-6-6M12 19h8"/></svg>Shell root</span><span class="box round on"></span></label>
+              <label class="rcard feat" style="padding:10px"><span class="rh"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/></svg>Full root</span><span class="box round"></span></label>
+            </div>
+            <span class="hint">Used by New device and by <span class="num">jidr device create</span> when --root is not given.</span>
+          </div></div>
+          <hr class="hr">
+          <div class="set-row"><label>Map tiles</label><div class="ctl">
+            <div class="inp"><span style="flex:1">OpenStreetMap (default)</span><svg class="ic i14 sel-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 15 5 5 5-5M7 9l5-5 5 5"/></svg></div>
+            <div class="inp mono is-disabled"><input placeholder="https://tiles.example.com/{z}/{x}/{y}.png" aria-label="Custom tile URL" disabled></div>
+            <span class="hint">Pick Custom to use your own tile server. The attribution stays visible on the GPS map.</span>
+          </div></div>
+          <hr class="hr">
+          <div class="set-row"><span class="lbl">Appearance</span><div class="ctl"><div class="seg" role="radiogroup" aria-label="Appearance" style="align-self:flex-start"><button role="radio" aria-checked="true">System</button><button role="radio">Light</button><button role="radio">Dark</button></div></div></div>
+          <div class="set-row"><span class="lbl">Quick boot</span><div class="ctl"><label class="j-row"><span class="tgl on" role="switch" aria-checked="true" aria-label="Quick boot"></span>Save a quick-boot snapshot when a device stops</label><span class="hint">Starts take seconds instead of a full boot. Uses disk per device.</span></div></div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{f.sto}}" hint-placeholder-val="{{true}}">
+        <div class="set-b" style="gap:14px">
+          <div class="set-row"><span class="lbl">Android SDK</span><div class="ctl">
+            <div class="j-row"><div class="inp mono" style="flex:1"><input value="~/Library/Application Support/Jidr/sdk" aria-label="SDK location"></div><button class="btn">Change…</button></div>
+            <div class="j-row"><span class="sp sp-s p-positive"><svg class="ic i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Ready</span><span class="hint">License accepted Oct 13, 14:01</span><span class="grow"></span><button class="btn btn-sm btn-tertiary">Show in Finder</button></div>
+          </div></div>
+          <div class="set-row"><span class="lbl">Devices</span><div class="ctl"><div class="usage">
+            <div class="ur"><span>Pixel-ish 6.1 <span class="ter">· 3 snapshots</span></span><span class="meter"><i style="width:100%"></i></span><span class="num">6.8 GB</span></div>
+            <div class="ur"><span>Play Store test</span><span class="meter"><i style="width:78%"></i></span><span class="num">5.3 GB</span></div>
+            <div class="ur"><span>Tablet 11</span><span class="meter"><i style="width:60%"></i></span><span class="num">4.1 GB</span></div>
+            <div class="ur"><span>CI-runner-03</span><span class="meter"><i style="width:44%"></i></span><span class="num">3.0 GB</span></div>
+            <div class="ur" style="font-weight:600"><span>Total</span><span></span><span class="num">19.2 GB</span></div>
+          </div></div></div>
+          <div class="set-row"><span class="lbl">System images</span><div class="ctl"><div class="usage">
+            <div class="ur"><span>Android 15 · API 35 · Google APIs</span><span class="ter" style="font-size:12px">2 devices</span><span class="num">2.0 GB</span></div>
+            <div class="ur"><span>Android 13 · API 33 · Play Store</span><span class="ter" style="font-size:12px">1 device</span><span class="num">1.8 GB</span></div>
+            <div class="ur"><span>Android 16 · API 36 · Google APIs</span><span class="ter" style="font-size:12px">Downloading</span><span class="num">1.4 / 2.1</span></div>
+          </div><button class="btn btn-sm btn-tertiary" style="align-self:flex-start">Show all 5 images</button></div></div>
+          <div class="set-row"><span class="lbl">Download cache</span><div class="ctl"><div class="j-row"><span class="num">0.4 GB</span><span class="hint">Magisk and finished downloads. Safe to clear.</span><span class="grow"></span><button class="btn btn-sm">Clear cache</button></div></div></div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{f.agt}}" hint-placeholder-val="{{false}}">
+        <div class="set-b" style="gap:14px">
+          <div class="j-col" style="gap:4px"><h2 class="t-title" style="margin:0">Add Jidr to Claude</h2><p class="mut" style="margin:0;font-size:13px;line-height:19px">Jidr runs an MCP server, so an agent can take screenshots, tap, type and read logs. While it drives, the device shows Busy · in use by agent and you can watch in the device window.</p></div>
+          <div class="panel" style="flex-direction:row;align-items:center"><div class="j-col" style="flex:1;gap:2px"><b>Claude Desktop</b><span class="mut" style="font-size:12px">Adds the server to claude_desktop_config.json. Restart Claude after.</span></div><button class="btn btn-primary">Add to Claude Desktop</button></div>
+          <div class="j-col"><span class="h-cap">Claude Code</span><div class="cli"><div class="ch"><span>Terminal</span><span class="grow"></span><button class="btn btn-tertiary btn-sm"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>Copy</button></div><pre><span class="pr">$ </span>claude mcp add jidr -- jidr mcp</pre></div></div>
+          <div class="j-col"><span class="h-cap">Any other MCP client</span><div class="cli"><div class="ch"><span>mcp config (JSON)</span><span class="grow"></span><button class="btn btn-tertiary btn-sm"><svg class="ic i14" viewBox="0 0 24 24" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>Copy</button></div><pre>{ "mcpServers": { "jidr": { "command": "jidr", "args": ["mcp"] } } }</pre></div></div>
+          <div class="j-row" style="flex-wrap:wrap;gap:6px"><span class="h-cap">Tools</span><span class="tag p-neutral">screenshot</span><span class="tag p-neutral">tap</span><span class="tag p-neutral">type</span><span class="tag p-neutral">ui_tree</span><span class="tag p-neutral">logcat</span></div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{f.abt}}" hint-placeholder-val="{{false}}">
+        <div class="set-b" style="gap:16px">
+          <div class="j-row" style="gap:16px"><span class="appicon">App icon pending</span><div class="j-col" style="gap:2px"><span class="t-headline">Jidr <span style="font-family:var(--jidr-font-family-arabic);color:var(--jidr-color-root);font-size:16px">جذر</span></span><span class="mut num" style="font-size:12px">Version [version] · macOS 14+ · Apple Silicon</span></div><span class="grow"></span><button class="btn">Check for updates</button></div>
+          <div class="j-col" style="gap:8px"><span class="h-cap">Licences</span>
+            <dl class="lic">
+              <dt>Jidr app (this window)</dt><dd>GPL-3.0</dd>
+              <dt>jidr CLI and daemon</dt><dd>[licence]</dd>
+              <dt>Slint UI toolkit</dt><dd>GPL-3.0</dd>
+              <dt>Magisk, downloaded on your Mac</dt><dd>GPL-3.0</dd>
+              <dt>Android Emulator and system images, downloaded on your Mac</dt><dd>Android SDK License · accepted Oct 13</dd>
+              <dt>Lucide icons</dt><dd>ISC</dd>
+              <dt>Geist, Geist Mono, Noto Kufi Arabic</dt><dd>OFL-1.1</dd>
+              <dt>Map data © OpenStreetMap contributors</dt><dd>ODbL</dd>
+            </dl>
+          </div>
+          <div class="j-row"><button class="btn btn-sm">Show full licence texts</button><button class="btn btn-sm btn-tertiary">Source on GitHub</button><button class="btn btn-sm btn-tertiary">Sponsor Jidr</button></div>
+          <p class="hint" style="margin:0">Android is a trademark of Google LLC. Jidr is not affiliated with Google or Genymotion.</p>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+</div>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":3520,"height":1512}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const panes = [['Storage', 'sto'], ['Agents', 'agt'], ['General', 'gen'], ['About', 'abt']];
+    const frames = [];
+    [['jidr-dark', 'dark'], ['jidr-light', 'light']].forEach(([cls, t]) => {
+      panes.forEach(([title, p]) => {
+        frames.push({ title, meta: t + ' · 820×640', cls, sto: p === 'sto', agt: p === 'agt', gen: p === 'gen', abt: p === 'abt',
+          ts: p === 'sto' ? 'on' : '', ta: p === 'agt' ? 'on' : '', tg: p === 'gen' ? 'on' : '', tb: p === 'abt' ? 'on' : '' });
+      });
+    });
+    return { frames };
+  }
+}
+</script>
+</body>
+</html>

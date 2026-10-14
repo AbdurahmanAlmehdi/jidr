@@ -85,7 +85,11 @@ Users are technical, on macOS (Apple Silicon), and often keep the app open all d
 - Logcat lines: `I/ActivityManager: Start proc 4821:com.example.shop/u0a190`, `W/Magisk: su: request from uid 10190 (com.example.shop)`, `E/AndroidRuntime: FATAL EXCEPTION: main`.
 - CLI snippet: `jidr device create "Pixel-ish 6.1" --api 35 --root magisk --wait-boot`.
 
-## 8. Brand
+## 8. Design and brand
+
+The design is done: see `docs/design/README.md` (Workbench direction, tokens, components, final screens).
+
+### Brand
 
 The app icon and symbol are done: see `assets/brand/README.md` (symbol = a root growing into a phone outline; brand blue `#2A88FA → #1267E0`, lilac `#B9A6F7` for the Arabic wordmark).
 
