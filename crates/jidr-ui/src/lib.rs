@@ -17,9 +17,14 @@ pub use ui::*;
 
 pub mod app;
 pub mod bridge;
+pub mod device_form;
 pub mod fixtures;
+pub mod launcher;
 pub mod model;
 pub mod offscreen;
+pub mod palette;
+pub mod settings;
 pub mod snapshots;
+pub mod wizard;
 
 pub use app::run;

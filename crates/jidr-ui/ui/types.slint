@@ -86,3 +86,61 @@ export struct SnapshotVm {
 }
 
 export enum ConnState { connecting, online, reconnecting, offline }
+
+/// Root mode choice in forms (`root_mode`: none | adb | magisk).
+export enum RootChoice { none, shell, full }
+
+export struct ImageRowVm {
+    package: string,
+    /// "Android 15 · API 35 · Google APIs"
+    label: string,
+    /// "Installed · 2.0 GB", "Download · 2.1 GB", "Downloading · 1.4 / 2.1 GB"
+    status: string,
+    installed: bool,
+    /// Selectable (not mid-download, supported API).
+    enabled: bool,
+    play-store: bool,
+}
+
+export struct OptionVm {
+    id: string,
+    label: string,
+}
+
+/// The create/edit form; Rust validates and turns it into `device.create` / `device.edit`.
+export struct DeviceForm {
+    edit: bool,
+    name: string,
+    profile: int,
+    image: int,
+    root: RootChoice,
+    ram-gb: string,
+    cpus: string,
+    screen: string,
+    density: string,
+    start-after: bool,
+    error: string,
+}
+
+/// First-run setup (Setup.dc.html).
+export struct DetectRow { path: string, state: string, found: bool }
+export struct PlanRow { label: string, size: string }
+
+export struct UsageRow {
+    name: string,
+    sub: string,
+    fraction: float,
+    size: string,
+}
+
+export enum PaletteKind { action, device, setting }
+
+export struct PaletteItem {
+    kind: PaletteKind,
+    title: string,
+    subtitle: string,
+    kbd: string,
+    /// Opaque action id handled in Rust.
+    action: string,
+    state: DevState,
+}
