@@ -23,6 +23,7 @@ pub mod launcher;
 pub mod model;
 pub mod offscreen;
 pub mod palette;
+pub mod player;
 pub mod settings;
 pub mod snapshots;
 pub mod wizard;

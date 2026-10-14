@@ -144,3 +144,13 @@ export struct PaletteItem {
     action: string,
     state: DevState,
 }
+
+/// One logcat line (threadtime format).
+export struct LogLine {
+    ts: string,
+    pid: string,
+    /// V D I W E F
+    level: string,
+    tag: string,
+    msg: string,
+}
