@@ -22,9 +22,9 @@ chrono.workspace = true
 dirs.workspace = true
 hex.workspace = true
 sha2.workspace = true
-sha1 = "0.11"
+sha1.workspace = true
 roxmltree = "0.21"
-zip = { version = "9", default-features = false, features = ["deflate"] }
+zip.workspace = true
 fs4 = "1.1"
 reqwest = { version = "0.13", default-features = false, features = ["rustls", "http2", "system-proxy"] }
 

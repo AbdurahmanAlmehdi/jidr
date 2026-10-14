@@ -198,6 +198,33 @@ pub struct ImageParams {
     pub image: String,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CacheImportParams {
+    /// A local file to add to the download cache (e.g. a Magisk APK for offline use).
+    pub path: PathBuf,
+    /// Its expected SHA-256; the import fails if the file doesn't match.
+    #[serde(default)]
+    pub sha256: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CachePruneParams {
+    /// Only remove downloads older than this many days (default: all).
+    #[serde(default)]
+    pub older_than_days: Option<u64>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct LogsParams {
+    pub device: String,
+    /// Where to write the zip (default: Jidr's logs folder).
+    #[serde(default)]
+    pub output: Option<PathBuf>,
+}
+
 #[derive(Debug, Serialize, JsonSchema)]
 pub struct DeviceDetails {
     pub device: Device,
@@ -238,6 +265,27 @@ pub fn parse_image(sel: &str) -> JidrResult<ImageRef> {
         return Err(JidrError::usage(format!("invalid image {sel:?}")));
     }
     Ok(ImageRef { api, tag, abi })
+}
+
+/// `logcat -d` arguments. logcat applies `-t N` to the raw buffer *before*
+/// tag filtering, so with a filter we dump everything and keep the last N
+/// matching lines ourselves (`tail_lines`).
+pub fn logcat_args(lines: Option<u32>, filter: &[String]) -> Vec<String> {
+    let mut args = Vec::new();
+    if let (Some(n), true) = (lines, filter.is_empty()) {
+        args.extend(["-t".to_string(), n.to_string()]);
+    }
+    args.extend(filter.iter().cloned());
+    args
+}
+
+pub fn tail_lines(text: &str, n: usize) -> String {
+    let lines: Vec<&str> = text.lines().collect();
+    let mut out = lines[lines.len().saturating_sub(n)..].join("\n");
+    if !out.is_empty() {
+        out.push('\n');
+    }
+    out
 }
 
 fn validate_device_name(name: &str) -> JidrResult<()> {
@@ -287,6 +335,10 @@ impl CoreProvider {
     async fn repository(&self) -> JidrResult<Repository> {
         let base = self.state.sdk_repo.clone().unwrap_or_else(repo::repo_base);
         Fetcher::new()?.repository(&base).await
+    }
+
+    fn cache(&self) -> jidr_sdk::DownloadCache {
+        jidr_sdk::DownloadCache::new(self.state.paths.downloads())
     }
 
     fn consent(&self) -> JidrResult<ConsentStore> {
@@ -720,6 +772,19 @@ impl CommandProvider for CoreProvider {
             CommandSpec::new::<PullParams>("file.pull", "Copy a file from a running device"),
             CommandSpec::new::<LogcatDumpParams>("logcat.dump", "Dump the device log"),
             CommandSpec::new::<DeviceParams>("logcat.clear", "Clear the device log"),
+            CommandSpec::new::<LogsParams>(
+                "device.logs",
+                "Zip a device's settings, emulator and crash logs and logcat for a bug report",
+            ),
+            CommandSpec::new::<NoParams>("cache.list", "Files in the download cache (by SHA-256)"),
+            CommandSpec::new::<CacheImportParams>(
+                "cache.import",
+                "Add a local file to the download cache (offline Magisk, D30)",
+            ),
+            CommandSpec::new::<CachePruneParams>(
+                "cache.prune",
+                "Delete cached downloads (they're downloaded again when needed)",
+            ),
         ]
     }
 
@@ -845,14 +910,54 @@ impl CommandProvider for CoreProvider {
             "logcat.dump" => {
                 let p: LogcatDumpParams = parse_params(params)?;
                 let d = self.state.device(&p.device).await?;
-                let lines = p.lines.map(|n| n.to_string());
-                let mut args: Vec<&str> = Vec::new();
-                if let Some(n) = &lines {
-                    args.extend(["-t", n]);
-                }
-                args.extend(p.filter.iter().map(String::as_str));
+                let args = logcat_args(p.lines, &p.filter);
+                let args: Vec<&str> = args.iter().map(String::as_str).collect();
                 let text = self.adb(&d).await?.logcat_dump(&args).await?;
+                let text = match (p.lines, p.filter.is_empty()) {
+                    (Some(n), false) => tail_lines(&text, n as usize),
+                    _ => text,
+                };
                 Ok(json!({ "text": text }))
+            }
+            "device.logs" => {
+                let p: LogsParams = parse_params(params)?;
+                let d = self.state.device(&p.device).await?;
+                let logcat = match self.adb(&d).await {
+                    Ok(adb) => adb
+                        .with_timeout(Duration::from_secs(30))
+                        .logcat_dump(&[])
+                        .await
+                        .ok(),
+                    Err(_) => None,
+                };
+                let out = p.output.unwrap_or_else(|| {
+                    self.state.paths.logs.join(format!(
+                        "{}-logs-{}.zip",
+                        d.avd,
+                        chrono::Utc::now().format("%Y%m%d-%H%M%S")
+                    ))
+                });
+                let files = crate::bundle::write_bundle(
+                    &out,
+                    &d,
+                    &self.state.avds().dir(&d.avd),
+                    &self.state.paths.device_logs(&d.avd),
+                    logcat.as_deref(),
+                )?;
+                Ok(json!({ "path": out, "files": files }))
+            }
+            "cache.list" => {
+                parse_params::<NoParams>(params)?;
+                json(self.cache().list())
+            }
+            "cache.import" => {
+                let p: CacheImportParams = parse_params(params)?;
+                json(self.cache().import(&p.path, p.sha256.as_deref())?)
+            }
+            "cache.prune" => {
+                let p: CachePruneParams = parse_params(params)?;
+                let age = p.older_than_days.map(|d| Duration::from_secs(d * 86_400));
+                json(self.cache().prune(age))
             }
             "logcat.clear" => {
                 let p: DeviceParams = parse_params(params)?;
@@ -893,6 +998,19 @@ mod tests {
         for bad in ["", "x", "35:a:b:c", "system-images;nope"] {
             assert!(parse_image(bad).is_err(), "{bad}");
         }
+    }
+
+    /// Regression: `logcat -d -t 500 Tag:I *:S` applies the 500 to the raw
+    /// buffer first, so a filtered tail came back empty on a busy device.
+    #[test]
+    fn filtered_logcat_tails_after_filtering() {
+        let f = vec!["ActivityManager:I".to_string(), "*:S".to_string()];
+        assert_eq!(logcat_args(Some(500), &f), f, "no -t with a filter");
+        assert_eq!(logcat_args(Some(50), &[]), vec!["-t", "50"]);
+        assert!(logcat_args(None, &[]).is_empty());
+        assert_eq!(tail_lines("a\nb\nc\n", 2), "b\nc\n");
+        assert_eq!(tail_lines("a\n", 5), "a\n");
+        assert_eq!(tail_lines("", 5), "");
     }
 
     #[test]

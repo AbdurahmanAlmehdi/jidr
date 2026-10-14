@@ -86,6 +86,14 @@ impl AospBackend {
         if !opts.audio {
             a.push("-no-audio".into());
         }
+        for (flag, cam) in [
+            ("-camera-back", &opts.camera_back),
+            ("-camera-front", &opts.camera_front),
+        ] {
+            if let Some(c) = cam {
+                a.extend([flag.to_string(), c.clone()]);
+            }
+        }
         if let Some(r) = &opts.ramdisk {
             a.extend(["-ramdisk".into(), r.to_string_lossy().into_owned()]);
         }
@@ -456,6 +464,8 @@ mod tests {
             audio: false,
             snapshot_save: false,
             boot_timeout: Duration::from_secs(1),
+            camera_back: Some("webcam0".into()),
+            camera_front: Some("emulated".into()),
         };
         let all = AospBackend::args(&spec(), &opts, ports).join(" ");
         for want in [
@@ -465,6 +475,8 @@ mod tests {
             "-wipe-data",
             "-no-audio",
             "-ramdisk /avd/dev1.avd/jidr/ramdisk.magisk-27.img",
+            "-camera-back webcam0",
+            "-camera-front emulated",
         ] {
             assert!(all.contains(want), "missing {want}: {all}");
         }
