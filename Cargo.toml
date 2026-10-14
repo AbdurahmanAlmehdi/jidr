@@ -1,0 +1,113 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/jidr-core",
+    "crates/jidr-proto",
+    "crates/jidr-adb",
+    "crates/jidr-sdk",
+    "crates/jidr-backend",
+    "crates/jidr-daemon",
+    "crates/jidr-client",
+    "crates/jidr-mcp",
+    "crates/jidr-widgets",
+    "crates/jidr-cpio",
+    "crates/jidr-root",
+    "crates/jidr-ui",
+    "apps/jidr",
+    "apps/jidr-gui",
+    "xtask",
+    "spikes/display",
+]
+default-members = ["apps/jidr"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.99"
+license = "Apache-2.0"
+repository = "https://github.com/AbdurahmanAlmehdi/jidr"
+homepage = "https://jidr.ly"
+authors = ["Jidr contributors"]
+publish = false
+
+# Shared versions for every stream. Crates opt in with `name.workspace = true`;
+# unused entries cost nothing. Streams B and C add new deps in their own crate
+# manifests and ask Stream A (docs/gaps.md) to promote them here if shared.
+[workspace.dependencies]
+# Internal
+jidr-core = { path = "crates/jidr-core" }
+jidr-proto = { path = "crates/jidr-proto" }
+jidr-adb = { path = "crates/jidr-adb" }
+jidr-sdk = { path = "crates/jidr-sdk" }
+jidr-backend = { path = "crates/jidr-backend" }
+jidr-daemon = { path = "crates/jidr-daemon" }
+jidr-client = { path = "crates/jidr-client" }
+jidr-mcp = { path = "crates/jidr-mcp" }
+jidr-widgets = { path = "crates/jidr-widgets" }
+jidr-cpio = { path = "crates/jidr-cpio" }
+jidr-root = { path = "crates/jidr-root" }
+jidr-ui = { path = "crates/jidr-ui" }
+
+# Runtime + serialization
+tokio = { version = "1.53", features = ["rt-multi-thread", "macros", "net", "io-util", "process", "fs", "sync", "time", "signal"] }
+tokio-stream = "0.1.19"
+futures = "0.3.34"
+async-trait = "0.1"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = { version = "1.0.154", features = ["preserve_order"] }
+schemars = { version = "1.2", features = ["uuid1", "chrono04"] }
+toml = "0.9"
+thiserror = "2.0"
+anyhow = "1.0"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter", "fmt"] }
+uuid = { version = "1.28", features = ["v4", "serde"] }
+chrono = { version = "0.4.45", default-features = false, features = ["clock", "serde", "std"] }
+sha2 = "0.11"
+hex = "0.4.3"
+dirs = "7.0"
+which = "8.0"
+
+# gRPC
+tonic = "0.14.6"
+tonic-prost = "0.14.6"
+tonic-prost-build = "0.14.6"
+prost = "0.14.4"
+
+# CLI / MCP / GUI
+clap = { version = "4.6", features = ["derive", "env"] }
+clap_complete = "4.6"
+rmcp = "3.5"
+slint = "1.18"
+png = "0.18"
+zip = { version = "9", default-features = false, features = ["deflate"] }
+sha1 = "0.11"
+
+# Tests + tooling
+assert_cmd = "2.2"
+tempfile = "3.27"
+proptest = "1.12"
+cargo_metadata = "0.23"
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+# Never-crash policy: no unwrap/expect/panic outside tests (clippy.toml allows them in tests).
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+dbg_macro = "deny"
+
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "debuginfo"

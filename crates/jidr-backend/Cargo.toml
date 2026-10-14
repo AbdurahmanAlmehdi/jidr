@@ -1,0 +1,35 @@
+[package]
+name = "jidr-backend"
+description = "Backend trait and the AOSP emulator backend (spawn, discovery, gRPC/console clients, boot wait, crash detection)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[dependencies]
+jidr-core.workspace = true
+jidr-proto.workspace = true
+jidr-adb.workspace = true
+jidr-sdk.workspace = true
+tokio.workspace = true
+tonic.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+schemars.workspace = true
+chrono.workspace = true
+tracing.workspace = true
+dirs.workspace = true
+async-trait.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+# Tests that need a running Android emulator (Linux KVM in CI, arm64 on the dev Mac).
+emulator = []
