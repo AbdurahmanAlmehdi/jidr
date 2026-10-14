@@ -129,3 +129,20 @@ Built:
 - Gap B7: tags file and refusal shape, for Stream C's 9c/9d.
 
 Validation: `cargo nextest run -p jidr-widgets --features emulator -- snapshot` → `snapshot_round_trip_and_cross_root_refusal` passed (55.6 s): marker `before` → save "Clean install" (tag `none`) → marker `after` → load → marker `before`; after the device's root mode changes to Shell root (what `root.set` does), the load is refused ("taken with Not rooted … Shell root now", `refused = root_mode`) and the list shows `restorable: false`; delete removes it. Goldens 105 (manager, refusal, save dialog × 3). `cargo xtask ci` ok (169 tests).
+
+## 2026-10-14 · Stream B summary
+
+Goal check (exit 0): `cargo nextest run -p jidr-ui -p jidr-widgets` (62 passed) `&& cargo run -p jidr-ui --example snapshot -- --check` (105 renders ok) `&& cargo nextest run -p jidr-widgets --features emulator` (26 passed in 534 s on the API 31 arm64 image, incl. the 5-minute recording). Phases 7a, 7b, 7c, 8a, 8b, 10a and 10b are Done in the plan, one commit each.
+
+Done:
+- GUI (`crates/jidr-ui`, `apps/jidr-gui`): generated theme and icons, bundled fonts, Workbench shell with tabs, launcher, first-run setup, create/edit sheet, settings, command palette, device window with the direct gRPC player (60 fps, touch → next frame 8.3 ms median in release), toolbar, drag-drop, logcat, widget panels, GPS map, recording clock, snapshot manager. 35 screen states × dark/light/RTL in goldens.
+- Widgets (`crates/jidr-widgets`, Apache-2.0, no Slint): `provider()` (gap A1) with `app.*`, `battery.*`, `sensor.*`, `network.*`, `phone.*`, `key.press`, `dev.*`, `clipboard.*`, `fingerprint.*`, `camera.*`, `gps.*`, `media.*`, `snapshot.*`; each checked on a real emulator. `examples/dev-daemon.rs` for live runs.
+
+Deferred / not done:
+- Human-only checks: a physical Finder drag and a trackpad scroll in the player (same handlers driven from code), and a first-run walkthrough with a real 2 GB download (the GUI can't start a daemon yet, gap B1).
+- Recording audio (D13, post-MVP); the device rotating mid-recording keeps the first frame's size.
+- Fullscreen window mode; live appearance switching follows macOS only at launch (System) or on the Settings toggle.
+- Out of scope per the brief: identifiers, audio injection, rich biometric scenarios, every 🔎 row.
+- RTL is explicit mirroring (Slint 1.18 has none); a few button groups (Setup footer) keep LTR order inside the mirrored layout.
+
+Open gaps (docs/gaps.md): A1 (A registers `jidr_widgets::provider()`), B1 (`jidr daemon`), B2 (lockfile: slint-build, slint `unstable-winit-030`, reqwest in jidr-ui; zip + objc2 AVFoundation crates in jidr-widgets), B3 (root UI slots for C), B4 (daemon-side settings), B5 (job bytes), B6 (`root.module.install` for zip drops), B7 (snapshot tags for C).
