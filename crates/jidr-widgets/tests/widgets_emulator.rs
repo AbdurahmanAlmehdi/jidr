@@ -16,6 +16,27 @@ fn rotation(env: &common::Env) -> Option<u32> {
     })
 }
 
+/// Whether `svc data disable` reached the settings. Depending on the image it
+/// writes the global `mobile_data` or the per-subscription `mobile_data<subId>`
+/// key; either one turning 0 counts.
+fn mobile_data_off(settings: &str) -> bool {
+    settings.lines().any(|l| {
+        l.split_once('=').is_some_and(|(k, v)| {
+            k.strip_prefix("mobile_data")
+                .is_some_and(|sub| sub.chars().all(|c| c.is_ascii_digit()))
+                && v.trim() == "0"
+        })
+    })
+}
+
+#[test]
+fn mobile_data_off_reads_either_key() {
+    assert!(mobile_data_off("wifi_on=0\nmobile_data=0\n"));
+    assert!(mobile_data_off("mobile_data=1\nmobile_data1=0\n"));
+    assert!(!mobile_data_off("mobile_data=1\nmobile_data1=1\n"));
+    assert!(!mobile_data_off("mobile_data_always_on=0\nmobile_data=1\n"));
+}
+
 fn wcdma_ss(env: &common::Env) -> Option<i32> {
     let reg = env.shell("dumpsys telephony.registry");
     let at = reg.find("CellSignalStrengthWcdma: ss=")? + "CellSignalStrengthWcdma: ss=".len();
@@ -74,7 +95,7 @@ async fn widgets_core_commands() {
     })
     .await;
     env.eventually("mobile data off", |e| {
-        e.shell("settings get global mobile_data").trim() == "0"
+        mobile_data_off(&e.shell("settings list global"))
     })
     .await;
     let status = env.adb(&["emu", "network", "status"]);
