@@ -85,6 +85,10 @@ Users are technical, on macOS (Apple Silicon), and often keep the app open all d
 - Logcat lines: `I/ActivityManager: Start proc 4821:com.example.shop/u0a190`, `W/Magisk: su: request from uid 10190 (com.example.shop)`, `E/AndroidRuntime: FATAL EXCEPTION: main`.
 - CLI snippet: `jidr device create "Pixel-ish 6.1" --api 35 --root magisk --wait-boot`.
 
-## 8. Tone
+## 8. Brand
+
+The app icon and symbol are done: see `assets/brand/README.md` (symbol = a root growing into a phone outline; brand blue `#2A88FA → #1267E0`, lilac `#B9A6F7` for the Arabic wordmark).
+
+## 9. Tone
 
 Confident, technical, warm. Short labels. Say what happens ("Reboots the device to finish root setup (about 40 s)"). No hype, no exclamation marks, no emoji in the UI.
