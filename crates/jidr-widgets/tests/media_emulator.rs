@@ -23,6 +23,12 @@ async fn media_screenshot_and_five_minute_recording() {
         "{s}"
     );
 
+    // Recording encodes with AVFoundation (VideoToolbox): macOS only.
+    if !cfg!(target_os = "macos") {
+        env.stop().await;
+        return;
+    }
+
     // Recording at a constant 30 fps (the last frame repeats while the screen is still).
     let mp4 = env.tmp.path().join("rec.mp4");
     let started = std::time::Instant::now();
