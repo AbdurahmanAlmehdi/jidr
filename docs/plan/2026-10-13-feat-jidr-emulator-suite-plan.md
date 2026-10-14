@@ -299,7 +299,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `cargo nextest run -p jidr-widgets --features emulator -- gps`
 
 ### Phase 10a (B): Screenshots + recording
-- **Status:** Not started
+- **Status:** Done (5-minute recording on API 31 arm64: ffprobe h264, 300.000 s, 9000 frames; see log/devlog-b.md)
 - **Scope:** `media.screenshot` (PNG to folder + clipboard); `media.record` encodes the frame stream to MP4/H.264 with VideoToolbox (D13; audio post-MVP).
 - **Files touched:** `crates/jidr-widgets/src/media/**`, `crates/jidr-ui/src/recording.rs`
 - **Acceptance criteria:** a 5-minute recording passes `ffprobe` (codec h264, duration ≈300 s ±2 s, frame count ≥ 30×300×0.9).

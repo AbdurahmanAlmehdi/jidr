@@ -28,6 +28,16 @@ dirs.workspace = true
 png.workspace = true
 zip = { version = "9", default-features = false, features = ["deflate"] }
 
+# MP4/H.264 through AVFoundation, which encodes with VideoToolbox (D13).
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+block2 = "0.6"
+objc2-foundation = "0.3"
+objc2-core-foundation = "0.3"
+objc2-av-foundation = { version = "0.3", features = ["objc2-core-media", "objc2-core-video", "block2"] }
+objc2-core-media = "0.3"
+objc2-core-video = "0.3"
+
 [dev-dependencies]
 jidr-daemon.workspace = true
 jidr-client.workspace = true

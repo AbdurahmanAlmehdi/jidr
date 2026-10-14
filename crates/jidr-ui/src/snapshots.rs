@@ -434,6 +434,15 @@ pub fn cases() -> Vec<Case> {
             },
         },
         Case {
+            name: "player-recording",
+            render: |v| {
+                let app = device_tab(v, 0)?;
+                app.set_player_recording(true);
+                app.set_player_record_text("Recording 1:24".into());
+                shot(&app, 1440, 900)
+            },
+        },
+        Case {
             name: "player-booting",
             render: |v| {
                 let app = device_tab(v, 2)?;

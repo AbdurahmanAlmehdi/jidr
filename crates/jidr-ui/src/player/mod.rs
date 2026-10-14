@@ -328,66 +328,8 @@ fn tool_action(ctx: &Rc<Ctx>, tool: &str) {
                 report(&w, ""),
             );
         }
-        "screenshot" => {
-            let w2 = w.clone();
-            ctx.bridge.call(
-                "media.screenshot",
-                json!({ "device": id }),
-                move |r| match r {
-                    Ok(v) => {
-                        let path = v
-                            .get("path")
-                            .and_then(|p| p.as_str())
-                            .unwrap_or_default()
-                            .to_string();
-                        copy_image(&path);
-                        toast(&w2, format!("Saved {} and copied it", file_name(&path)));
-                    }
-                    Err(e) => toast(&w2, e.message),
-                },
-            );
-        }
-        "record" => {
-            let recording = ctx.app.get_player_recording();
-            if recording {
-                ctx.app.set_player_recording(false);
-                let w2 = w.clone();
-                ctx.bridge.call(
-                    "media.record_stop",
-                    json!({ "device": id }),
-                    move |r| match r {
-                        Ok(v) => {
-                            let path = v
-                                .get("path")
-                                .and_then(|p| p.as_str())
-                                .unwrap_or_default()
-                                .to_string();
-                            toast(&w2, format!("Saved {}", file_name(&path)));
-                        }
-                        Err(e) => toast(&w2, e.message),
-                    },
-                );
-            } else {
-                ctx.app.set_player_recording(true);
-                let w2 = w.clone();
-                ctx.bridge.run(
-                    "media.record",
-                    json!({ "device": id }),
-                    |_| {},
-                    move |r| {
-                        let weak = w2.clone();
-                        let _ = slint::invoke_from_event_loop(move || {
-                            if let Some(app) = weak.upgrade() {
-                                app.set_player_recording(false);
-                            }
-                        });
-                        if let Err(e) = r {
-                            toast(&w2, e.message);
-                        }
-                    },
-                );
-            }
-        }
+        "screenshot" => crate::recording::screenshot(ctx, id),
+        "record" => crate::recording::toggle(ctx, id),
         "clipboard" => {
             let on = {
                 let mut p = ctx.player.borrow_mut();
@@ -417,26 +359,7 @@ fn tool_action(ctx: &Rc<Ctx>, tool: &str) {
     }
 }
 
-fn file_name(path: &str) -> String {
-    Path::new(path)
-        .file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_else(|| path.to_string())
-}
-
-/// Puts a PNG on the macOS pasteboard.
-fn copy_image(path: &str) {
-    if path.is_empty() {
-        return;
-    }
-    let script = format!(
-        "set the clipboard to (read (POSIX file \"{}\") as «class PNGf»)",
-        path.replace('"', "\\\"")
-    );
-    let _ = std::process::Command::new("osascript")
-        .args(["-e", &script])
-        .spawn();
-}
+use crate::recording::file_name;
 
 fn toggle_overlay(ctx: &Rc<Ctx>) {
     let on = !ctx.app.get_player_overlay();

@@ -108,3 +108,13 @@ Built:
 - Test app: `build-hello-apk.sh … locprobe` builds `ly.jidr.locprobe`, which requests GPS updates and logs each fix. Without a client asking for location, `dumpsys location` never shows a fix.
 
 Validation: `cargo nextest run -p jidr-widgets --features emulator -- gps` → `gps_fix_and_route_replay` passed (67.6 s incl. boot): `Location[gps 32.895400,13.180198 …]` in `dumpsys location`; a 3-point GPX at 600 m/s produced probe fixes near point 1, then 2, then 3 with latitude only falling. Goldens 93, `cargo xtask ci` ok (160 tests). One OSM tile fetched with the app's User-Agent: HTTP 200 PNG.
+
+## 2026-10-14 · Phase 10a plan + done: screenshots and recording
+
+Plan: `media.screenshot` (gRPC `getScreenshot` as PNG, saved to `~/Pictures/Jidr` by default; the GUI also copies it to the pasteboard) and `media.record` (a job: the daemon streams RGBA frames from the emulator at the device size with the long side capped at 1280, encodes MP4/H.264 at a constant 30 fps, repeating the last frame while the screen is still, until `media.record_stop`, `max_seconds` or cancel, which discards the file). Encoder: AVFoundation's `AVAssetWriter` (VideoToolbox in hardware, D13) through the MIT/Apache `objc2` bindings, in one module (`media/mp4.rs`) that allows `unsafe` with a comment; macOS only, elsewhere the command explains why it can't record.
+
+Built: `crates/jidr-widgets/src/media/{mod,mp4}.rs`; GUI `src/recording.rs` (toolbar screenshot → pasteboard via `osascript`, record toggle with a "Recording m:ss" pill from the job's progress; stop goes through `media.record_stop` and the job reports the file).
+
+Validation: `cargo nextest run -p jidr-widgets --features emulator -- media` → `media_screenshot_and_five_minute_recording` passed (397.5 s): screenshot 720×1280 PNG; recording returned 9000 frames in 300.1 s; `ffprobe` → `codec_name h264`, `duration 300.000000`, `nb_read_frames 9000` (needs ≥ 8100). Unit test `writes_an_mp4` encodes 2 s directly. `cargo xtask ci` ok (164 tests); 96 goldens incl. the recording pill.
+
+Not done: audio (post-MVP, D13). Rotating the device mid-recording pads/crops to the first frame's size.

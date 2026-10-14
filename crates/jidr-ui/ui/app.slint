@@ -69,6 +69,7 @@ export component AppWindow inherits Window {
     in-out property <bool> player-pixel-perfect;
     in-out property <float> player-scale: 1.0;
     in-out property <bool> player-recording;
+    in-out property <string> player-record-text;
     in-out property <bool> player-panel-open: true;
     in-out property <int> player-panel-tab: 0;
     in-out property <bool> player-clipboard;
@@ -253,6 +254,7 @@ export component AppWindow inherits Window {
                 pixel-perfect <=> root.player-pixel-perfect;
                 scale: root.player-scale;
                 recording: root.player-recording;
+                record-text: root.player-record-text;
                 panel-open <=> root.player-panel-open;
                 clipboard-shared: root.player-clipboard;
                 overlay: root.player-overlay;
