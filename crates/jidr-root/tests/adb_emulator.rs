@@ -14,7 +14,7 @@ use std::time::Instant;
 use jidr_backend::AospBackend;
 use jidr_backend::testing::{AvdGuard, kill_orphans, unique_avd};
 use jidr_core::provider::{CallCtx, DaemonContext};
-use jidr_core::{ErrorCode, JidrPaths, RootHealth, RootMode};
+use jidr_core::{JidrPaths, RootHealth, RootMode};
 use jidr_daemon::{Daemon, DaemonConfig};
 use serde_json::{Value, json};
 
@@ -124,17 +124,7 @@ async fn adb_root_cycle_none_adb_none() {
     assert_eq!(r["applied"], "live");
     assert_ne!(r["verification"]["uid"], 0, "{r}");
 
-    // 5. Magisk isn't available yet (9d).
-    let (p, _) = daemon.registry().get("root.set").unwrap();
-    let err = p
-        .call(
-            &ctx,
-            "root.set",
-            json!({ "device": name, "mode": "magisk" }),
-        )
-        .await
-        .unwrap_err();
-    assert_eq!(err.code, ErrorCode::Usage);
+    // Magisk mode (9d) is covered by magisk_emulator.rs.
 
     call(&daemon, &ctx, "device.stop", json!({ "device": name })).await;
     call(&daemon, &ctx, "device.delete", json!({ "device": name })).await;

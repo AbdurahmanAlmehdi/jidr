@@ -91,6 +91,31 @@ fn find_search_field(xml: &str) -> Option<(u32, u32)> {
         })
 }
 
+/// The "Wait" button of an "… isn't responding" dialog, if one is up. On a
+/// slow first boot the launcher can hang for a while (API 30 CI); an agent
+/// taps Wait and carries on.
+fn anr_wait(xml: &str) -> Option<(u32, u32)> {
+    if xml.contains("isn't responding") {
+        find(xml, "Wait")
+    } else {
+        None
+    }
+}
+
+/// Taps Wait on an "isn't responding" dialog. True if there was one.
+async fn dismiss_anr(mcp: &Mcp, dev: &str, xml: &str) -> bool {
+    let Some((x, y)) = anr_wait(xml) else {
+        return false;
+    };
+    mcp.ok(
+        "tap",
+        json!({ "device": dev, "x": x, "y": y, "coords": "device" }),
+    )
+    .await;
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    true
+}
+
 /// Polls ui_dump until `pred` holds.
 async fn wait_ui(mcp: &Mcp, dev: &str, secs: u64, pred: impl Fn(&str) -> bool) -> String {
     let deadline = Instant::now() + Duration::from_secs(secs);
@@ -203,6 +228,7 @@ async fn five_agent_tasks() {
         if find(&drawer, "Settings").is_some() {
             break;
         }
+        dismiss_anr(&mcp, dev, &drawer).await;
     }
     let (x, y) = find(&drawer, "Settings")
         .unwrap_or_else(|| panic!("no Settings icon:\n{}", &drawer[..drawer.len().min(3000)]));
@@ -236,6 +262,7 @@ async fn five_agent_tasks() {
             if field.is_some() {
                 break;
             }
+            dismiss_anr(&mcp, dev, &xml).await;
         }
         if let Some((fx, fy)) = field {
             mcp.ok(
@@ -368,6 +395,18 @@ fn search_field_falls_back_to_the_text_field() {
     assert_eq!(find_search_field(by_id), Some((5, 5)));
     assert_eq!(
         find_search_field(r#"<node text="Clock" bounds="[0,0][2,2]" />"#),
+        None
+    );
+}
+
+/// Regression: on API 30 CI the launcher hung after boot and its "isn't
+/// responding" dialog hid the app drawer, so task 2 found no Settings icon.
+#[test]
+fn anr_dialog_is_answered_with_wait() {
+    let anr = r#"<node text="Pixel Launcher isn't responding" bounds="[0,0][400,60]" /><node text="Close app" bounds="[0,100][400,140]" /><node text="Wait" bounds="[0,160][400,200]" />"#;
+    assert_eq!(anr_wait(anr), Some((200, 180)));
+    assert_eq!(
+        anr_wait(r#"<node text="Wait" bounds="[0,0][2,2]" />"#),
         None
     );
 }
