@@ -146,3 +146,15 @@ Deferred / not done:
 - RTL is explicit mirroring (Slint 1.18 has none); a few button groups (Setup footer) keep LTR order inside the mirrored layout.
 
 Open gaps (docs/gaps.md): A1 (A registers `jidr_widgets::provider()`), B1 (`jidr daemon`), B2 (lockfile: slint-build, slint `unstable-winit-030`, reqwest in jidr-ui; zip + objc2 AVFoundation crates in jidr-widgets), B3 (root UI slots for C), B4 (daemon-side settings), B5 (job bytes), B6 (`root.module.install` for zip drops), B7 (snapshot tags for C).
+
+## 2026-10-14: merge with Stream A, first CI run on PR #3
+
+Merged `origin/stream/a-core` and `origin/main`. In gaps.md, A's G6/G7 replace my A1/A2 rows, and B1 is done (`jidr daemon` exists; widget commands appear once A registers the provider, G6). `Cargo.lock`: A's lock plus Stream B's 18 packages.
+
+The first GitHub CI run found three Stream B problems my Mac runs couldn't show:
+- Linux clippy: `lcd_size`, `Latest` and `Instant` are only used by the macOS recorder, so they were dead code on Linux. Now `cfg(target_os = "macos")`.
+- macOS clippy on the runner: its SDK's newer `emulator_controller.proto` marks `hardwareConfig` deprecated (the vendored copy and emulator 35.6.11's don't). `#[allow(deprecated)]` on the one read, with a comment.
+- Snapshots on the Linux emulator: `snapshot.save "Clean install"` was stored as `Clean_install`, so the tag keyed by the typed name went missing (`root_mode: null`, no D29 refusal). Jidr now picks the folder id itself (`snapshot_id`: ASCII letters, digits and `-._` stay, other ASCII → `_`, other characters → `x<hex>` so Arabic names stay distinct), keys tags by id with the typed name as `label`, adds a `-2` suffix when a different name maps to a taken id, and resolves names through labels in load/delete. Regression test: `ids_are_folder_safe_and_names_resolve_through_labels`. `snapshot_round_trip_and_cross_root_refusal` passes again on API 31 arm64 (67 s).
+- The media test skips its recording half off macOS (recording uses VideoToolbox).
+
+On Linux KVM API 30, `gps_fix_and_route_replay` and the media test (screenshot half) passed. The API 33 job failed in Stream A's `five_agent_tasks` ("UI never matched"). It passed on API 30, on main's last run, and this branch doesn't touch jidr-mcp, so it looks flaky.

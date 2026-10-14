@@ -9,7 +9,9 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::Duration;
+#[cfg(target_os = "macos")]
+use std::time::Instant;
 
 use jidr_core::provider::{CallCtx, CommandSpec, DeviceParams, parse_params};
 use jidr_core::{JidrError, JidrResult};
@@ -94,6 +96,7 @@ pub fn record_size(w: u32, h: u32) -> (u32, u32) {
     (w & !1, h & !1)
 }
 
+#[cfg(target_os = "macos")]
 async fn lcd_size(t: &Target) -> JidrResult<(u32, u32)> {
     let st = t
         .grpc()
@@ -102,6 +105,9 @@ async fn lcd_size(t: &Target) -> JidrResult<(u32, u32)> {
         .await
         .map_err(grpc_err("getStatus"))?
         .into_inner();
+    // Newer SDK protos mark `hardwareConfig` deprecated; the build uses the
+    // installed SDK's protos when there is one, so allow it either way.
+    #[allow(deprecated)]
     let get = |k: &str| {
         st.hardware_config
             .as_ref()
@@ -199,6 +205,7 @@ pub async fn call(
 }
 
 /// The latest frame from the stream.
+#[cfg(target_os = "macos")]
 #[derive(Default)]
 struct Latest {
     frame: Option<(u32, u32, Vec<u8>)>,
