@@ -25,6 +25,7 @@ pub fn wire(ctx: &Rc<Ctx>) {
         let id = c.device_id(i);
         c.state.borrow_mut().selected = id;
         c.rerender();
+        crate::snapshots::load(&c);
     });
 
     let c = ctx.clone();

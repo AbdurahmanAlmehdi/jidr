@@ -11,8 +11,8 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+use jidr_ui::goldens::{Variant, cases};
 use jidr_ui::offscreen;
-use jidr_ui::snapshots::{Variant, cases};
 
 /// A channel may drift this much (font hinting, rounding)…
 const TOLERANCE: u8 = 24;
