@@ -45,6 +45,7 @@ pub fn wire(ctx: &Rc<Ctx>) {
 
     let c = ctx.clone();
     app.on_shortcut(move |s| match s.as_str() {
+        p if crate::player::shortcut(&c, p) => {}
         "library" => {
             c.state.borrow_mut().active = None;
             c.rerender();

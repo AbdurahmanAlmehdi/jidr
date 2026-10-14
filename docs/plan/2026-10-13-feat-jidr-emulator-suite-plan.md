@@ -278,7 +278,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `cargo run -p jidr-ui --example snapshot -- --check`
 
 ### Phase 7c (B): Player window
-- **Status:** Not started
+- **Status:** Done (release build, API 31 arm64, `-gpu host`: 60.0 fps active scrolling Settings for 30 s, touch → next frame 8.3 ms median / 14.5 ms p90, player CPU 15%; a dropped APK installed and opened; see log/devlog-b.md)
 - **Scope:** per `docs/design/screens/Device.dc.html` (concept 4A: docked widget panel): direct gRPC frame stream from `device.connect_info` (ADR-0001 transport), input (mouse, keyboard, multitouch via modifiers), right toolbar (volume, rotate, pixel-perfect, back/home/recents, power, screenshot, record), drag-drop (apk → install with signature-mismatch prompt; zip → Magisk module install + reboot on Full-root devices, otherwise pushed to `/sdcard/Download` with a note (D35); other → `/sdcard/Download`), shared clipboard toggle, widget panel host.
 - **Files touched:** `crates/jidr-ui/src/player/**`
 - **Acceptance criteria:** player hits the ADR-0001 budget on the dev Mac; drag-drop installs an APK; golden snapshots of the chrome.

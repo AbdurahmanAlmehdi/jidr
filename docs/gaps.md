@@ -586,6 +586,7 @@ Streams: **A** core (daemon, CLI, MCP, backend, SDK) · **B** player and widgets
 | B3 | FYI, root UI slots for 9e: B ships a basic `RootBadge` (`crates/jidr-ui/ui/components/status.slint`) and a three-card root-mode picker in the create sheet so 7b works. C can restyle or replace them from `crates/jidr-ui/src/root/**`; ask B for a new slot through this table. | B | C | 9e | — | Open | |
 | B4 | Daemon-side settings the GUI's Settings › General shows: default root mode (also used by `jidr device create` without `--root`) and "save quick boot on stop" (D29). Today the GUI keeps both in `gui-prefs.json`, so the CLI doesn't see them. | B | A | none (7b ships with local prefs) | `settings.get` / `settings.set {default_root_mode, quick_boot}` | Open | |
 | B5 | Bytes in job progress: `image.install` / `sdk.install` report only a fraction and `"{phase} {package}"`. The design shows "1.4 / 2.1 GB"; the GUI derives it from the catalog size × fraction. Real `done`/`total` bytes in `job.progress` data would make it exact. | B | A | none | `job.progress {…, bytes_done, bytes_total}` | Open | |
+| B6 | The player's zip drop on a Full-root device calls `root.module.install {device, path}` (9d, D35) as a job. Until that command exists the player copies the zip to `/sdcard/Download` and says so. | B | C | none (fallback in place) | `root.module.install` as planned in 9d | Open | |
 
 **Status:** Open → Planned → In progress → Done (link the commit) / Won't do (with reason).
 

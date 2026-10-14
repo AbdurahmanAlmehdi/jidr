@@ -1,0 +1,585 @@
+// Device window, concept 4A (docs/design/screens/Device.dc.html): the
+// Android screen is the hero; toolbar and docked widget panel beside it.
+// The screen, logcat and code never mirror in RTL; the chrome does.
+
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { T, Role, Tone, Tones, Icon, IconButton, Button, ButtonKind, Pill, Kbd, Segmented, TextField, Scroll } from "components/base.slint";
+import { StatusPill } from "components/status.slint";
+import { DeviceVm, DevState, FormFactor, LogLine } from "types.slint";
+
+/// Our own sample app for snapshots (no Android or Google UI): the
+/// delivery screen from the design.
+export component MockScreen inherits Rectangle {
+    background: #f7f7f5;
+    property <float> u: self.width / 360px;
+    VerticalLayout {
+        padding-left: 16px * u;
+        padding-right: 16px * u;
+        padding-top: 24px * u;
+        spacing: 12px * u;
+        alignment: start;
+        Text { text: "Delivering to"; color: #6b6b6b; font-size: 12px * u; font-family: Theme.font-ui; }
+        Text { text: "Martyrs' Square, Tripoli"; color: #1b1b1b; font-size: 18px * u; font-weight: 700; font-family: Theme.font-ui; }
+        Rectangle {
+            height: 220px * u;
+            border-radius: 14px * u;
+            background: #e9e5da;
+            clip: true;
+            Rectangle { y: 0px; height: 60px * u; background: #c9d6dc; }
+            Rectangle { x: 90px * u; width: 10px * u; background: #ffffff; }
+            Rectangle { x: 200px * u; width: 10px * u; background: #ffffff; }
+            Rectangle { y: 110px * u; height: 10px * u; background: #ffffff; }
+            Rectangle { y: 170px * u; height: 8px * u; background: #ffffff; }
+            Rectangle { x: 150px * u; y: 100px * u; width: 28px * u; height: 28px * u; border-radius: 14px * u; background: #1f4fb8.with-alpha(0.25);
+                Rectangle { width: 12px * u; height: 12px * u; border-radius: 6px * u; background: #1f4fb8; }
+            }
+        }
+        Rectangle {
+            height: 64px * u;
+            border-radius: 14px * u;
+            background: #ffffff;
+            Text { x: 14px * u; y: 14px * u; text: "Courier is 4 min away"; color: #1b1b1b; font-size: 14px * u; font-weight: 600; font-family: Theme.font-ui; }
+            Text { x: 14px * u; y: 36px * u; text: "3 items · paid"; color: #6b6b6b; font-size: 12px * u; font-family: Theme.font-ui; }
+        }
+        Rectangle {
+            height: 44px * u;
+            border-radius: 22px * u;
+            background: #1f4fb8;
+            Text { text: "Track order"; color: #ffffff; font-size: 14px * u; font-weight: 600; font-family: Theme.font-ui; }
+        }
+        for row in [{ a: "Bakery", b: "0.4 km" }, { a: "Pharmacy", b: "0.9 km" }]: Rectangle {
+            height: 40px * u;
+            Text { x: 0px; text: row.a; color: #1b1b1b; font-size: 13px * u; font-family: Theme.font-ui; }
+            Text { x: parent.width - self.width; text: row.b; color: #1b1b1b; font-size: 13px * u; font-family: Theme.font-ui; }
+            Rectangle { y: parent.height - 1px; height: 1px; background: #e4e4e0; }
+        }
+    }
+    Rectangle {
+        y: parent.height - 14px * u;
+        width: 120px * u;
+        height: 4px * u;
+        border-radius: 2px * u;
+        background: #1b1b1b;
+    }
+}
+
+/// The vertical device toolbar (`.vtool`), 48 px.
+component Toolbar inherits Rectangle {
+    in property <bool> pixel-perfect;
+    in property <bool> recording;
+    in property <bool> panel-open;
+    in property <bool> running;
+    in property <bool> clipboard-shared;
+    callback tool(string);
+    width: Theme.window-device-toolbar-width;
+    background: Theme.surface-chrome;
+    Rectangle {
+        x: Theme.rtl ? parent.width - 1px : 0px;
+        width: 1px;
+        background: Theme.border-default;
+    }
+    VerticalLayout {
+        padding-top: 8px;
+        padding-bottom: 8px;
+        spacing: 2px;
+        alignment: start;
+        for t[i] in [
+            { id: "back", icon: Icons.arrow-left, sep: false },
+            { id: "home", icon: Icons.circle, sep: false },
+            { id: "recents", icon: Icons.square, sep: true },
+            { id: "volume-up", icon: Icons.volume-2, sep: false },
+            { id: "volume-down", icon: Icons.volume-1, sep: true },
+            { id: "rotate-left", icon: Icons.rotate-ccw, sep: false },
+            { id: "rotate-right", icon: Icons.rotate-cw, sep: false },
+            { id: "power", icon: Icons.power, sep: true },
+            { id: "screenshot", icon: Icons.camera, sep: false },
+            { id: "record", icon: Icons.circle-dot, sep: false },
+            { id: "pixel-perfect", icon: Icons.scan, sep: false },
+            { id: "clipboard", icon: Icons.clipboard, sep: false },
+        ]: Rectangle {
+            height: t.sep ? 43px : 34px;
+            IconButton {
+                y: 1px;
+                icon: t.icon;
+                enabled: root.running;
+                on: (t.id == "pixel-perfect" && root.pixel-perfect) || (t.id == "record" && root.recording) || (t.id == "clipboard" && root.clipboard-shared);
+                clicked => { root.tool(t.id); }
+            }
+            if t.id == "record" && root.recording: Rectangle {
+                x: parent.width / 2 - 5px;
+                y: 12px;
+                width: 10px;
+                height: 10px;
+                border-radius: 5px;
+                background: Theme.negative;
+            }
+            if t.sep: Rectangle {
+                x: (parent.width - 22px) / 2;
+                y: 38px;
+                width: 22px;
+                height: 1px;
+                background: Theme.border-default;
+            }
+        }
+    }
+    IconButton {
+        y: parent.height - 8px - self.height;
+        icon: Icons.panel-right;
+        on: root.panel-open;
+        clicked => { root.tool("panel"); }
+    }
+}
+
+/// Logcat panel (`.lcd`): level filter, text filter, rows, footer.
+component Logcat inherits Rectangle {
+    in property <[LogLine]> lines;
+    in property <string> summary;
+    in property <string> serial;
+    in-out property <int> min-level: 1;
+    in-out property <string> filter;
+    in property <bool> following: true;
+    callback level-changed(int);
+    callback filter-changed(string);
+    callback clear();
+    callback close();
+    callback toggle-follow();
+    height: 232px;
+    background: Theme.logcat-background;
+    Rectangle { y: 0px; height: 1px; background: Theme.border-default; }
+    bar := Rectangle {
+        y: 1px;
+        height: 42px;
+        background: Theme.surface-chrome;
+        // Logcat stays LTR in RTL builds.
+        HorizontalLayout {
+            padding: 8px;
+            spacing: 8px;
+            T { text: @tr("Logcat"); font-size: 12px; font-weight: 600; width: self.preferred-width; ltr: true; }
+            Segmented {
+                width: 190px;
+                height: 26px;
+                items: ["V", "D", "I", "W", "E", "F"];
+                mono: true;
+                stretch: true;
+                selected: root.min-level;
+                changed(i) => { root.level-changed(i); }
+            }
+            TextField {
+                width: 240px;
+                height: 26px;
+                placeholder: @tr("Filter tag, pid or text");
+                text: root.filter;
+                edited(t) => { root.filter-changed(t); }
+            }
+            Rectangle { horizontal-stretch: 1; }
+            Button {
+                small: true;
+                text: root.following ? @tr("Following") : @tr("Follow");
+                kbd: "⌘F";
+                clicked => { root.toggle-follow(); }
+            }
+            Button { small: true; icon-only: true; has-icon: true; kind: ButtonKind.tertiary; icon: Icons.trash-2; clicked => { root.clear(); } }
+            Button { small: true; icon-only: true; has-icon: true; kind: ButtonKind.tertiary; icon: Icons.x; clicked => { root.close(); } }
+        }
+        Rectangle { y: parent.height - 1px; height: 1px; background: Theme.border-default; }
+    }
+    rows := Flickable {
+        y: bar.y + bar.height;
+        height: parent.height - bar.height - 1px - 26px;
+        content-height: root.lines.length * 20px;
+        // Newest at the bottom while following.
+        changed content-height => {
+            if (root.following) {
+                self.content-y = min(0px, self.height - self.content-height);
+            }
+        }
+        for l[i] in root.lines: Rectangle {
+            y: i * 20px;
+            height: 20px;
+            background: l.level == "F" ? Theme.logcat-fatal-row : Math.mod(i, 2) == 1 ? Theme.logcat-row-alt : transparent;
+            property <color> lc: l.level == "V" ? Theme.logcat-verbose : l.level == "D" ? Theme.logcat-debug : l.level == "I" ? Theme.logcat-info
+                : l.level == "W" ? Theme.logcat-warn : l.level == "E" ? Theme.logcat-error : Theme.logcat-fatal;
+            T { x: 10px; width: 132px; text: l.ts; role: Role.code; color: Theme.logcat-meta; ltr: true; }
+            T { x: 146px; width: 44px; text: l.pid; role: Role.code; color: Theme.logcat-meta; ltr: true; horizontal-alignment: right; }
+            T { x: 198px; width: 20px; text: l.level; role: Role.code; font-weight: 600; color: lc; ltr: true; horizontal-alignment: center; }
+            T { x: 226px; width: 150px; text: l.tag; role: Role.code; color: Theme.logcat-tag; ltr: true; }
+            T { x: 384px; width: parent.width - 394px; text: l.msg; role: Role.code; color: l.level == "E" || l.level == "F" ? lc : Theme.text-primary; font-weight: l.level == "F" ? 600 : 400; ltr: true; }
+        }
+    }
+    Rectangle {
+        y: parent.height - 26px;
+        height: 26px;
+        background: Theme.surface-chrome;
+        Rectangle { y: 0px; height: 1px; background: Theme.border-default; }
+        T { x: 10px; width: parent.width / 2; text: root.summary; font-size: 11px; color: Theme.text-tertiary; ltr: true; }
+        T { x: parent.width / 2; width: parent.width / 2 - 10px; text: (root.following ? @tr("Following") : @tr("Paused")) + " · " + root.serial; font-size: 11px; color: Theme.text-tertiary; ltr: true; horizontal-alignment: right; }
+    }
+}
+
+/// Docked widget panel (`.wpanel`): tabs on top, the widget below.
+export component WidgetPanel inherits Rectangle {
+    in-out property <int> tab: 0;
+    callback tab-changed(int);
+    width: Theme.window-device-widget-panel-width;
+    background: Theme.surface-raised;
+    Rectangle {
+        x: Theme.rtl ? parent.width - 1px : 0px;
+        width: 1px;
+        background: Theme.border-default;
+    }
+    Rectangle {
+        y: 0px;
+        height: 55px;
+        Segmented {
+            x: 14px;
+            width: parent.width - 28px;
+            height: 30px;
+            stretch: true;
+            items: [@tr("Battery"), @tr("GPS"), @tr("Network"), @tr("Sensors"), "⋯"];
+            selected: root.tab;
+            changed(i) => {
+                root.tab = i;
+                root.tab-changed(i);
+            }
+        }
+        Rectangle { y: parent.height - 1px; height: 1px; background: Theme.border-default; }
+    }
+    Rectangle {
+        y: 56px;
+        height: parent.height - 56px;
+        @children
+    }
+}
+
+export component DeviceView inherits Rectangle {
+    in property <DeviceVm> device;
+    in property <image> frame;
+    in property <bool> has-frame;
+    /// Frame size in device pixels, in the current orientation.
+    in property <int> frame-w: device.width-px;
+    in property <int> frame-h: device.height-px;
+    in property <bool> mock-screen: false;
+    in-out property <bool> pixel-perfect: false;
+    in property <float> scale: 1.0;
+    in property <bool> recording;
+    in-out property <bool> panel-open: true;
+    in property <bool> clipboard-shared;
+    in property <bool> overlay;
+    in property <string> overlay-text;
+    in property <bool> drop-hover;
+    in property <string> drop-title;
+    in property <string> drop-body;
+    in-out property <bool> logcat-open: false;
+    in property <[LogLine]> log-lines;
+    in property <string> log-summary;
+    in property <int> log-errors;
+    in property <string> log-last-error;
+    in-out property <int> log-level: 1;
+    in-out property <string> log-filter;
+    in property <bool> log-following: true;
+
+    callback pointer(int, float, float, bool, bool);
+    callback wheel(length, length);
+    callback key(string, bool);
+    callback tool(string);
+    callback start();
+    /// The screen's size in logical px changed (re-request frames).
+    callback screen-resized(length, length);
+    callback log-level-changed(int);
+    callback log-filter-changed(string);
+    callback log-clear();
+    callback log-toggle-follow();
+    callback log-open(bool);
+    callback meta-key(string, bool, bool);
+
+    background: Theme.surface-base;
+    property <bool> running: device.state == DevState.running || device.state == DevState.busy;
+    property <length> tool-w: Theme.window-device-toolbar-width;
+    property <length> panel-w: root.panel-open ? Theme.window-device-widget-panel-width : 0px;
+    property <length> stage-w: root.width - tool-w - panel-w;
+    property <length> log-h: root.logcat-open ? 232px : 34px;
+
+    // Stage column (`.dv-stagecol`): stage + logcat.
+    stagecol := Rectangle {
+        x: Theme.rtl ? tool-w + panel-w : 0px;
+        width: stage-w;
+        height: parent.height;
+        stage := Rectangle {
+            y: 0px;
+            height: parent.height - log-h;
+            background: Theme.surface-sunken;
+            clip: true;
+            property <length> pad: Theme.frame-stage-padding;
+            property <length> bez: device.form == FormFactor.tablet ? Theme.frame-tablet-bezel : device.form == FormFactor.small-phone ? Theme.frame-small-phone-bezel : Theme.frame-phone-bezel;
+            property <length> rad: device.form == FormFactor.tablet ? Theme.frame-tablet-radius : device.form == FormFactor.small-phone ? Theme.frame-small-phone-radius : Theme.frame-phone-radius;
+            property <length> srad: device.form == FormFactor.tablet ? Theme.frame-tablet-screen-radius : device.form == FormFactor.small-phone ? Theme.frame-small-phone-screen-radius : Theme.frame-phone-screen-radius;
+            property <float> aspect: root.frame-w > 0 && root.frame-h > 0 ? root.frame-w / root.frame-h : 0.45;
+            // Fit: largest screen that fits, aspect kept.
+            property <length> fit-h: max(40px, min(self.height - 2 * pad - 2 * bez, (self.width - 2 * pad - 2 * bez) / aspect));
+            property <length> screen-h: root.pixel-perfect ? root.frame-h * 1px / root.scale : fit-h;
+            property <length> screen-w: screen-h * aspect;
+            changed screen-w => { root.screen-resized(self.screen-w, self.screen-h); }
+            changed screen-h => { root.screen-resized(self.screen-w, self.screen-h); }
+            init => { root.screen-resized(self.screen-w, self.screen-h); }
+
+            flick := Flickable {
+                content-width: max(self.width, stage.screen-w + 2 * stage.bez + 2 * stage.pad);
+                content-height: max(self.height, stage.screen-h + 2 * stage.bez + 2 * stage.pad);
+                interactive: root.pixel-perfect;
+                bezel := Rectangle {
+                    x: (flick.content-width - self.width) / 2;
+                    y: root.pixel-perfect ? stage.pad : (flick.content-height - self.height) / 2;
+                    width: stage.screen-w + 2 * stage.bez;
+                    height: stage.screen-h + 2 * stage.bez;
+                    border-radius: stage.rad;
+                    background: Theme.surface-device-bezel;
+                    border-width: 1px;
+                    border-color: #ffffff14;
+                    screen := Rectangle {
+                        x: stage.bez;
+                        y: stage.bez;
+                        width: stage.screen-w;
+                        height: stage.screen-h;
+                        border-radius: stage.srad;
+                        clip: true;
+                        background: #000000;
+                        if root.has-frame: Image {
+                            width: parent.width;
+                            height: parent.height;
+                            source: root.frame;
+                            image-fit: fill;
+                            image-rendering: smooth;
+                        }
+                        if root.mock-screen && !root.has-frame: MockScreen {}
+                        if !root.has-frame && !root.mock-screen: VerticalLayout {
+                            alignment: center;
+                            spacing: 10px;
+                            HorizontalLayout {
+                                alignment: center;
+                                StatusPill {
+                                    state: device.state;
+                                    text: device.status;
+                                }
+                            }
+                            if device.state == DevState.stopped || device.state == DevState.crashed: HorizontalLayout {
+                                alignment: center;
+                                Button {
+                                    kind: ButtonKind.primary;
+                                    has-icon: true;
+                                    icon: Icons.play;
+                                    text: @tr("Start");
+                                    clicked => { root.start(); }
+                                }
+                            }
+                        }
+                        touch := TouchArea {
+                            enabled: root.running;
+                            mouse-cursor: MouseCursor.default;
+                            pointer-event(ev) => {
+                                if (ev.button != PointerEventButton.left && ev.button != PointerEventButton.other) { return; }
+                                if (ev.kind == PointerEventKind.down) {
+                                    keys.focus();
+                                    root.pointer(0, self.mouse-x / self.width, self.mouse-y / self.height, ev.modifiers.alt, ev.modifiers.shift);
+                                } else if (ev.kind == PointerEventKind.up || ev.kind == PointerEventKind.cancel) {
+                                    root.pointer(2, self.mouse-x / self.width, self.mouse-y / self.height, ev.modifiers.alt, ev.modifiers.shift);
+                                }
+                            }
+                            moved => {
+                                if (self.pressed) {
+                                    root.pointer(1, self.mouse-x / self.width, self.mouse-y / self.height, false, false);
+                                }
+                            }
+                            scroll-event(ev) => {
+                                root.wheel(ev.delta-x, ev.delta-y);
+                                return accept;
+                            }
+                        }
+                    }
+                }
+            }
+            keys := FocusScope {
+                width: 0px;
+                height: 0px;
+                key-pressed(ev) => {
+                    if (ev.modifiers.meta) {
+                        root.meta-key(ev.text, ev.modifiers.alt, ev.modifiers.shift);
+                        return accept;
+                    }
+                    root.key(ev.text, true);
+                    return accept;
+                }
+                key-released(ev) => {
+                    if (ev.modifiers.meta) { return reject; }
+                    root.key(ev.text, false);
+                    return accept;
+                }
+            }
+            // Pixel-perfect chip (`.pp-chip`).
+            if root.pixel-perfect: Rectangle {
+                x: Theme.rtl ? parent.width - 12px - self.width : 12px;
+                y: 12px;
+                height: 32px;
+                width: ppl.preferred-width + 140px;
+                border-radius: 16px;
+                background: Theme.elevation-2-surface;
+                border-width: 1px;
+                border-color: Theme.border-default;
+                ppl := T {
+                    x: Theme.rtl ? parent.width - 12px - self.width : 12px;
+                    width: self.preferred-width;
+                    text: @tr("Pixel-perfect · 1 device pixel = 1 screen pixel");
+                    font-size: 12px;
+                }
+                T {
+                    x: Theme.rtl ? 64px : ppl.x + ppl.width + 8px;
+                    width: self.preferred-width;
+                    text: root.frame-w + "×" + root.frame-h;
+                    role: Role.code;
+                    color: Theme.text-secondary;
+                }
+                Button {
+                    x: Theme.rtl ? 6px : parent.width - 6px - self.width;
+                    small: true;
+                    text: @tr("Fit");
+                    clicked => { root.pixel-perfect = false; }
+                }
+            }
+            // APK drop target (`.dropring`, `.droplabel`).
+            if root.drop-hover: Rectangle {
+                x: 12px;
+                y: 12px;
+                width: parent.width - 24px;
+                height: parent.height - 24px;
+                border-radius: 16px;
+                border-width: 2px;
+                border-color: Theme.accent-fill;
+                background: Theme.accent-container.with-alpha(0.6);
+            }
+            if root.drop-hover: Rectangle {
+                x: Theme.rtl ? parent.width - 28px - self.width : 28px;
+                y: (parent.height - self.height) / 2;
+                width: 290px;
+                height: 78px;
+                border-radius: Theme.radius-lg;
+                background: Theme.elevation-3-surface;
+                border-width: 1px;
+                border-color: Theme.accent-fill;
+                drop-shadow-offset-y: Theme.elevation-3-shadow-y;
+                drop-shadow-blur: Theme.elevation-3-shadow-blur;
+                drop-shadow-color: Theme.elevation-3-shadow-color;
+                T {
+                    x: 14px;
+                    y: 12px;
+                    width: parent.width - 28px;
+                    height: 18px;
+                    text: root.drop-title;
+                    font-weight: 600;
+                }
+                T {
+                    x: 14px;
+                    y: 32px;
+                    width: parent.width - 28px;
+                    height: 36px;
+                    text: root.drop-body;
+                    font-size: 12px;
+                    color: Theme.text-secondary;
+                    wrap: word-wrap;
+                    vertical-alignment: top;
+                }
+            }
+            // Debug overlay (⌥⌘I): fps and latency, never over the screen centre.
+            if root.overlay: Rectangle {
+                x: Theme.rtl ? parent.width - 8px - self.width : 8px;
+                y: parent.height - 8px - self.height;
+                width: ovt.preferred-width + 16px;
+                height: ovt.preferred-height + 10px;
+                border-radius: Theme.radius-sm;
+                background: #000000b0;
+                ovt := Text {
+                    text: root.overlay-text;
+                    color: #7cfc00;
+                    font-family: Theme.font-mono;
+                    font-size: 11px;
+                }
+            }
+        }
+        // Logcat: collapsed bar or the panel.
+        if !root.logcat-open: Rectangle {
+            y: parent.height - 34px;
+            height: 34px;
+            background: Theme.surface-chrome;
+            Rectangle { y: 0px; height: 1px; background: Theme.border-default; }
+            HorizontalLayout {
+                padding-left: 14px;
+                padding-right: 14px;
+                spacing: 12px;
+                Icon { y: 9px; size: Theme.icon-md; source: Icons.scroll-text; }
+                T { text: @tr("Logcat"); font-size: 12px; font-weight: 600; width: self.preferred-width; ltr: true; }
+                if root.log-errors > 0: Pill {
+                    y: 7px;
+                    small: true;
+                    has-icon: false;
+                    tone: Tone.negative;
+                    text: root.log-errors == 1 ? @tr("1 error") : @tr("{} errors", root.log-errors);
+                }
+                T {
+                    text: root.log-last-error;
+                    role: Role.code;
+                    color: Theme.logcat-error;
+                    ltr: true;
+                }
+                Kbd { y: 8px; text: "⌘L"; }
+            }
+            TouchArea {
+                mouse-cursor: MouseCursor.pointer;
+                clicked => {
+                    root.logcat-open = true;
+                    root.log-open(true);
+                }
+            }
+        }
+        if root.logcat-open: Logcat {
+            y: parent.height - 232px;
+            lines: root.log-lines;
+            summary: root.log-summary;
+            serial: device.serial;
+            min-level: root.log-level;
+            filter: root.log-filter;
+            following: root.log-following;
+            level-changed(i) => { root.log-level-changed(i); }
+            filter-changed(t) => { root.log-filter-changed(t); }
+            clear => { root.log-clear(); }
+            toggle-follow => { root.log-toggle-follow(); }
+            close => {
+                root.logcat-open = false;
+                root.log-open(false);
+            }
+        }
+    }
+    Toolbar {
+        x: Theme.rtl ? panel-w : stage-w;
+        height: parent.height;
+        pixel-perfect: root.pixel-perfect;
+        recording: root.recording;
+        panel-open: root.panel-open;
+        running: root.running;
+        clipboard-shared: root.clipboard-shared;
+        tool(t) => {
+            if (t == "pixel-perfect") {
+                root.pixel-perfect = !root.pixel-perfect;
+            } else if (t == "panel") {
+                root.panel-open = !root.panel-open;
+            }
+            root.tool(t);
+        }
+    }
+    Rectangle {
+        visible: root.panel-open;
+        x: Theme.rtl ? 0px : stage-w + tool-w;
+        width: panel-w;
+        height: parent.height;
+        clip: true;
+        @children
+    }
+}

@@ -305,3 +305,17 @@ pub fn download_job() -> Job {
 /// Google's SDK license opening, as shown in step 2 (excerpt; the app shows
 /// the full text from `sdk.licenses`).
 pub const LICENSE_EXCERPT: &str = "1. Introduction\n\n1.1 The Android Software Development Kit (referred to in the License Agreement as the \"SDK\" and specifically including the Android system files, packaged APIs, and Google APIs add-ons) is licensed to you subject to the terms of the License Agreement. The License Agreement forms a legally binding contract between you and Google in relation to your use of the SDK.\n\n1.2 \"Android\" means the Android software stack for devices, as made available under the Android Open Source Project.\n\n2. Accepting this License Agreement\n\n2.1 In order to use the SDK, you must first agree to the License Agreement. You may not use the SDK if you do not accept the License Agreement.\n\n2.2 By clicking to accept, you hereby agree to the terms of the License Agreement.";
+
+/// Logcat lines from PRODUCT.md §7 and the Device design.
+pub fn log_lines() -> Vec<crate::LogLine> {
+    [
+        "10-13 14:02:07.318  4821  4821 I ActivityManager: Start proc 4821:com.example.shop/u0a190",
+        "10-13 14:02:07.402  4821  4821 D ShopApp: onCreate: restoring cart (3 items)",
+        "10-13 14:02:08.115  1288  1288 W Magisk: su: request from uid 10190 (com.example.shop)",
+        "10-13 14:02:08.640  4821  4821 E AndroidRuntime: FATAL EXCEPTION: main",
+        "10-13 14:02:09.010   612   612 I ActivityManager: Process com.example.shop (pid 4821) has died",
+    ]
+    .iter()
+    .filter_map(|l| crate::player::logcat::parse(l))
+    .collect()
+}

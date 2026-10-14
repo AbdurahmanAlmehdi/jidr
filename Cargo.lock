@@ -2865,6 +2865,30 @@ dependencies = [
 [[package]]
 name = "jidr-widgets"
 version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "dirs",
+ "jidr-adb",
+ "jidr-backend",
+ "jidr-client",
+ "jidr-core",
+ "jidr-daemon",
+ "jidr-proto",
+ "jidr-sdk",
+ "png",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tokio-stream",
+ "tonic",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+ "zip",
+]
 
 [[package]]
 name = "jni"

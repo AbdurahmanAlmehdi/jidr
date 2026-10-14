@@ -50,3 +50,29 @@ Built:
 Validation: `cargo run -p jidr-ui --example snapshot -- --check` → 57 renders ok; `cargo nextest run -p jidr-ui` → 21 passed; `cargo xtask ci` ok.
 
 Not done: the manual first-run walkthrough needs a daemon the GUI can spawn (`jidr daemon`, gap B1); `--example dev-daemon` (7c) covers live runs meanwhile. Gaps B4 (daemon settings) and B5 (job bytes) filed.
+
+## 2026-10-14 · Phase 7c plan: player window
+
+- Device tab per Device.dc.html (4A): mini sidebar, stage (bezel from `frame-*` tokens, fit or pixel-perfect 1:1 in a scrolling stage), 48 px toolbar, docked widget panel host, logcat bar/panel.
+- Transport per ADR-0001: `device.connect_info` → `EmulatorController` directly; `streamScreenshot` RGBA8888 with both sides set at the screen's physical size (capped at the device size), one UI hop in flight with a newest-frame slot, re-subscribe on resize/rotation; frames are top-down.
+- Input: pointer → `streamInputEvent` touches in device px; ⌥ drag pinch (mirrored second finger), ⇧⌥ drag two-finger pan; wheel → `injectWheel`; keys → `sendKey` (W3C key names, text as keypress). Toolbar: back/home/recents/volume/power as keys, rotate via the physical model, screenshot/record via `media.*` (10a), pixel-perfect, shared clipboard (`streamClipboard` ↔ pasteboard).
+- Drag-drop through winit file events: apk → `file.install` (replace) then `app.launch`; signature mismatch → confirm, `app.uninstall`, reinstall; zip on Full root → `root.module.install` (falls back to push, gap B6); other → `file.push`.
+- New widgets commands needed now: `app.inspect` (package from the APK's binary manifest, no SDK tools), `app.launch`, `app.uninstall`.
+- Measurement: the debug overlay (⌥⌘I) shows fps, frame age and touch→frame; `JIDR_PLAYER_BENCH` drives 30 s of Settings scrolling through the player's own input channel and writes the numbers; `JIDR_PLAYER_DROP` hands a file to the drop handler.
+
+## 2026-10-14 · Phase 7c done: player window
+
+Built:
+- `ui/player.slint`: device tab (mini sidebar, stage with token bezel, fit and pixel-perfect 1:1 with a scrolling stage and chip, 48 px toolbar, widget panel host, logcat bar and panel with level/text filters and follow, APK drop ring + label, debug overlay). Device-tab root badge and serial in the title bar. A drawn sample app (`MockScreen`) stands in for frames in goldens, so no Android UI is in the repo.
+- `src/player/`: `session.rs` (direct `EmulatorController` connection from `device.connect_info`; RGBA8888 stream at the screen's physical size capped at the device size, both sides set, newest-frame slot with one UI hop in flight, re-subscribe on resize/rotation, input stream, clipboard sharing both ways, stats), `input.rs` (device-px mapping, ⌥ pinch / ⇧⌥ two-finger pan, W3C keys, wheel), `drop.rs` (apk / module zip / push routing and copy), `logcat.rs` (threadtime parser, filters), `bench.rs` (dev measurement), `mod.rs` (session per active tab, toolbar, shortcuts ⌥⌘I overlay, ⌥⌘0 pixel-perfect, ⌘L logcat, ⌘J panel, ⇧⌘S screenshot; winit file-drop events).
+- `jidr-widgets` starts: `provider()` (gap A1) with `app.inspect` (package from the binary manifest, no SDK tools), `app.launch`, `app.uninstall`; `examples/dev-daemon.rs` (real daemon + widgets for live runs, gap B1); `tests/fixtures/build-hello-apk.sh` builds a tiny test app with the SDK's build tools (read-only).
+
+Manual check (the plan's 7c validation), 2026-10-14, MacBook Pro M1 Pro, external 3440×1440 display (scale 1.0), emulator 35.6.11, API 31 `google_apis` arm64 AVD "Pixel-ish 6.1" (1080×2400, created through the daemon from Studio's SDK read-only), `-gpu host`, release `jidr-gui`:
+1. Started "Pixel-ish 6.1" from the GUI (`JIDR_PLAYER_DEVICE` opens its tab); booted in 24.9 s.
+2. Scrolled Settings for 30 s through the player's own input channel (`JIDR_PLAYER_BENCH`; 59 alternating 300 ms drags): **active fps median 60.0, p10 56.7**; received 59.8 fps, shown 59.8 fps, 61 MB/s at 339×753 frames (the screen's physical size); frame age median 1.6 ms (p90 1.8); **touch → next frame median 8.3 ms, p90 14.5 ms**; player CPU 15%. Debug build: 59.9 fps, 8.4 ms, 94% CPU. Budget (≥ 30 fps, ≤ 80 ms) met.
+3. Dropped `hello.apk` (`JIDR_PLAYER_DROP`, the same handler winit's `DroppedFile` calls): `file.install` → `app.launch`; `adb shell dumpsys activity activities` → `mResumedActivity … ly.jidr.hello/.MainActivity`.
+Not covered by a human yet: a physical Finder drag and a real trackpad scroll (the same handlers, driven from code here). A window-only capture (`screencapture -l`) showed the live Settings screen in the device tab with the toolbar, panel and logcat bar.
+
+Validation: `cargo nextest run -p jidr-ui -p jidr-widgets` (36 passed), `cargo run -p jidr-ui --example snapshot -- --check` (81 renders ok incl. 8 player states × 3), `cargo xtask ci` ok.
+
+Open: rotation's touch mapping and the multi-touch gestures were exercised only by unit tests (to check with 8a's `sensor.rotate` on the emulator). Gap B6 (module zip install comes with C's 9d).

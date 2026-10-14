@@ -17,11 +17,13 @@ import { DeviceDetail, FirstRunEmpty } from "launcher.slint";
 import { DeviceSheet } from "device_form.slint";
 import { ConfirmDialog } from "forms.slint";
 import { Palette } from "palette.slint";
+import { DeviceView, WidgetPanel } from "player.slint";
+import { RootBadge } from "components/status.slint";
 import { SetupWindow } from "wizard.slint";
 import { SettingsWindow } from "settings.slint";
-import { DeviceVm, JobVm, TabVm, SnapshotVm, DevState, RootKind, FormFactor, JobTone, ConnState, RootChoice, ImageRowVm, OptionVm, DeviceForm, DetectRow, PlanRow, UsageRow, PaletteKind, PaletteItem } from "types.slint";
+import { DeviceVm, JobVm, TabVm, SnapshotVm, DevState, RootKind, FormFactor, JobTone, ConnState, RootChoice, ImageRowVm, OptionVm, DeviceForm, DetectRow, PlanRow, UsageRow, PaletteKind, PaletteItem, LogLine } from "types.slint";
 
-export { Theme, Icons, DeviceVm, JobVm, TabVm, SnapshotVm, DevState, RootKind, FormFactor, JobTone, ConnState, RootChoice, ImageRowVm, OptionVm, DeviceForm, DetectRow, PlanRow, UsageRow, PaletteKind, PaletteItem, SetupWindow, SettingsWindow }
+export { Theme, Icons, DeviceVm, JobVm, TabVm, SnapshotVm, DevState, RootKind, FormFactor, JobTone, ConnState, RootChoice, ImageRowVm, OptionVm, DeviceForm, DetectRow, PlanRow, UsageRow, PaletteKind, PaletteItem, LogLine, SetupWindow, SettingsWindow }
 
 export component AppWindow inherits Window {
     in-out property <[DeviceVm]> devices;
@@ -30,6 +32,8 @@ export component AppWindow inherits Window {
     /// -1 = Library; otherwise an index into `tabs`.
     in-out property <int> active-tab: -1;
     in-out property <int> selected: -1;
+    /// Index into `devices` of the active tab's device (-1 = Library).
+    in-out property <int> active-device: -1;
     in-out property <[SnapshotVm]> snapshots;
     in-out property <bool> sdk-ready: true;
     in-out property <string> sdk-label: @tr("Not installed");
@@ -55,6 +59,31 @@ export component AppWindow inherits Window {
     in-out property <string> confirm-title;
     in-out property <string> confirm-body;
     in-out property <string> confirm-action;
+    // Player (active device tab).
+    in-out property <image> player-frame;
+    in-out property <bool> player-has-frame;
+    in-out property <int> player-frame-w;
+    in-out property <int> player-frame-h;
+    in-out property <bool> player-mock: false;
+    in-out property <bool> player-pixel-perfect;
+    in-out property <float> player-scale: 1.0;
+    in-out property <bool> player-recording;
+    in-out property <bool> player-panel-open: true;
+    in-out property <int> player-panel-tab: 0;
+    in-out property <bool> player-clipboard;
+    in-out property <bool> player-overlay;
+    in-out property <string> player-overlay-text;
+    in-out property <bool> drop-hover;
+    in-out property <string> drop-title;
+    in-out property <string> drop-body;
+    in-out property <bool> logcat-open;
+    in-out property <[LogLine]> log-lines;
+    in-out property <string> log-summary;
+    in-out property <int> log-errors;
+    in-out property <string> log-last-error;
+    in-out property <int> log-level: 1;
+    in-out property <string> log-filter;
+    in-out property <bool> log-following: true;
 
     callback select-device(int);
     callback open-device(int);
@@ -82,6 +111,17 @@ export component AppWindow inherits Window {
     /// ⌘1…9 and other shortcuts Rust handles.
     callback shortcut(string);
     callback confirm-ok();
+    callback player-pointer(int, float, float, bool, bool);
+    callback player-wheel(length, length);
+    callback player-key(string, bool);
+    callback player-tool(string);
+    callback player-start();
+    callback player-resized(length, length);
+    callback log-level-changed(int);
+    callback log-filter-changed(string);
+    callback log-clear();
+    callback log-toggle-follow();
+    callback log-open(bool);
 
     title: "Jidr";
     icon: @image-url("../../../apps/jidr-gui/assets/icons/app-icon-256.png");
@@ -94,15 +134,27 @@ export component AppWindow inherits Window {
     default-font-size: Theme.type-body-size;
     forward-focus: keys;
 
+    /// Meta shortcuts, shared by the window and the device screen.
+    function meta-key(text: string, alt: bool, shift: bool) -> bool {
+        if (alt && (text == "i" || text == "I")) { root.shortcut("overlay"); return true; }
+        if (alt && text == "0") { root.shortcut("pixel-perfect"); return true; }
+        if (shift && (text == "s" || text == "S")) { root.shortcut("screenshot"); return true; }
+        if (alt || shift) { return false; }
+        if (text == "l") { root.shortcut("logcat"); return true; }
+        if (text == "j") { root.shortcut("panel"); return true; }
+        if (text == "k") { root.open-palette(); return true; }
+        if (text == "n") { root.new-device(); return true; }
+        if (text == ",") { root.open-settings(); return true; }
+        if (text == "w") { root.shortcut("close-tab"); return true; }
+        if (text >= "1" && text <= "9") { root.shortcut("tab-" + text); return true; }
+        if (text == "0") { root.shortcut("library"); return true; }
+        return false;
+    }
+
     keys := FocusScope {
         key-pressed(ev) => {
-            if (ev.modifiers.meta && !ev.modifiers.shift) {
-                if (ev.text == "k") { root.open-palette(); return accept; }
-                if (ev.text == "n") { root.new-device(); return accept; }
-                if (ev.text == ",") { root.open-settings(); return accept; }
-                if (ev.text == "w") { root.shortcut("close-tab"); return accept; }
-                if (ev.text >= "1" && ev.text <= "9") { root.shortcut("tab-" + ev.text); return accept; }
-                if (ev.text == "0") { root.shortcut("library"); return accept; }
+            if (ev.modifiers.meta && root.meta-key(ev.text, ev.modifiers.alt, ev.modifiers.shift)) {
+                return accept;
             }
             if (ev.text == Key.Escape) {
                 root.sheet-open = false;
@@ -129,6 +181,20 @@ export component AppWindow inherits Window {
         close-tab(i) => { root.close-tab(i); }
         toggle-sidebar => { root.sidebar-visible = !root.sidebar-visible; }
         drag-window => { root.drag-window(); }
+        // Device tab: its root badge and serial on the end side.
+        if root.active-tab >= 0 && root.active-device >= 0: RootBadge {
+            y: 6px;
+            small: true;
+            kind: root.devices[root.active-device].root;
+            text: root.devices[root.active-device].root-label;
+            beta: root.devices[root.active-device].beta;
+        }
+        if root.active-tab >= 0 && root.active-device >= 0: T {
+            width: self.preferred-width + 8px;
+            text: root.devices[root.active-device].serial;
+            role: Role.code;
+            color: Theme.text-secondary;
+        }
     }
     body := Rectangle {
         y: titlebar.height;
@@ -165,6 +231,55 @@ export component AppWindow inherits Window {
                 sdk-label: root.sdk-label;
                 setup-sdk => { root.setup-sdk(); }
                 use-existing => { root.use-existing-sdk(); }
+            }
+            if !library && root.active-device >= 0: DeviceView {
+                device: root.devices[root.active-device];
+                frame: root.player-frame;
+                has-frame: root.player-has-frame;
+                frame-w: root.player-frame-w > 0 ? root.player-frame-w : root.devices[root.active-device].width-px;
+                frame-h: root.player-frame-h > 0 ? root.player-frame-h : root.devices[root.active-device].height-px;
+                mock-screen: root.player-mock;
+                pixel-perfect <=> root.player-pixel-perfect;
+                scale: root.player-scale;
+                recording: root.player-recording;
+                panel-open <=> root.player-panel-open;
+                clipboard-shared: root.player-clipboard;
+                overlay: root.player-overlay;
+                overlay-text: root.player-overlay-text;
+                drop-hover: root.drop-hover;
+                drop-title: root.drop-title;
+                drop-body: root.drop-body;
+                logcat-open <=> root.logcat-open;
+                log-lines: root.log-lines;
+                log-summary: root.log-summary;
+                log-errors: root.log-errors;
+                log-last-error: root.log-last-error;
+                log-level <=> root.log-level;
+                log-filter <=> root.log-filter;
+                log-following: root.log-following;
+                pointer(k, x, y, alt, shift) => { root.player-pointer(k, x, y, alt, shift); }
+                wheel(dx, dy) => { root.player-wheel(dx, dy); }
+                key(t, down) => { root.player-key(t, down); }
+                tool(t) => { root.player-tool(t); }
+                start => { root.player-start(); }
+                screen-resized(w, h) => { root.player-resized(w, h); }
+                log-level-changed(i) => { root.log-level-changed(i); }
+                log-filter-changed(t) => { root.log-filter-changed(t); }
+                log-clear => { root.log-clear(); }
+                log-toggle-follow => { root.log-toggle-follow(); }
+                log-open(o) => { root.log-open(o); }
+                meta-key(t, a, sh) => { root.meta-key(t, a, sh); }
+                WidgetPanel {
+                    tab <=> root.player-panel-tab;
+                    T {
+                        x: 14px;
+                        y: 16px;
+                        width: parent.width - 28px;
+                        height: 18px;
+                        text: @tr("Widgets for this device appear here.");
+                        color: Theme.text-secondary;
+                    }
+                }
             }
             if library && root.devices.length > 0 && root.selected >= 0: DeviceDetail {
                 device: root.devices[root.selected];

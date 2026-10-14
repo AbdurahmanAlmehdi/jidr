@@ -203,6 +203,30 @@ fn settings_tab(v: Variant, tab: i32) -> Result<SharedPixelBuffer<Rgba8Pixel>, S
     shot(&w, 820, 640)
 }
 
+/// The device tab for `device` (0 = Pixel-ish 6.1) with the mock screen.
+fn device_tab(v: Variant, device: usize) -> Result<AppWindow, String> {
+    let app = populated(v)?;
+    let devices = fixtures::devices();
+    app.set_tabs(model(vec![
+        model::tab_vm(&devices[0]),
+        model::tab_vm(&devices[2]),
+        model::tab_vm(&devices[1]),
+    ]));
+    app.set_active_tab(match device {
+        0 => 0,
+        2 => 1,
+        _ => 2,
+    });
+    app.set_active_device(device as i32);
+    app.set_player_mock(true);
+    let lines = fixtures::log_lines();
+    app.set_log_errors(1);
+    app.set_log_last_error(crate::player::logcat::short(&lines[3]).into());
+    app.set_log_summary("5 of 12,408 lines · 1 error".into());
+    app.set_log_lines(model(lines));
+    Ok(app)
+}
+
 /// Launcher with the four sample devices, Pixel-ish 6.1 selected.
 pub fn populated(v: Variant) -> Result<AppWindow, String> {
     let app = app(v)?;
@@ -288,6 +312,74 @@ pub fn cases() -> Vec<Case> {
                 app.set_palette_query("tab".into());
                 app.set_palette_items(model(items));
                 app.set_palette_open(true);
+                shot(&app, 1440, 900)
+            },
+        },
+        Case {
+            name: "player-running",
+            render: |v| shot(&device_tab(v, 0)?, 1440, 900),
+        },
+        Case {
+            name: "player-running-1280",
+            render: |v| shot(&device_tab(v, 0)?, 1280, 800),
+        },
+        Case {
+            name: "player-pixel-perfect",
+            render: |v| {
+                let app = device_tab(v, 0)?;
+                app.set_player_pixel_perfect(true);
+                app.set_player_scale(2.0);
+                shot(&app, 1440, 900)
+            },
+        },
+        Case {
+            name: "player-apk-drop",
+            render: |v| {
+                let app = device_tab(v, 0)?;
+                let (t, b) = crate::player::drop::hover_text(
+                    &crate::player::drop::DropAction::InstallApk("/x/shop-debug.apk".into()),
+                    "Pixel-ish 6.1",
+                );
+                app.set_drop_title(t.into());
+                app.set_drop_body(b.into());
+                app.set_drop_hover(true);
+                shot(&app, 1440, 900)
+            },
+        },
+        Case {
+            name: "player-logcat",
+            render: |v| {
+                let app = device_tab(v, 0)?;
+                app.set_logcat_open(true);
+                app.set_log_level(0);
+                shot(&app, 1440, 900)
+            },
+        },
+        Case {
+            name: "player-overlay",
+            render: |v| {
+                let app = device_tab(v, 0)?;
+                app.set_player_overlay(true);
+                app.set_player_overlay_text(
+                    "recv 60 fps · shown 60 fps · active 60 fps\nframe 800×1778 · age 5.4 ms · touch→frame 13.5 ms".into(),
+                );
+                app.set_player_panel_open(false);
+                shot(&app, 1440, 900)
+            },
+        },
+        Case {
+            name: "player-booting",
+            render: |v| {
+                let app = device_tab(v, 2)?;
+                app.set_player_mock(false);
+                shot(&app, 1440, 900)
+            },
+        },
+        Case {
+            name: "player-stopped",
+            render: |v| {
+                let app = device_tab(v, 1)?;
+                app.set_player_mock(false);
                 shot(&app, 1440, 900)
             },
         },

@@ -76,6 +76,11 @@ pub fn render(app: &AppWindow, state: &State) {
     app.set_tabs(ModelRc::new(VecModel::from(tabs)));
     app.set_selected(selected.map(|i| i as i32).unwrap_or(-1));
     app.set_active_tab(state.active.map(|i| i as i32).unwrap_or(-1));
+    let active_device = state
+        .active
+        .and_then(|i| state.tabs.get(i))
+        .and_then(|id| state.data.devices.iter().position(|d| d.device.id == *id));
+    app.set_active_device(active_device.map(|i| i as i32).unwrap_or(-1));
     app.set_sdk_ready(state.data.sdk_ready);
 }
 
@@ -138,6 +143,8 @@ pub struct Ctx {
     pub catalog: RefCell<Catalog>,
     /// What the confirmation dialog will do.
     pub pending_confirm: RefCell<Option<Box<dyn Fn()>>>,
+    /// The device window's live session.
+    pub player: RefCell<crate::player::Player>,
 }
 
 #[derive(Default)]
@@ -167,8 +174,9 @@ impl Ctx {
             .cloned()
     }
 
-    pub fn rerender(&self) {
+    pub fn rerender(self: &Rc<Self>) {
         render(&self.app, &self.state.borrow());
+        crate::player::sync(self);
     }
 
     /// Applies the Appearance pref (System follows macOS).
@@ -185,6 +193,13 @@ impl Ctx {
 thread_local! {
     /// The UI thread's state; IO-thread updates reach it via the event loop.
     static STATE: Shared = Rc::default();
+    /// The controllers' context, once the app runs.
+    static CTX: RefCell<Option<Rc<Ctx>>> = const { RefCell::new(None) };
+}
+
+/// The running app's context (UI thread only).
+pub fn ctx() -> Option<Rc<Ctx>> {
+    CTX.with(|c| c.borrow().clone())
 }
 
 /// The UI thread's shared state.
@@ -221,6 +236,10 @@ pub fn sink(weak: Weak<AppWindow>) -> impl Fn(Update) + Send + Sync + 'static {
                     }
                     st.data = data;
                     render(&app, &st);
+                    drop(st);
+                    if let Some(c) = ctx() {
+                        crate::player::sync(&c);
+                    }
                 }
                 Update::Event(_) => {}
             }
@@ -247,12 +266,51 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         windows: RefCell::default(),
         catalog: RefCell::default(),
         pending_confirm: RefCell::default(),
+        player: RefCell::default(),
     });
+    CTX.with(|c| *c.borrow_mut() = Some(ctx.clone()));
     ctx.apply_appearance();
     crate::launcher::wire(&ctx);
+    crate::player::wire(&ctx);
+    auto_open(&ctx);
     bridge.connect(paths, sink(app.as_weak()));
     app.run()?;
     Ok(())
+}
+
+/// Dev hook: `JIDR_PLAYER_DEVICE=<name>` opens that device's tab (starting
+/// it if needed) once the daemon's device list arrives.
+fn auto_open(ctx: &Rc<Ctx>) {
+    let Ok(name) = std::env::var("JIDR_PLAYER_DEVICE") else {
+        return;
+    };
+    let c = ctx.clone();
+    let timer = slint::Timer::default();
+    let started = std::cell::Cell::new(false);
+    timer.start(
+        slint::TimerMode::Repeated,
+        std::time::Duration::from_millis(500),
+        move || {
+            let found = c
+                .state
+                .borrow()
+                .data
+                .devices
+                .iter()
+                .find(|d| d.device.name.eq_ignore_ascii_case(&name))
+                .map(|d| (d.device.id, d.device.status.clone()));
+            let Some((id, status)) = found else { return };
+            if c.state.borrow().tabs.contains(&id) {
+                return;
+            }
+            if matches!(status, jidr_core::DeviceStatus::Stopped) && !started.get() {
+                started.set(true);
+                crate::launcher::start(&c, id);
+            }
+            crate::launcher::open_tab(&c, id);
+        },
+    );
+    ctx.windows.borrow_mut().push(Box::new(timer));
 }
 
 fn select_backend() -> Result<(), slint::PlatformError> {
