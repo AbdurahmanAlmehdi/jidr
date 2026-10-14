@@ -191,3 +191,29 @@ Checked (regression): a deliberately failing run leaves no qemu. A test process 
 ## Phase 9a: Play Store root — done as a beta pass (2026-10-14)
 
 Abdurahman accepted ADR-0002 option (3) ("yes to both, accept option 3"): the guided tap ships as the Play Store beta for the MVP, built in 9d. Options (1) and (2) are deferred to post-MVP, to be revisited by hand. ADR-0002 is Accepted; 9a is Done.
+
+---
+
+## Phase 11a rework for D41 (Workbench design) — plan (2026-10-14)
+
+Phase 9d is not being built in this session: a safety check stopped this session twice when it started on it, so 9d (and 9e and 11b, which need it) goes back to Abdurahman. This rework doesn't depend on it.
+
+1. `site/scripts/build-styles.mjs`, run as `predev`/`prebuild`:
+   - `src/styles/tokens.css` generated from `docs/design/tokens.json`: colours for dark (`:root`, `.jidr-dark`) and light (`prefers-color-scheme`, `[data-theme]`, `.jidr-light`), font families and weights, every type role expanded (family/size/weight/line-height/letter-spacing, `-ar` from the Arabic group, `features: "tnum"` for metrics), shadow parts, spacing, radius, border, size, frame, density, layout, duration, easing. Reduced-motion overrides come from each motion token's own "Reduced:" note. No hand-copied values.
+   - `src/styles/workbench.css`: the component rules of `docs/design/screens/jidr.css` (everything after its token block), pruned to the classes the site's `.astro` files use. Those rules only reference token variables.
+   - Both files are generated, so they're git-ignored.
+2. Fonts self-hosted through `@fontsource/{geist,geist-mono,noto-kufi-arabic}` (OFL-1.1): only the weights and subsets the page uses. No Google Fonts.
+3. `index.astro` rebuilt to `Landing.dc.html` (phase "soon", locale "en") and checked against `Landing-Soon-390`: nav, hero, the app shot, the root showcase, features, the "Genymotion's paid features, free" table, the sponsors band, footer. The header keeps the brand symbol (D39). The Vue root-mode island goes (the design has no interactive part); the Vue integration goes with it until 11b needs it.
+4. Left out, not invented: the GitHub star count, sponsor logo slots (none yet) and the العربية link (the Arabic page is 11b).
+5. Validation: `npm ci && npm run build && npx @lhci/cli autorun --collect.staticDistDir=dist --assert.preset=lighthouse:recommended`, Lighthouse ≥ 95, plus a visual check at 1440 and 390 against the design.
+
+## Phase 11a rework for D41 — done (2026-10-14)
+
+Built:
+- `site/scripts/build-styles.mjs` (+ 6 `node --test` tests). It generates `tokens.css` from `tokens.json`: all 166 themed values match the design's own `jidr.css` exactly in dark and light, after a bug the comparison caught (DTCG `{jidr-…}` aliases now become `var(--jidr-…)`, with a regression test). It also generates `workbench.css`, the design's component rules pruned to the classes the site uses (18 KB). Both are git-ignored and generated before `dev`/`build`.
+- The page rebuilt from `Landing.dc.html` (concept 8A, "soon"): nav with the brand symbol, hero, the app shot (inert, labelled as an image), root showcase with the Play Integrity banner, features, the Genymotion comparison table ("Plans checked 14 October 2026"), sponsors band, footer. Markup copied from the design file by script, not retyped.
+- Fonts self-hosted from `@fontsource` (Geist 400–700, Geist Mono 400/500, Noto Kufi Arabic 600 Arabic subset) and preloaded. Google Fonts and the Vue island/integration are gone.
+
+Validation: `npm ci && npm run build && npx @lhci/cli autorun --collect.staticDistDir=dist --assert.preset=lighthouse:recommended` → all assertions pass, 100/100/100/100 on three runs, FCP 0.7 s. The first run failed two error-level audits, both fixed: heading order (the design's `h4`/`h5` now carry `aria-level="3"`) and the font request chain (fonts preloaded; FCP went from 1.8 s to 0.7 s). Checked in the browser at 1440 (1180 px column, hero 64/66 Geist 700, no overflow) and 390 (hero 40 px, side panels and nav links hidden as designed, no overflow).
+
+Left out on purpose: the star count, the sponsor logo slots (no sponsors yet) and the العربية link (the Arabic page is 11b). Gap G13: `tokens.json` lacks the Arabic web type sizes that 11b needs.

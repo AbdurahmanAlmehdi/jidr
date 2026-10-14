@@ -1,119 +1,14 @@
 ---
-import Icon from "./Icon.astro";
 import { links } from "../config";
 ---
 
-<section class="hero container" aria-labelledby="hero-title">
-  <div class="copy">
-    <p class="eyebrow">Coming soon · free and open source</p>
-    <h1 id="hero-title">Android emulators for the Mac, rooted in one click.</h1>
-    <p class="lede">
-      Jidr creates and runs virtual Android phones and tablets on Apple Silicon. Pick
-      <strong>Full root</strong> when you create a device, and about a minute later it shows a
-      verified Magisk root. Every button is also a CLI command and an MCP tool, so scripts and AI
-      agents can drive it too.
-    </p>
-    <div class="actions">
-      <a class="button button-primary" href={links.repo}><Icon name="star" />Star on GitHub</a>
-      <a class="button" href={links.sponsors}><Icon name="heart" />Sponsor</a>
-    </div>
-    <p class="note">macOS on Apple Silicon first. Linux and Windows later.</p>
+<section class="lp-hero">
+  <span class="pillnote"><svg class="ic fill i8" viewBox="0 0 8 8" aria-hidden="true" style="color:var(--jidr-color-positive)"><circle cx="4" cy="4" r="4"></circle></svg>Coming soon · free and open source</span>
+  <h1>Android on your Mac.<br />Rooted in a minute.</h1>
+  <p>Jidr creates and runs virtual Android phones and tablets on Apple Silicon. Pick Full root and Magisk is set up and verified for you. Desktop app, CLI and MCP server.</p>
+  <div class="cta">
+    <a class="btn btn-primary btn-lg" href={links.repo}><svg class="ic i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg>Star on GitHub</a>
+    <a class="btn btn-lg" href={links.sponsors}><svg class="ic i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>Sponsor</a>
   </div>
-
-  <figure class="terminal" aria-label="Preview of the Jidr command line">
-    <div class="terminal-bar" aria-hidden="true"><span></span><span></span><span></span></div>
-    <pre><code><span class="prompt">$</span> jidr device create "Pixel-ish 6.1" --api 35 --root magisk --wait-boot
-<span class="dim">Downloading Magisk 30.7 · checksum verified</span>
-<span class="dim">Patching a private copy of the ramdisk</span>
-<span class="dim">Cold booting · installing Magisk · rebooting</span>
-<span class="ok">Rooted ✓</span> Pixel-ish 6.1 · Android 15 · Magisk 30.7 · verified
-<span class="prompt">$</span> adb -s emulator-5556 shell su -c id
-uid=0(root) gid=0(root)</code></pre>
-    <figcaption>Planned CLI. Jidr is in development.</figcaption>
-  </figure>
+  <span class="metaline">Free forever · no account · macOS 14+ on Apple Silicon</span>
 </section>
-
-<style>
-  .hero {
-    display: grid;
-    gap: var(--jidr-space-12);
-    padding-block: var(--jidr-space-16) var(--jidr-space-24);
-  }
-  @media (min-width: 1024px) {
-    .hero {
-      grid-template-columns: 1fr 1fr;
-      align-items: center;
-    }
-  }
-  h1 {
-    margin-top: var(--jidr-space-3);
-    font-size: var(--jidr-text-hero);
-    letter-spacing: -0.03em;
-  }
-  .lede {
-    margin-top: var(--jidr-space-6);
-    max-width: 36rem;
-    font-size: var(--jidr-text-lede);
-    color: var(--jidr-color-text-secondary);
-  }
-  .lede strong {
-    color: var(--jidr-color-text-primary);
-  }
-  .actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--jidr-space-3);
-    margin-top: var(--jidr-space-8);
-  }
-  .note {
-    margin-top: var(--jidr-space-4);
-    font-size: var(--jidr-text-caption);
-    color: var(--jidr-color-text-tertiary);
-  }
-  .terminal {
-    margin: 0;
-    min-width: 0;
-    border: var(--jidr-border-width) solid var(--jidr-color-border-default);
-    border-radius: var(--jidr-radius-lg);
-    background: var(--jidr-color-surface-sunken);
-    box-shadow: var(--jidr-shadow-raised);
-    overflow: hidden;
-  }
-  .terminal-bar {
-    display: flex;
-    gap: 6px;
-    padding: var(--jidr-space-3) var(--jidr-space-4);
-    border-bottom: var(--jidr-border-width) solid var(--jidr-color-border-subtle);
-  }
-  .terminal-bar span {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: var(--jidr-color-border-default);
-  }
-  pre {
-    margin: 0;
-    padding: var(--jidr-space-4);
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-    font-size: var(--jidr-text-caption);
-    line-height: 1.7;
-    color: var(--jidr-color-text-code);
-  }
-  .prompt {
-    color: var(--jidr-color-accent);
-  }
-  .dim {
-    color: var(--jidr-color-text-tertiary);
-  }
-  .ok {
-    color: var(--jidr-color-positive);
-    font-weight: 700;
-  }
-  figcaption {
-    padding: 0 var(--jidr-space-4) var(--jidr-space-3);
-    font-family: var(--jidr-font-ui);
-    font-size: var(--jidr-text-caption);
-    color: var(--jidr-color-text-tertiary);
-  }
-</style>

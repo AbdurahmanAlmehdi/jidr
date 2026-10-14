@@ -7,14 +7,19 @@
     "node": ">=20.3.0"
   },
   "scripts": {
+    "styles": "node scripts/build-styles.mjs",
+    "predev": "node scripts/build-styles.mjs",
     "dev": "astro dev",
+    "prebuild": "node scripts/build-styles.mjs",
     "build": "astro build",
     "preview": "astro preview",
+    "test": "node --test scripts/",
     "lighthouse": "lhci autorun --collect.staticDistDir=dist --assert.preset=lighthouse:recommended"
   },
   "dependencies": {
-    "@astrojs/vue": "5.1.4",
-    "astro": "5.18.2",
-    "vue": "3.5.44"
+    "@fontsource/geist": "5.3.0",
+    "@fontsource/geist-mono": "5.3.0",
+    "@fontsource/noto-kufi-arabic": "5.3.0",
+    "astro": "5.18.2"
   }
 }

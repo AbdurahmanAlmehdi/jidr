@@ -356,7 +356,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `cargo run -p jidr-ui --example snapshot -- --check`
 
 ### Phase 11a (C): Coming-soon site (day 1)
-- **Status:** In progress (rework for D41; the pre-D41 site and brand assets were done in 231f692 and 176e2bb)
+- **Status:** Done (rebuilt to the D41 Workbench design)
 - **Scope:** Astro site in `site/`, built to `docs/design/screens/Landing.dc.html` (concept 8A) and `Landing-Soon-390.dc.html`. Generate `site/src/styles/tokens.css` from `docs/design/tokens.json` (no hand-copied values), and self-host the Geist fonts (D41). Replace the placeholder favicon and logo with `assets/brand/web/*` copied into `site/public/` (favicon.svg/.ico/-32.png, apple-touch-icon, og-image.png for `og:image`/`twitter:image`, symbol.svg for the header; D39): pitch, root showcase, feature grid ("Genymotion's paid features, free"; text only, no logos), Star on GitHub button, Sponsors link, no email capture (D34). Uses the brand kit and design tokens when available.
 - **Files touched:** `site/**`
 - **Acceptance criteria:** builds; Lighthouse performance and accessibility ≥ 95.
