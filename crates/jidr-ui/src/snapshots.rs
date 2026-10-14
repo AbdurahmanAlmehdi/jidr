@@ -224,6 +224,15 @@ fn device_tab(v: Variant, device: usize) -> Result<AppWindow, String> {
     app.set_log_last_error(crate::player::logcat::short(&lines[3]).into());
     app.set_log_summary("5 of 12,408 lines · 1 error".into());
     app.set_log_lines(model(lines));
+    let mut w = crate::widgets::default_vm();
+    w.battery_level = 64;
+    w.wifi = true;
+    w.mobile = true;
+    w.signal = 3;
+    w.phone_number = "+218 91 234 5678".into();
+    w.sms_text = "Your courier is 4 min away".into();
+    w.clipboard = "ORDER-4821".into();
+    app.set_widgets(w);
     Ok(app)
 }
 
@@ -364,6 +373,30 @@ pub fn cases() -> Vec<Case> {
                     "recv 60 fps · shown 60 fps · active 60 fps\nframe 800×1778 · age 5.4 ms · touch→frame 13.5 ms".into(),
                 );
                 app.set_player_panel_open(false);
+                shot(&app, 1440, 900)
+            },
+        },
+        Case {
+            name: "widgets-network",
+            render: |v| {
+                let app = device_tab(v, 0)?;
+                app.set_player_panel_tab(2);
+                shot(&app, 1440, 900)
+            },
+        },
+        Case {
+            name: "widgets-sensors",
+            render: |v| {
+                let app = device_tab(v, 0)?;
+                app.set_player_panel_tab(3);
+                shot(&app, 1440, 900)
+            },
+        },
+        Case {
+            name: "widgets-more",
+            render: |v| {
+                let app = device_tab(v, 0)?;
+                app.set_player_panel_tab(4);
                 shot(&app, 1440, 900)
             },
         },

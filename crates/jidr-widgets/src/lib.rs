@@ -11,7 +11,13 @@ use serde_json::Value;
 
 pub mod apk;
 pub mod apps;
+pub mod battery;
 pub mod device;
+pub mod devtools;
+pub mod extras;
+pub mod network;
+pub mod phone;
+pub mod sensors;
 
 /// The widgets provider, ready to register with the daemon.
 pub fn provider() -> Arc<dyn CommandProvider> {
@@ -30,12 +36,24 @@ impl CommandProvider for WidgetsProvider {
     fn commands(&self) -> Vec<CommandSpec> {
         let mut v = Vec::new();
         v.extend(apps::specs());
+        v.extend(battery::specs());
+        v.extend(sensors::specs());
+        v.extend(network::specs());
+        v.extend(phone::specs());
+        v.extend(devtools::specs());
+        v.extend(extras::specs());
         v
     }
 
     async fn call(&self, ctx: &CallCtx, method: &str, params: Value) -> JidrResult<Value> {
         match method.split('.').next().unwrap_or_default() {
             "app" => apps::call(ctx, method, params).await,
+            "battery" => battery::call(ctx, method, params).await,
+            "sensor" => sensors::call(ctx, method, params).await,
+            "network" => network::call(ctx, method, params).await,
+            "phone" => phone::call(ctx, method, params).await,
+            "key" | "dev" | "clipboard" => devtools::call(ctx, method, params).await,
+            "fingerprint" | "camera" => extras::call(ctx, method, params).await,
             _ => Err(JidrError::usage(format!("unknown method {method}"))),
         }
     }

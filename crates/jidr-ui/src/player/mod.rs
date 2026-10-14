@@ -108,6 +108,10 @@ pub fn sync(ctx: &Rc<Ctx>) {
                 if keep {
                     p.session = Some(s);
                 }
+                drop(p);
+                if keep {
+                    crate::widgets::load(&c);
+                }
             }
             Err(e) => {
                 c.player.borrow_mut().opening = None;
@@ -294,14 +298,20 @@ pub fn shortcut(ctx: &Rc<Ctx>, s: &str) -> bool {
 }
 
 fn tool_action(ctx: &Rc<Ctx>, tool: &str) {
-    if let Some(key) = input::tool_key(tool) {
-        spawn_key(ctx, input::press(key));
-        return;
-    }
     let Some((id, ..)) = active_device(ctx) else {
         return;
     };
     let w = ctx.app.as_weak();
+    if let Some(key) = input::tool_key(tool) {
+        // Same path as the CLI and MCP (`key.press`): hardware buttons go
+        // in as evdev codes there.
+        ctx.bridge.call(
+            "key.press",
+            json!({ "device": id, "key": key }),
+            report(&w, ""),
+        );
+        return;
+    }
     match tool {
         "rotate-left" | "rotate-right" => {
             let q = {
@@ -309,20 +319,14 @@ fn tool_action(ctx: &Rc<Ctx>, tool: &str) {
                 p.quarter = (p.quarter + if tool == "rotate-left" { 1 } else { 3 }) % 4;
                 p.quarter
             };
-            with_session(ctx, |s| {
-                let mut c = s.ctl.clone();
-                ctx.bridge.handle().spawn(async move {
-                    let _ = c
-                        .set_physical_model(pb::PhysicalModelValue {
-                            target: pb::physical_model_value::PhysicalType::Rotation as i32,
-                            value: Some(pb::ParameterValue {
-                                data: vec![0.0, 0.0, 90.0 * q as f32],
-                            }),
-                            ..Default::default()
-                        })
-                        .await;
-                });
-            });
+            let mut vm = ctx.app.get_widgets();
+            vm.rotation = q;
+            ctx.app.set_widgets(vm);
+            ctx.bridge.call(
+                "sensor.rotate",
+                json!({ "device": id, "angle": 90 * q }),
+                report(&w, ""),
+            );
         }
         "screenshot" => {
             let w2 = w.clone();

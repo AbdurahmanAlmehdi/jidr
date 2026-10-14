@@ -146,26 +146,17 @@ pub fn key_event(text: &str, down: bool) -> Option<pb::KeyboardEvent> {
     })
 }
 
-/// Toolbar buttons that are hardware keys (W3C key names the emulator knows).
+/// Toolbar buttons that are hardware keys (`key.press` names).
 pub fn tool_key(tool: &str) -> Option<&'static str> {
     Some(match tool {
-        "back" => "GoBack",
-        "home" => "GoHome",
-        "recents" => "AppSwitch",
-        "volume-up" => "AudioVolumeUp",
-        "volume-down" => "AudioVolumeDown",
-        "power" => "Power",
+        "back" => "back",
+        "home" => "home",
+        "recents" => "recents",
+        "volume-up" => "volume_up",
+        "volume-down" => "volume_down",
+        "power" => "power",
         _ => return None,
     })
-}
-
-pub fn press(key: &str) -> pb::KeyboardEvent {
-    pb::KeyboardEvent {
-        code_type: pb::keyboard_event::KeyCodeType::Usb as i32,
-        event_type: pb::keyboard_event::KeyEventType::Keypress as i32,
-        key: key.into(),
-        ..Default::default()
-    }
 }
 
 /// Window scroll (logical px, macOS natural direction) → wheel clicks.
@@ -234,7 +225,7 @@ mod tests {
         assert!(key_event("a", false).is_none());
         assert!(key_event("\u{10}", true).is_none());
         assert!(key_event("\u{f704}", true).is_none());
-        assert_eq!(tool_key("home"), Some("GoHome"));
+        assert_eq!(tool_key("volume-up"), Some("volume_up"));
         assert_eq!(tool_key("screenshot"), None);
     }
 }
