@@ -7,13 +7,46 @@ mod common;
 
 use serde_json::json;
 
-/// The display rotation the window manager reports (0–3).
-fn rotation(env: &common::Env) -> Option<u32> {
-    env.shell("dumpsys window").lines().find_map(|l| {
+/// The display rotation (0–3) in `dumpsys window` output.
+fn rotation_in(out: &str) -> Option<u32> {
+    out.lines().find_map(|l| {
         l.trim()
             .strip_prefix("mRotation=")
             .and_then(|r| r.split_whitespace().next()?.parse().ok())
     })
+}
+
+/// `dumpsys window` plus the auto-rotate setting, for rotation waits.
+const ROTATION_STATE: &str =
+    "dumpsys window; echo accelerometer_rotation=$(settings get system accelerometer_rotation)";
+const ROTATION_LINES: &[&str] = &[
+    "mRotation=",
+    "mCurrentFocus",
+    "mFocusedApp",
+    "accelerometer_rotation",
+];
+
+/// Rotates the physical model to `angle` and waits for the window manager to
+/// report `want`. Sends the rotation once more after 10 s: a sensor sample
+/// can be missed while the HAL batches.
+async fn rotate_to(env: &common::Env, angle: u32, want: u32) {
+    env.call("sensor.rotate", json!({ "angle": angle })).await;
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while std::time::Instant::now() < deadline {
+        if rotation_in(&env.shell("dumpsys window")) == Some(want) {
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    }
+    env.call("sensor.rotate", json!({ "angle": angle })).await;
+    env.eventually_shell(
+        &format!("rotation {angle}°"),
+        ROTATION_STATE,
+        ROTATION_LINES,
+        &format!("sent sensor.rotate {angle} twice"),
+        |out| rotation_in(out) == Some(want),
+    )
+    .await;
 }
 
 /// Telephony's current service state line (`mServiceState={…}`); the rest of
@@ -101,15 +134,26 @@ async fn widgets_core_commands() {
     .await;
     assert_eq!(env.call("battery.get", json!({})).await["level"], 42);
 
-    // Rotation: the window manager follows the physical model.
+    // Rotation: the window manager follows the physical model. Auto-rotate
+    // on, and Settings in front (the launcher is portrait-only).
+    env.shell("settings put system accelerometer_rotation 1");
     env.call("app.launch", json!({ "package": "com.android.settings" }))
         .await;
-    env.call("sensor.rotate", json!({ "angle": 90 })).await;
-    env.eventually("rotation 90°", |e| rotation(e) == Some(1))
-        .await;
-    env.call("sensor.rotate", json!({ "angle": 0 })).await;
-    env.eventually("rotation 0°", |e| rotation(e) == Some(0))
-        .await;
+    env.eventually_shell(
+        "Settings focused",
+        ROTATION_STATE,
+        ROTATION_LINES,
+        "after app.launch com.android.settings",
+        |out| {
+            out.lines().any(|l| {
+                (l.contains("mCurrentFocus") || l.contains("mFocusedApp"))
+                    && l.contains("com.android.settings")
+            })
+        },
+    )
+    .await;
+    rotate_to(&env, 90, 1).await;
+    rotate_to(&env, 0, 0).await;
 
     // Motion/environment sensors read back what was set.
     env.call(
