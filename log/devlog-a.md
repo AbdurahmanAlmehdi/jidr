@@ -358,6 +358,22 @@ Open: `ui_dump` is slow (uiautomator, 4–6 s median); a faster accessibility pa
 - PR #2's emulator jobs (Linux KVM, API 30/33/35, `google_apis;x86_64`) failed in `five_agent_tasks` task 3: the drawer search field was never found ("field found: false" ×3). The x86_64 images run Launcher3, whose drawer search has neither Pixel label the test looked for, and one swipe doesn't always open the drawer. Fix: `find_search_field` falls back to the drawer's `EditText`, then to a node whose `resource-id` contains `search`; task 3 swipes up to three times, as task 2 does, and prints the drawer dump when no field shows. `attr` now also reads a node's first attribute. Regression test `search_field_falls_back_to_the_text_field`. The arm64 API 31 run still passes (105 s).
 - `.config/nextest.toml`: the emulator test group filter is `binary(~_emulator) | binary(agent_tasks)`, so it covers Stream C's `jidr-root` `adb_emulator`. An exact `binary(adb_emulator)` fails nextest's config check on branches that lack that binary.
 
+---
+
+## Summary: Stream A (2026-10-14)
+
+Done: Phases 0, 1, 2, 3a, 3b, 3c, 4a, 4b, 4c, 5a, 5b and 6 (Status: Done in the plan). Merged to `main` in PR #2 (17485c7) with all six CI checks green: Linux `cargo xtask ci`, the macOS clippy gate, and emulator tests on Linux KVM for API 30, 33 and 35. The protocol is frozen at the local tag `protocol-v0.1`.
+
+Built: the workspace, xtask (`ci`, `license-check`) and CI; `jidr-core` (errors, paths, model, the `CommandProvider` contract, RPC types); `jidr-proto` (AOSP emulator gRPC, vendored fallback); `jidr-adb`; `jidr-sdk` (Java-free installer, license consent keyed by text hash, content-addressed cache, AVDs, profiles); `jidr-backend` (AOSP launch/stop/adopt, discovery, console, crash watch, camera options, fake backend, test cleanup); `jidr-daemon` (JSON-RPC/NDJSON over a 0600 Unix socket, schema validation, per-device locks, jobs, events, idle exit, generated protocol doc); `jidr-client`; the `jidr` CLI; and `jidr-mcp` (MCP tools with the D5 destructive policy).
+
+Deferred or open:
+- Phase 1 manual click check of the display spike.
+- Quick boot takes 13.5 s against the ≤5 s target.
+- `ui_dump` is slow (4–6 s median).
+- 16 KB page-size images are untested.
+- `jidr daemon` doesn't register the `jidr-widgets` and `jidr-root` providers yet; it waits on G6–G8 in `docs/gaps.md` (Streams B and C).
+- `protocol-v0.1` isn't pushed to origin.
+
 ## 2026-10-14: G6, the widgets provider in `jidr daemon`
 
 - `jidr daemon` registered only the core and jobs providers, so the CLI and MCP got `unknown method` for every widget command (`gps.*`, `battery.*`, `snapshot.*`, ...). `run_daemon` now builds the daemon through `build_daemon`, which adds `jidr_widgets::provider()`. `apps/jidr` depends on `jidr-widgets` (Apache-2.0, no Slint, so D18 holds).
