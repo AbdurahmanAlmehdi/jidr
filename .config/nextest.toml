@@ -1,0 +1,8 @@
+# Tests that boot a real emulator run one at a time: each one takes 2–4 GB
+# of RAM, and several in parallel starve a 16 GB Mac (UI tests then flake).
+[test-groups]
+emulator = { max-threads = 1 }
+
+[[profile.default.overrides]]
+filter = 'binary(launch_emulator) | binary(resilience_emulator) | binary(avd_emulator) | binary(agent_tasks)'
+test-group = 'emulator'

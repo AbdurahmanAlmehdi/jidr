@@ -10,7 +10,9 @@ fn proto_dir() -> PathBuf {
         .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join("Library/Android/sdk")));
     sdk.map(|s| s.join("emulator/lib"))
         .filter(|d| d.join("emulator_controller.proto").is_file())
-        .unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("../../crates/jidr-proto/proto"))
+        .unwrap_or_else(|| {
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../crates/jidr-proto/proto")
+        })
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
