@@ -267,10 +267,19 @@ async fn widgets_core_commands() {
     env.adb(&["logcat", "-c"]);
     env.call("fingerprint.touch", json!({ "finger": 1 })).await;
     env.call("fingerprint.remove", json!({})).await;
-    env.eventually("fingerprint HAL events", |e| {
-        let log = e.adb(&["logcat", "-d", "-s", "FingerprintHal"]);
-        log.contains("FingerprintHal") && log.contains("off")
-    })
+    // On timeout, every fingerprint-related log line is printed: API 35 CI
+    // showed no `FingerprintHal` lines (run 38631805653), so its HAL may log
+    // under another tag.
+    env.eventually_shell(
+        "fingerprint HAL events",
+        "logcat -d",
+        &["inger"],
+        "",
+        |log| {
+            log.lines()
+                .any(|l| l.contains("FingerprintHal") && l.contains("off"))
+        },
+    )
     .await;
 
     // Host webcam (R7): stored in the device's launch args for the next start.
