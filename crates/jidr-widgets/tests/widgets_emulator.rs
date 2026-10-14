@@ -37,8 +37,7 @@ fn mobile_data_off_reads_either_key() {
     assert!(!mobile_data_off("mobile_data_always_on=0\nmobile_data=1\n"));
 }
 
-fn wcdma_ss(env: &common::Env) -> Option<i32> {
-    let reg = env.shell("dumpsys telephony.registry");
+fn wcdma_ss(reg: &str) -> Option<i32> {
     let at = reg.find("CellSignalStrengthWcdma: ss=")? + "CellSignalStrengthWcdma: ss=".len();
     reg[at..].split_whitespace().next()?.parse().ok()
 }
@@ -94,9 +93,18 @@ async fn widgets_core_commands() {
         e.shell("settings get global wifi_on").trim() == "0"
     })
     .await;
-    env.eventually("mobile data off", |e| {
-        mobile_data_off(&e.shell("settings list global"))
-    })
+    env.eventually_shell(
+        "mobile data off",
+        "settings list global; dumpsys telephony.registry",
+        &[
+            "mobile_data",
+            "mDataEnabled",
+            "mDataConnectionState",
+            "mUserMobileDataState",
+            "mServiceState",
+        ],
+        mobile_data_off,
+    )
     .await;
     let status = env.adb(&["emu", "network", "status"]);
     assert!(status.contains("473600 bits/s"), "edge speed: {status}");
@@ -141,11 +149,16 @@ async fn widgets_core_commands() {
 
     // Mobile signal bars (R3): more bars, stronger reported signal.
     env.call("phone.gsm", json!({ "signal": 0 })).await;
-    env.eventually("weak signal", |e| wcdma_ss(e).is_some_and(|s| s <= -100))
-        .await;
+    let registry = "dumpsys telephony.registry";
+    env.eventually_shell("weak signal", registry, &["mSignalStrength"], |out| {
+        wcdma_ss(out).is_some_and(|s| s <= -100)
+    })
+    .await;
     env.call("phone.gsm", json!({ "signal": 4 })).await;
-    env.eventually("strong signal", |e| wcdma_ss(e).is_some_and(|s| s >= -60))
-        .await;
+    env.eventually_shell("strong signal", registry, &["mSignalStrength"], |out| {
+        wcdma_ss(out).is_some_and(|s| s >= -60)
+    })
+    .await;
 
     // Android controls: Home shows the launcher, volume shows the volume panel.
     env.call("key.press", json!({ "key": "home" })).await;

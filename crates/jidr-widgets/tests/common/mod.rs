@@ -163,6 +163,35 @@ impl Env {
         panic!("timed out waiting for: {what}");
     }
 
+    /// Like `eventually`, on the output of a device shell command. On timeout
+    /// the panic shows the last output's lines that contain any of `show`, so
+    /// a CI failure says what the device reported.
+    pub async fn eventually_shell(
+        &self,
+        what: &str,
+        cmd: &str,
+        show: &[&str],
+        ok: impl Fn(&str) -> bool,
+    ) {
+        let deadline = Instant::now() + Duration::from_secs(30);
+        let mut out = String::new();
+        while Instant::now() < deadline {
+            out = self.shell(cmd);
+            if ok(&out) {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(300)).await;
+        }
+        let seen: Vec<&str> = out
+            .lines()
+            .filter(|l| show.iter().any(|k| l.contains(k)))
+            .collect();
+        panic!(
+            "timed out waiting for: {what}\n`{cmd}` showed:\n{}",
+            seen.join("\n")
+        );
+    }
+
     /// Stops the device and the daemon.
     pub async fn stop(mut self) {
         let _ = self
