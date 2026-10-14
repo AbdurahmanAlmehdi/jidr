@@ -16,6 +16,7 @@ pub mod device;
 pub mod devtools;
 pub mod extras;
 pub mod gps;
+pub mod media;
 pub mod network;
 pub mod phone;
 pub mod sensors;
@@ -28,6 +29,7 @@ pub fn provider() -> Arc<dyn CommandProvider> {
 #[derive(Debug, Default)]
 pub struct WidgetsProvider {
     routes: gps::Routes,
+    recordings: media::Recordings,
 }
 
 #[async_trait]
@@ -46,6 +48,7 @@ impl CommandProvider for WidgetsProvider {
         v.extend(devtools::specs());
         v.extend(extras::specs());
         v.extend(gps::specs());
+        v.extend(media::specs());
         v
     }
 
@@ -59,6 +62,7 @@ impl CommandProvider for WidgetsProvider {
             "key" | "dev" | "clipboard" => devtools::call(ctx, method, params).await,
             "fingerprint" | "camera" => extras::call(ctx, method, params).await,
             "gps" => gps::call(ctx, &self.routes, method, params).await,
+            "media" => media::call(ctx, &self.recordings, method, params).await,
             _ => Err(JidrError::usage(format!("unknown method {method}"))),
         }
     }

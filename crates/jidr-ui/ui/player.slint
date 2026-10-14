@@ -263,6 +263,7 @@ export component DeviceView inherits Rectangle {
     in-out property <bool> pixel-perfect: false;
     in property <float> scale: 1.0;
     in property <bool> recording;
+    in property <string> record-text;
     in-out property <bool> panel-open: true;
     in property <bool> clipboard-shared;
     in property <bool> overlay;
@@ -487,6 +488,14 @@ export component DeviceView inherits Rectangle {
                     wrap: word-wrap;
                     vertical-alignment: top;
                 }
+            }
+            // Recording clock.
+            if root.recording: Pill {
+                x: Theme.rtl ? 12px : parent.width - 12px - self.width;
+                y: 12px;
+                tone: Tone.negative;
+                dot: true;
+                text: root.record-text;
             }
             // Debug overlay (⌥⌘I): fps and latency, never over the screen centre.
             if root.overlay: Rectangle {

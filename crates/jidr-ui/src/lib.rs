@@ -24,6 +24,7 @@ pub mod model;
 pub mod offscreen;
 pub mod palette;
 pub mod player;
+pub mod recording;
 pub mod settings;
 pub mod snapshots;
 pub mod widgets;
