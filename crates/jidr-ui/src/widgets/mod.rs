@@ -10,6 +10,8 @@ use uuid::Uuid;
 use crate::WidgetsVm;
 use crate::app::{Ctx, toast};
 
+pub mod gps;
+
 pub const PROFILES: [&str; 7] = ["full", "lte", "hsdpa", "umts", "edge", "gprs", "gsm"];
 pub const SCALES: [f32; 7] = [0.0, 0.5, 1.0, 1.5, 2.0, 5.0, 10.0];
 pub const CAMERAS: [&str; 4] = ["emulated", "webcam0", "virtualscene", "none"];
@@ -213,6 +215,9 @@ fn call_and_merge(ctx: &Rc<Ctx>, device: Uuid, method: &'static str, mut params:
                 let mut vm = c.app.get_widgets();
                 merge(&mut vm, method, &v);
                 c.app.set_widgets(vm);
+                if method == "gps.get" {
+                    gps::refresh_map(&c);
+                }
             }
             Err(e) if method.ends_with(".get") => tracing::debug!("{method}: {}", e.message),
             Err(e) => {
@@ -228,7 +233,13 @@ fn call_and_merge(ctx: &Rc<Ctx>, device: Uuid, method: &'static str, mut params:
 /// Loads the panels' values for the active device.
 pub fn load(ctx: &Rc<Ctx>) {
     let Some(id) = active(ctx) else { return };
-    for m in ["battery.get", "network.get", "dev.get", "camera.get"] {
+    for m in [
+        "battery.get",
+        "network.get",
+        "dev.get",
+        "camera.get",
+        "gps.get",
+    ] {
         call_and_merge(ctx, id, m, json!({}));
     }
 }
@@ -238,6 +249,9 @@ pub fn wire(ctx: &Rc<Ctx>) {
     let c = ctx.clone();
     ctx.app.on_widget_action(move |action, value| {
         let Some(id) = active(&c) else { return };
+        if gps_action(&c, id, &action, &value) {
+            return;
+        }
         let mut vm = c.app.get_widgets();
         let cmd = command(&mut vm, &action, &value);
         c.app.set_widgets(vm);
@@ -247,6 +261,75 @@ pub fn wire(ctx: &Rc<Ctx>) {
     });
     let c = ctx.clone();
     ctx.app.on_widget_tab(move |_| load(&c));
+    let c = ctx.clone();
+    ctx.app.on_gps_map_click(move |x, y| {
+        if let Some(id) = active(&c) {
+            gps::map_click(&c, id, x, y);
+        }
+    });
+}
+
+/// GPS panel actions; true when handled.
+fn gps_action(ctx: &Rc<Ctx>, id: Uuid, action: &str, value: &str) -> bool {
+    let mut vm = ctx.app.get_widgets();
+    match action {
+        "gps.lat" => vm.gps_lat = value.into(),
+        "gps.lon" => vm.gps_lon = value.into(),
+        "gps.alt" => vm.gps_alt = value.into(),
+        "gps.bearing" => vm.gps_bearing = value.into(),
+        "gps.set" => {
+            gps::set_location(ctx, id);
+            return true;
+        }
+        "gps.route.choose" => {
+            let token = crate::app::defer(move |path: Option<std::path::PathBuf>| {
+                if let (Some(p), Some(c)) = (path, crate::app::ctx()) {
+                    gps::start_route(&c, id, p);
+                }
+            });
+            std::thread::spawn(move || crate::app::fire(token, gps::choose_file()));
+            return true;
+        }
+        "gps.route.toggle" => {
+            if vm.route_active {
+                vm.route_paused = !vm.route_paused;
+                let paused = vm.route_paused;
+                ctx.app.set_widgets(vm);
+                ctx.bridge.call(
+                    "gps.route_control",
+                    json!({ "device": id, "paused": paused }),
+                    |_| {},
+                );
+            } else if let Some(p) = gps::ROUTE_FILE.with(|f| f.borrow().clone()) {
+                gps::start_route(ctx, id, p);
+            }
+            return true;
+        }
+        "gps.route.speed" => {
+            let i = value.parse::<usize>().unwrap_or(0).min(2);
+            vm.route_speed = i as i32;
+            if vm.route_active {
+                ctx.bridge.call(
+                    "gps.route_control",
+                    json!({ "device": id, "speed": gps::SPEEDS[i] }),
+                    |_| {},
+                );
+            }
+        }
+        "gps.route.loop" => {
+            vm.route_loop = value == "true";
+            if vm.route_active {
+                ctx.bridge.call(
+                    "gps.route_control",
+                    json!({ "device": id, "loop": vm.route_loop }),
+                    |_| {},
+                );
+            }
+        }
+        _ => return false,
+    }
+    ctx.app.set_widgets(vm);
+    true
 }
 
 #[cfg(test)]

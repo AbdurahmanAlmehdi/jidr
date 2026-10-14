@@ -182,4 +182,16 @@ export struct WidgetsVm {
     pressure: string,
     humidity: string,
     proximity-near: bool,
+    gps-lat: string,
+    gps-lon: string,
+    gps-alt: string,
+    gps-bearing: string,
+    route-name: string,
+    route-active: bool,
+    route-progress: float,
+    route-text: string,
+    route-paused: bool,
+    /// Index into 1×, 2×, 4×.
+    route-speed: int,
+    route-loop: bool,
 }
