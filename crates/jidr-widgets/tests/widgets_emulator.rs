@@ -69,6 +69,19 @@ fn signal_level_reads_any_radio() {
     assert_eq!(signal_level("mServiceState=x"), None);
 }
 
+/// Whether `service check <name>` found the AIDL service.
+fn service_found(check: &str) -> bool {
+    check.trim_end().ends_with(": found")
+}
+
+#[test]
+fn service_found_reads_service_check() {
+    let name = "android.hardware.biometrics.fingerprint.IFingerprint/default";
+    assert!(service_found(&format!("Service {name}: found\n")));
+    assert!(!service_found(&format!("Service {name}: not found\n")));
+    assert!(!service_found(""));
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn widgets_core_commands() {
     let env = common::Env::boot("widgets8a").await;
@@ -267,20 +280,25 @@ async fn widgets_core_commands() {
     env.adb(&["logcat", "-c"]);
     env.call("fingerprint.touch", json!({ "finger": 1 })).await;
     env.call("fingerprint.remove", json!({})).await;
-    // On timeout, every fingerprint-related log line is printed: API 35 CI
-    // showed no `FingerprintHal` lines (run 38631805653), so its HAL may log
-    // under another tag.
-    env.eventually_shell(
-        "fingerprint HAL events",
-        "logcat -d",
-        &["inger"],
-        "",
-        |log| {
-            log.lines()
-                .any(|l| l.contains("FingerprintHal") && l.contains("off"))
-        },
-    )
-    .await;
+    // The HIDL HAL (`fingerprint@2.1`, API 31) logs every touch as
+    // `FingerprintHal`. The AIDL HAL (`fingerprint-service.ranchu`, API 35)
+    // logs only inside an enroll or authenticate session, so there it is
+    // enough that the console accepted both commands and the HAL is up.
+    let aidl =
+        env.shell("service check android.hardware.biometrics.fingerprint.IFingerprint/default");
+    if !service_found(&aidl) {
+        env.eventually_shell(
+            "fingerprint HAL events",
+            "logcat -d",
+            &["inger"],
+            "",
+            |log| {
+                log.lines()
+                    .any(|l| l.contains("FingerprintHal") && l.contains("off"))
+            },
+        )
+        .await;
+    }
 
     // Host webcam (R7): stored in the device's launch args for the next start.
     let cam = env.call("camera.set", json!({ "back": "webcam0" })).await;
