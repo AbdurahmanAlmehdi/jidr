@@ -581,6 +581,9 @@ Streams: **A** core (daemon, CLI, MCP, backend, SDK) · **B** player and widgets
 | G5 | Generated gRPC stubs from pinned AOSP emulator protos | B | A | before 7c | SDK proto + vendored fallback in `jidr-proto` | Planned | Phase 3a |
 | A1 | `jidr-widgets` exports `pub fn provider() -> std::sync::Arc<dyn jidr_core::provider::CommandProvider>` (contract in `crates/jidr-core/src/provider.rs`). A then registers it in `jidr daemon` (`apps/jidr`). | A | B | none (A wires it when it lands) | — | Open | |
 | A2 | `jidr-root` exports the same `pub fn provider()`; use `CommandProvider::on_booted` for `adb root` after each boot, and `Device.launch` (`ramdisk`, `force_cold_boot`) + `DaemonContext::stop_device/start_device` for Magisk. | A | C | none (A wires it when it lands) | — | Open | |
+| B1 | `jidr daemon` subcommand in `apps/jidr` (Phase 5a). The GUI starts the daemon with `Client::connect_or_spawn`, which runs `jidr daemon`; today `apps/jidr` only prints its version, so the GUI can't start one. Until then B runs `cargo run -p jidr-widgets --example dev-daemon` and points `JIDR_DAEMON_BIN` at it. | B | A | none (live GUI runs only) | `jidr daemon` builds `Daemon` with `AospBackend` + `jidr_widgets::provider()` (A1) | Open | |
+| B2 | FYI, lockfile: `jidr-ui` adds `slint-build 1.18.1` (build) and turns on slint's `unstable-winit-030` feature (window events for file drops, transparent title bar) in its own manifest, so `Cargo.lock` changed on stream B. Regenerate on merge. | B | A | none | — | Open | |
+| B3 | FYI, root UI slots for 9e: B ships a basic `RootBadge` (`crates/jidr-ui/ui/components/status.slint`) and a three-card root-mode picker in the create sheet so 7b works. C can restyle or replace them from `crates/jidr-ui/src/root/**`; ask B for a new slot through this table. | B | C | 9e | — | Open | |
 
 **Status:** Open → Planned → In progress → Done (link the commit) / Won't do (with reason).
 

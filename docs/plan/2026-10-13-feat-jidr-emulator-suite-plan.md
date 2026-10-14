@@ -264,7 +264,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `cargo nextest run -p jidr-mcp --features emulator`
 
 ### Phase 7a (B): UI shell
-- **Status:** Not started
+- **Status:** Done (12 goldens: first run, populated 1440/1280, reconnecting × dark/light/RTL; see log/devlog-b.md)
 - **Scope:** Slint app shell in the **Workbench** direction (D41; `docs/design/README.md`, `docs/design/system/README.md`, screens `Main.dc.html` 1A). `crates/jidr-ui/build.rs` generates `ui/theme.slint` (`export global Theme`, dark + light) from `docs/design/tokens.json`, with no hand-copied hex. Bundle the Geist / Geist Mono / Noto Kufi Arabic fonts (OFL) in `apps/jidr-gui/assets/fonts/`. Lucide icons via `@image-url` + `colorize`. Components follow `docs/design/system/components/*/README.md`. app/window icon `apps/jidr-gui/assets/icons/app-icon-256.png` and the in-app symbol `apps/jidr-gui/assets/icons/symbol.svg` (tint with `colorize`; see `assets/brand/README.md`, D39), light/dark, `@tr` for every string, RTL mirroring check (D33), offscreen snapshot harness with golden PNGs per theme, daemon connection + reconnect.
 - **Files touched:** `crates/jidr-ui/**`, `apps/jidr-gui/**`
 - **Acceptance criteria:** the snapshot harness renders the shell in light, dark and RTL and matches the goldens.
