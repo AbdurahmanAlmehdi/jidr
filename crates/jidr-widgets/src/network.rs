@@ -1,6 +1,13 @@
-//! Network widget: Wi-Fi and mobile data on/off (`svc`), speed and delay
-//! profiles (console `network speed/delay`).
+//! Network widget: Wi-Fi on/off (`svc wifi`), mobile data on/off (console
+//! `gsm data`), speed and delay profiles (console `network speed/delay`).
+//!
+//! Mobile data is switched at the emulated radio, not with Android's own
+//! switch: `svc data` / `cmd phone data` exit 0 and change nothing on the
+//! API 35 images (CI run 38625267538), while the console works on every image.
+//! Android's Quick Settings switch stays as it was; the device just has no
+//! mobile data network, as when it loses coverage.
 
+use jidr_backend::console::GsmLine;
 use jidr_core::provider::{CallCtx, CommandSpec, DeviceParams, parse_params};
 use jidr_core::{JidrError, JidrResult};
 use schemars::JsonSchema;
@@ -71,6 +78,16 @@ fn on_off(v: bool) -> &'static str {
     if v { "enable" } else { "disable" }
 }
 
+/// Whether the emulated radio has mobile data, from the console's
+/// `gsm status` reply (`gsm data state:  home`): registered at home or roaming.
+fn mobile_data_on(gsm_status: &[String]) -> Option<bool> {
+    let state = gsm_status
+        .iter()
+        .find_map(|l| l.trim().strip_prefix("gsm data state:"))?
+        .trim();
+    Some(matches!(state, "home" | "roaming"))
+}
+
 pub async fn call(ctx: &CallCtx, method: &str, params: Value) -> JidrResult<Value> {
     match method {
         "network.get" => {
@@ -78,7 +95,10 @@ pub async fn call(ctx: &CallCtx, method: &str, params: Value) -> JidrResult<Valu
             let t = target(ctx, &p.device).await?;
             let adb = t.adb();
             let wifi = adb.shell("settings get global wifi_on").await?.trim() == "1";
-            let mobile = adb.shell("settings get global mobile_data").await?.trim() == "1";
+            let gsm = t.console_cmd("gsm status").await?;
+            let mobile = mobile_data_on(&gsm).ok_or_else(|| {
+                JidrError::unexpected(format!("no data state in `gsm status`: {gsm:?}"))
+            })?;
             let status = t.console_cmd("network status").await.unwrap_or_default();
             Ok(json!({ "wifi": wifi, "mobile": mobile, "status": status }))
         }
@@ -92,14 +112,17 @@ pub async fn call(ctx: &CallCtx, method: &str, params: Value) -> JidrResult<Valu
             if let Some(w) = p.wifi {
                 adb.shell(&format!("svc wifi {}", on_off(w))).await?;
             }
-            if let Some(m) = p.mobile {
-                adb.shell(&format!("svc data {}", on_off(m))).await?;
-            }
-            if let Some(pr) = p.profile {
-                let (speed, delay) = pr.console();
+            if p.mobile.is_some() || p.profile.is_some() {
                 let mut c = t.console().await?;
-                c.network_speed(speed).await?;
-                c.network_delay(delay).await?;
+                if let Some(m) = p.mobile {
+                    c.gsm_state(GsmLine::Data, if m { "home" } else { "off" })
+                        .await?;
+                }
+                if let Some(pr) = p.profile {
+                    let (speed, delay) = pr.console();
+                    c.network_speed(speed).await?;
+                    c.network_delay(delay).await?;
+                }
             }
             Ok(json!({ "wifi": p.wifi, "mobile": p.mobile, "profile": p.profile }))
         }
@@ -117,5 +140,20 @@ mod tests {
         assert_eq!(Profile::Full.console(), ("full", "none"));
         let p: SetParams = parse_params(json!({"device": "d", "profile": "umts"})).unwrap();
         assert_eq!(p.profile, Some(Profile::Umts));
+    }
+
+    #[test]
+    fn mobile_data_follows_the_radio_data_state() {
+        let status = |data: &str| {
+            vec![
+                "gsm voice state: home".to_string(),
+                format!("gsm data state:  {data}"),
+            ]
+        };
+        assert_eq!(mobile_data_on(&status("home")), Some(true));
+        assert_eq!(mobile_data_on(&status("roaming")), Some(true));
+        assert_eq!(mobile_data_on(&status("off")), Some(false));
+        assert_eq!(mobile_data_on(&status("unregistered")), Some(false));
+        assert_eq!(mobile_data_on(&["OK".to_string()]), None);
     }
 }
