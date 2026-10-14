@@ -19,6 +19,7 @@ jidr-client.workspace = true
 jidr-daemon.workspace = true
 jidr-backend.workspace = true
 jidr-mcp.workspace = true
+jidr-root.workspace = true
 clap.workspace = true
 clap_complete.workspace = true
 tokio.workspace = true

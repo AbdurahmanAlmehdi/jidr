@@ -2875,6 +2875,7 @@ dependencies = [
  "jidr-core",
  "jidr-daemon",
  "jidr-mcp",
+ "jidr-root",
  "predicates",
  "serde",
  "serde_json",

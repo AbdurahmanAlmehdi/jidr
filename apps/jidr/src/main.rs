@@ -840,8 +840,8 @@ fn run_daemon(out: Out) -> u8 {
             jidr_daemon::DaemonConfig::new(paths),
             Arc::new(jidr_backend::AospBackend::new()),
         )
-        // Providers from jidr-widgets (B) and jidr-root (C) are registered
-        // here once they export `provider()` (docs/gaps.md A1/A2).
+        .provider(jidr_root::provider())
+        // jidr-widgets (B) registers here once it exports `provider()`.
         .build()?;
         daemon.serve(shutdown_signal()).await
     });
