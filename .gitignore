@@ -3,3 +3,5 @@ target/
 node_modules/
 site/dist/
 *.log
+.claude/worktrees/
+.claude/settings.local.json
