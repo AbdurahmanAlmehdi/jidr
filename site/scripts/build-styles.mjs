@@ -97,6 +97,18 @@ export function tokensCss(t) {
   ].join("\n\n") + "\n";
 }
 
+/** Arabic type sizes (`--jidr-type-*-ar`) that jidr.css's token block declares
+ * and `generated` lacks. Gap G13: tokens.json has no Arabic sizes for the
+ * landing roles yet, so the RTL page would otherwise get no hero, lede or
+ * display sizes. Returns nothing once tokens.json has them. */
+export function arabicFallbacks(jidrCss, generated) {
+  const declared = new Set(generated.match(/--jidr-[\w-]+(?=:)/g) ?? []);
+  const root = /:root\s*\{([^}]*)\}/.exec(jidrCss)?.[1] ?? "";
+  return [...root.matchAll(/(--jidr-type-[\w-]+-ar):\s*([^;]+);/g)]
+    .filter(([, name]) => !declared.has(name))
+    .map(([, name, value]) => `  ${name}: ${value.trim()};`);
+}
+
 // ---- workbench.css -----------------------------------------------------------
 
 /** Splits CSS into top-level nodes: rules and at-rules (with children for
@@ -205,9 +217,15 @@ const MARKER = "/* =============================================================
 function main() {
   mkdirSync(out, { recursive: true });
   const tokens = JSON.parse(readFileSync(join(design, "tokens.json"), "utf8"));
-  writeFileSync(join(out, "tokens.css"), tokensCss(tokens));
-
   const jidrCss = readFileSync(join(design, "screens/jidr.css"), "utf8");
+  let tokenCss = tokensCss(tokens);
+  const fallbacks = arabicFallbacks(jidrCss, tokenCss);
+  if (fallbacks.length) {
+    console.warn(`build-styles: ${fallbacks.length} Arabic type sizes taken from jidr.css until tokens.json has them (gap G13)`);
+    tokenCss += `\n/* Gap G13: not in tokens.json yet; from docs/design/screens/jidr.css. */\n:root {\n${fallbacks.join("\n")}\n}\n`;
+  }
+  writeFileSync(join(out, "tokens.css"), tokenCss);
+
   const at = jidrCss.indexOf(MARKER);
   if (at === -1) throw new Error(`jidr.css no longer has the "${MARKER}" marker`);
   const used = usedClasses(join(site, "src"));
