@@ -253,3 +253,107 @@ Validation `cargo nextest run -p jidr-daemon && git rev-parse protocol-v0.1`: pa
 Finding: the first fuzz run hung on a case. The test daemon was fetching Google's live listings (`image.list`, `sdk.*`) with no HTTP timeout. Fixed both: tests run offline, and the fetcher can no longer hang forever.
 
 Tag `protocol-v0.1` created on this commit: streams B and C are unblocked (B also needs ADR-0001, done in Phase 1).
+
+---
+
+## Phase 5a: CLI — plan
+
+Gaps: A1/A2 open (B/C), C1 FYI; nothing blocking. Tag `protocol-v0.1` done; Stream C notified, Stream B proposed.
+
+`apps/jidr` (hand-written clap derive over `jidr-client`):
+- Globals: `--json` (versioned envelope `{"jidr_json": 1, "ok": …, "result"|"error": …}`), `-q/--quiet`, `--restart-stale` (`JIDR_RESTART_STALE`; else a TTY prompt, else exit 8).
+- `daemon [run|stop|status]`: `run` serves with `AospBackend` + `DaemonConfig::new` (idle exit D4), logs to stderr (`JIDR_LOG`).
+- `device create|start|stop|list|details|clone|reset|delete|edit|connect-info` (`start/stop/delete` take several names or `--all`; `start` waits for boot by default, `--no-wait`, `--timeout` cancels the job and exits 5; destructive ones need `--yes` off a TTY).
+- `install|push|pull|logcat [--follow|--clear|--lines|--filter]`; `flash` → usage error pointing at the 🔎 gap.
+- `image list|install`, `profile list`, `sdk status|licenses|install` with `--accept-licenses` (prints each license id + SHA-256, records consent, retries; a TTY asks; otherwise exit 6 listing what to accept).
+- `root set|verify|status`, `snapshot list|save|load|delete`: thin calls to Stream C/B commands ("not available in this build" until registered).
+- `jobs list|wait|cancel`, `commands` (lists `commands.list`), `call <method> [params]` (raw protocol access: full parity with GUI/MCP), `completions <shell>`.
+- Exit codes = Jidr error codes (clap usage errors are already 2).
+- Tests: `assert_cmd` against `TestDaemon` (fake backend) via `JIDR_HOME`: JSON envelopes, exit codes 2/3/4/6, lifecycle, `--all`, install/logcat, `--timeout`, flash, completions, `call`.
+- `scripts/e2e-cli.sh`: real emulator, temp `JIDR_HOME`: create → start → wait-boot → install → stop → delete → `daemon stop`, all `--json`, non-interactive.
+- `docs/cli.md`.
+
+## Phase 5a: CLI — done (2026-10-13)
+
+Built: `apps/jidr` (`cli.rs` clap derive, `output.rs` human tables + versioned JSON envelope, `main.rs`): every command in the plan, plus `commands`, `call` (raw protocol access), `daemon run|stop|status` (`run` = `AospBackend` + `DaemonConfig::new`, SIGINT/SIGTERM shutdown), `--timeout` (cancels the job → exit 5), `--no-wait`, `--all`, `--yes` confirmations, license flow (`--accept-licenses` / TTY prompt / exit 6 with the pending list), stale daemon prompt or `--restart-stale`, thin `root.*`/`snapshot.*` calls with a clear "not available in this build" until providers land. `docs/cli.md`, `scripts/e2e-cli.sh`.
+
+Validation `cargo nextest run -p jidr && scripts/e2e-cli.sh`: 9 tests passed; e2e on a real emulator passed in 48 s (auto-spawned daemon, API 31 arm64 from the read-only Studio SDK, boot 26 s, APK install, logcat, stop, delete, daemon stop).
+
+Bug found (regression test `cli::tests::cli_definition_is_valid`): `logcat` gave `-f` to both `--filter` and `--follow`; clap panics on that at runtime in debug builds. `--filter` has no short form now.
+
+Notes: the e2e APK defaults to an AOSP sample app found in the SDK's images (`JIDR_TEST_APK` to override); CI x86_64 images may need `JIDR_TEST_APK` set.
+
+---
+
+## Phase 5b: Cache, uninstall, logs — plan
+
+Gaps: A1/A2 open; C1 FYI. Will file A3 for C (`root.set` takes `magisk_sha256` from the cache).
+
+- `jidr-sdk::cache::DownloadCache` (D30): files under `cache/downloads/sha256/<hex>[.<ext>]`; `get(sha256)`, `fetch(url, sha256, …)` (download → verify SHA-256 → atomic rename; reuse when present and valid), `import(path, expected)` (`--magisk <path>` offline), `list`, `prune(older_than)`. `Fetcher::download` returns both SHA-1 and SHA-256.
+- Daemon commands: `cache.list`, `cache.import {path, sha256?}`, `cache.prune {older_than_days?}`, `device.logs {device, output?}` (zip with the device record, config.ini, emulator + crash logs and a `logcat -d` when running). `device.details` already reports disk usage (D30).
+- CLI: `jidr cache list|import|prune`, `jidr device logs <name> [--zip path]`, `jidr root set <dev> magisk --magisk <apk>` (imports into the cache, passes `magisk_sha256`), `jidr uninstall [--purge] [--yes]` (D31): stop devices and the daemon, kill any leftover emulator running a Jidr AVD, remove Jidr's MCP entries (Claude Desktop, Claude Code `~/.claude.json` incl. per-project, Cursor `~/.cursor/mcp.json`; backup `*.jidr-backup` first, key order preserved), remove cache + logs, and with `--purge` the data dir (private SDK, AVDs, registry, consent). Never touches Android Studio's SDK or `~/.android`.
+- `scripts/e2e-cli.sh` ends with `uninstall --purge` and checks nothing Jidr-owned remains (no files, no socket, no emulator with a Jidr AVD). `scripts/e2e-studio-untouched.sh` defaults to running `e2e-cli.sh`, so install → use → purge is checked against the Studio fingerprint.
+
+## Phase 5b: Cache, uninstall, logs — done (2026-10-13)
+
+Built:
+- `jidr-sdk::cache::DownloadCache` (content-addressed by SHA-256: `fetch` verifies before storing and reuses verified copies offline, `import`, `get_verified` drops corrupt entries, `list`, `prune(older_than)`); `Fetcher::download` returns SHA-1 + SHA-256 (`Digests`).
+- Daemon: `cache.list|import|prune`, `device.logs` (zip: device.json, config.ini, hardware-qemu.ini, launch params, emulator + crash logs, logcat when running, about.txt; `bundle.rs`). Disk usage per device was already in `device.details` (D30).
+- CLI: `cache list|import|prune`, `device logs <name> [--zip]`, `root set … --magisk <apk>` (imports, passes `magisk_sha256`; gap A3 for C), `uninstall [--purge] --yes` (`uninstall.rs`: stops devices + daemon, kills leftover emulators running Jidr AVDs, removes Jidr's MCP entries from Claude Code (incl. per-project), Claude Desktop and Cursor configs with a `.jidr-backup`, deletes cache + logs (+ data with `--purge`), with a guard that refuses home, `~/Library/Android`, `~/.android` and shallow paths). `serde_json` `preserve_order` so rewritten configs keep their key order.
+- `scripts/e2e-cli.sh` now ends with a second running device and `uninstall --purge` under a scratch `HOME`, then checks no data/cache/logs/socket and no live emulator with a Jidr AVD (`scripts/lib/no_jidr_emulators.py`). `scripts/e2e-studio-untouched.sh` defaults to the sdk emulator tests + `e2e-cli.sh`.
+
+Validation `cargo nextest run -p jidr && scripts/e2e-studio-untouched.sh`: 16 CLI tests passed; full real-emulator flow (create → boot 26 s → install → logcat → stop → delete → second device booted → `uninstall --purge`) passed in 93 s, and all 296,062 Studio SDK/AVD files are unchanged.
+
+---
+
+## Phase 6: MCP server — plan
+
+Gaps: A1/A2/A3 open for B/C (not blocking); C1 FYI.
+
+`jidr-mcp` on rmcp 3.5 (hand-written `ServerHandler`, `transport-io` for stdio), `jidr mcp [--allow-destructive]` in `apps/jidr`:
+- Generic tools: `command_list {prefix?}` (from `commands.list`), `command_run {command, params, timeout_s}` (follows jobs; a job still running at the timeout is returned as is), `jobs_list {all}`, `jobs_cancel {job}`.
+- Typed hot paths: `screenshot {device}` (gRPC `getScreenshot` PNG, fitted in 1024×1024 per ADR-0001: width + height requested; returns the image + text with the screen size and scale), `tap`/`swipe` (coordinates in that screenshot's space by default, `coords: "device"` for raw pixels; `adb input`), `type_text` (gRPC `sendKey` text, optional Enter), `press_key` (Home/Back/AppSwitch/Enter… via gRPC `sendKey`), `ui_dump` (uiautomator XML), `logcat_tail {lines, filter}`.
+- Annotations on every tool (read-only / destructive / idempotent / open-world hints).
+- D5 policy: a destructive command (`CommandSpec.destructive`) is refused unless the server runs with `--allow-destructive` or the target device is `agent_owned`; `device.create` through MCP marks the device agent-owned unless told otherwise. Connection-scoped methods (`hello`, `events.subscribe`, `logcat.follow`, `daemon.shutdown`) aren't callable.
+- Jidr errors come back as tool results with `isError` + structured `{code, message, data}` so agents can act on them.
+- Tests: in-process (tokio duplex) rmcp client against `TestDaemon`: tool list + annotations, generic flow, D5 refusals/allowances, blocked methods. `--features emulator`: 5 scripted agent tasks on a real emulator through MCP (boot + screenshot, open Settings from the app drawer via ui_dump/tap, search Settings by typing, logcat_tail, stop + delete under the policy), with per-call latency printed (not gated).
+- `docs/mcp.md` with the "Add Jidr to Claude" snippets.
+
+## Phase 6: MCP server — done (2026-10-14)
+
+Built: `jidr-mcp` (rmcp 3.5, hand-written `ServerHandler`): `command_list`, `command_run` (follows jobs, timeout → job), `jobs_list`, `jobs_cancel`, `screenshot` (gRPC PNG fitted in 1024², width+height per ADR-0001), `tap`/`swipe` (screenshot or device coordinates, `adb input`), `type_text` (`adb input text`, shell-escaped), `press_key` (gRPC `sendKey`), `ui_dump`, `logcat_tail`; annotations on every tool; Jidr errors as `isError` results with structured codes; D5 policy (destructive needs `--allow-destructive` or an agent-owned device; `device.create` via MCP is agent-owned by default); connection-scoped methods blocked. `jidr mcp [--allow-destructive]`. `docs/mcp.md`.
+
+Validation `cargo nextest run -p jidr-mcp --features emulator`: 9 passed. Five scripted agent tasks on a real emulator (create+boot+screenshot, open Settings via the app drawer with ui_dump/tap, type into the launcher search, filtered logcat, stop+delete under D5); latency recorded in docs/mcp.md.
+
+Bugs/findings (with regression tests where code changed):
+1. `logcat.dump` with a filter + line count came back empty: logcat applies `-t N` to the raw buffer before tag filtering. Now we dump and keep the last N matching lines (`core_provider::tests::filtered_logcat_tails_after_filtering`).
+2. gRPC `sendKey` text injection sometimes coincided with the Settings search closing; switched `type_text` to `adb input text` (`device::tests::input_text_is_shell_safe`). Root cause of the closing turned out to be Settings Intelligence being killed during first-boot updates ("app died"), so task 3 now types into the launcher search instead.
+3. The launcher's first search shows "Always show keyboard here?"; the agent task answers it. The 2 GB profile starved first boot; tasks use the default 4 GB profile.
+
+Open: `ui_dump` is slow (uiautomator, 4–6 s median); a faster accessibility path could come later.
+
+---
+
+## 2026-10-14: merge of main (D35–D40, gaps research), camera options, CI
+
+- Merged `main` (d47a49b): took main's `docs/gaps.md` and plan, re-added my Part B rows (G1/G5 marked Done with commits; A1–A3 became G6–G8) and the Status lines of Phases 0–6.
+- Phase 3b follow-up (R7, D36): `LaunchOptions.camera_back/camera_front` → `-camera-back/-camera-front` (`emulated`, `virtualscene`, `none`, `webcamN`; validated, `jidr_backend::valid_camera`), persisted per device as `Device.launch.camera_back/front` so the Phase 8a webcam widget sets them and restarts. `-gpu host` remains the macOS default (ADR-0001). The backend emulator test now cold-boots with `camera_back = emulated` and checks `hw.camera.back` in the emulator's `hardware-qemu.ini`.
+- CI slimmed (`.github/workflows/ci.yml`): `check` (ubuntu-latest) runs the full `cargo xtask ci`; `clippy-macos` (macos-latest, rust-cache, protoc) runs only `cargo clippy --workspace --all-targets -- -D warnings`, skipped via a `changes` job (dorny/paths-filter, `predicate-quantifier: every`) when a PR only touches `docs/`, `site/` or `*.md`; the Linux KVM `emulator` job is unchanged. The repo is public so runners are free, but hosted macOS queues slower and can't boot the emulator.
+
+## 2026-10-14: CI fixes for Stream C's PR (G10, G11) and the emulator leak
+
+- G10: `spikes/display/build.rs` falls back to the vendored protos when the SDK has no emulator (CI runners). G11: the emulator CI job installs `libfontconfig1-dev libxkbcommon-dev` (the workspace build includes Slint). Pushed as fb8d18e.
+- Leak report (from Stream C, via a RAM-usage session): 13 orphaned emulators (12 × `agent-phone` from `jidr-mcp`'s agent tasks, 1 × `jidr_resilience`) used ~66 GB on the 16 GB Mac. Cause: my emulator tests had no cleanup on failure, and a killed test process (Ctrl-C, nextest timeout) never runs `Drop`; the in-process daemon's emulators outlive it by design. Fix (`jidr_backend::testing`):
+  - `AvdGuard`: kills the AVD's emulator on drop (pass, failure, panic);
+  - a per-test-process reaper (`sh` in its own process group) that waits for the test process to die, then kills every registered AVD's emulator, covering SIGKILL/Ctrl-C/timeouts;
+  - `kill_orphans(prefix)`: at test start, kills orphaned (ppid 1) qemu of earlier runs;
+  - per-process AVD names (`unique_avd`) so cleanup never touches another run;
+  - `.config/nextest.toml`: emulator-booting test binaries run one at a time (four in parallel starved the Mac and flaked the UI tasks);
+  - `scripts/e2e-cli.sh` cleans up with `uninstall --purge` on any exit, including Ctrl-C.
+- Port allocation: `allocate_avoiding` skips console/adb ports that live emulators report in their discovery files (two leaked emulators had both asked for 5554; a 127.0.0.1 bind test can miss a port held elsewhere). Regression test `ports::tests::skips_ports_live_emulators_hold`.
+- Verified: a run Ctrl-C'd mid-test and a deliberately failing test (`JIDR_TEST_FAIL_AFTER_BOOT=1`) both leave 0 emulators; the full `jidr-sdk`/`jidr-backend`/`jidr-mcp` emulator suites pass (59 tests) with 0 qemu processes and no reapers afterwards.
+
+## 2026-10-14: PR #2 emulator jobs (agent task 3 on x86_64 images)
+
+- PR #2's emulator jobs (Linux KVM, API 30/33/35, `google_apis;x86_64`) failed in `five_agent_tasks` task 3: the drawer search field was never found ("field found: false" ×3). The x86_64 images run Launcher3, whose drawer search has neither Pixel label the test looked for, and one swipe doesn't always open the drawer. Fix: `find_search_field` falls back to the drawer's `EditText`, then to a node whose `resource-id` contains `search`; task 3 swipes up to three times, as task 2 does, and prints the drawer dump when no field shows. `attr` now also reads a node's first attribute. Regression test `search_field_falls_back_to_the_text_field`. The arm64 API 31 run still passes (105 s).
+- `.config/nextest.toml`: the emulator test group filter is `binary(~_emulator) | binary(agent_tasks)`, so it covers Stream C's `jidr-root` `adb_emulator`. An exact `binary(adb_emulator)` fails nextest's config check on branches that lack that binary.

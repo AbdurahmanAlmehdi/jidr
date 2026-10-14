@@ -2,6 +2,7 @@
 //! per-device locks. Registers the core provider plus any provider handed to
 //! the builder (`jidr-widgets`, `jidr-root`).
 
+pub mod bundle;
 pub mod core_provider;
 pub mod jobs;
 pub mod lifecycle;
