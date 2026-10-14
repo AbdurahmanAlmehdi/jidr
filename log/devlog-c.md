@@ -247,3 +247,22 @@ Open issues:
 - The real-emulator validation (`scripts/e2e-root.sh` on API 30/33/35 x86_64, `cargo nextest run -p jidr-root --features emulator`) needs Linux KVM CI (or `xtask e2e-mac` on arm64), which can't run until the branch is pushed. The patch is faithful to the documented layout but has not been boot-tested here (no emulator + network in this session).
 - The Play Store beta path is specified (ADR-0002) but its env setup relies on the Magisk app; the guided tap is exercised offline at the grant level, not end-to-end on a playstore image.
 - `SystemImage.pristine_ramdisk_sha256` is filled by the root engine only implicitly (provenance sidecar); surfacing it in `image.list`/`device.details` is a small Stream A follow-up (gap G14).
+
+## Fix: Magisk device never booted (arm64 e2e) — 2026-10-14
+
+The arm64 e2e (`scripts/e2e-root.sh`) hung at `set-magisk`: the first boot with
+`launch.ramdisk` never reached adb (300 s boot timeout). Root cause: magiskinit
+re-execs the *original* first-stage init from `.backup/init` at boot; the patch
+replaced `init` with magiskinit but never recorded the stock copy, so Magisk's
+restore step fell back to symlinking `/init -> /system/bin/init` and skipped the
+emulator's real (2.9 MB) first-stage init.
+
+Fix (`crates/jidr-root/src/magisk/patch.rs`): ported `magiskboot cpio backup`
+— store changed/removed stock entries under `.backup/<name>.xz` and list added
+entries in `.backup/.rmlist`. Regression test added. Also registered
+`jidr_root::provider()` in the CLI daemon (G7/G8) and made `e2e-root.sh` keep
+`JIDR_HOME` on failure (`JIDR_E2E_KEEP=1`) and use the correct `--root` flag.
+
+Validated: `cargo xtask ci` (203 tests) and a real arm64 API 31 `google_apis`
+run — none → adb → magisk → none in 255 s, `su -c id` = uid 0, `magisk -v`
+`30.7:MAGISK:R`, SDK ramdisk hash unchanged.
