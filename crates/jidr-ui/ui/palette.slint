@@ -1,0 +1,148 @@
+// Command palette (⌘K): every action and device, filtered as you type.
+
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { T, Role, Icon, Kbd } from "components/base.slint";
+import { StatusText } from "components/status.slint";
+import { PaletteItem, PaletteKind, DevState } from "types.slint";
+
+export component Palette inherits Rectangle {
+    in property <[PaletteItem]> items;
+    in-out property <string> query;
+    in-out property <int> selected: 0;
+    callback query-changed(string);
+    callback run(PaletteItem);
+    callback dismiss();
+    background: Theme.scrim;
+    TouchArea { clicked => { root.dismiss(); } }
+    card := Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: 72px;
+        width: 560px;
+        height: 52px + min(8, root.items.length) * 40px + (root.items.length == 0 ? 52px : 8px);
+        background: Theme.surface-overlay;
+        border-radius: Theme.radius-lg;
+        border-width: 1px;
+        border-color: Theme.border-default;
+        drop-shadow-offset-y: Theme.elevation-2-shadow-y;
+        drop-shadow-blur: Theme.elevation-2-shadow-blur;
+        drop-shadow-color: Theme.elevation-2-shadow-color;
+        clip: true;
+        TouchArea {}
+        Icon {
+            x: Theme.rtl ? parent.width - 16px - self.width : 16px;
+            y: 18px;
+            source: Icons.search;
+            colorize: Theme.text-tertiary;
+        }
+        input := TextInput {
+            x: Theme.rtl ? 60px : 44px;
+            y: 0px;
+            height: 52px;
+            width: parent.width - 104px;
+            text <=> root.query;
+            font-size: 15px;
+            color: Theme.text-primary;
+            vertical-alignment: center;
+            horizontal-alignment: Theme.rtl ? TextHorizontalAlignment.right : TextHorizontalAlignment.left;
+            selection-background-color: Theme.selection;
+            edited => {
+                root.selected = 0;
+                root.query-changed(self.text);
+            }
+            accepted => {
+                if (root.selected >= 0 && root.selected < root.items.length) {
+                    root.run(root.items[root.selected]);
+                }
+            }
+            key-pressed(ev) => {
+                if (ev.text == Key.DownArrow) {
+                    root.selected = min(root.selected + 1, root.items.length - 1);
+                    return accept;
+                }
+                if (ev.text == Key.UpArrow) {
+                    root.selected = max(root.selected - 1, 0);
+                    return accept;
+                }
+                if (ev.text == Key.Escape) {
+                    root.dismiss();
+                    return accept;
+                }
+                return reject;
+            }
+        }
+        if root.query == "": T {
+            x: input.x;
+            y: 0px;
+            height: 52px;
+            width: input.width;
+            text: @tr("Type a command or a device name");
+            font-size: 15px;
+            color: Theme.text-tertiary;
+        }
+        Kbd {
+            x: Theme.rtl ? 16px : parent.width - 16px - self.width;
+            y: 17px;
+            text: "esc";
+        }
+        Rectangle {
+            y: 52px;
+            height: 1px;
+            background: Theme.border-subtle;
+        }
+        for item[i] in root.items: Rectangle {
+            visible: i < 8;
+            x: 4px;
+            y: 56px + i * 40px;
+            width: parent.width - 8px;
+            height: 40px;
+            border-radius: Theme.radius-md;
+            background: i == root.selected ? Theme.surface-selected : ita.has-hover ? Theme.surface-control-hover.with-alpha(0.5) : transparent;
+            Icon {
+                x: Theme.rtl ? parent.width - 12px - self.width : 12px;
+                source: item.kind == PaletteKind.device ? Icons.smartphone : item.kind == PaletteKind.setting ? Icons.sliders-horizontal : Icons.command;
+            }
+            T {
+                x: Theme.rtl ? 12px + kb.width + 8px : 40px;
+                y: item.subtitle != "" ? 4px : 0px;
+                height: item.subtitle != "" ? 18px : parent.height;
+                width: parent.width - 60px - kb.width;
+                text: item.title;
+            }
+            if item.subtitle != "" && item.kind != PaletteKind.device: T {
+                x: Theme.rtl ? 12px + kb.width + 8px : 40px;
+                y: 21px;
+                height: 15px;
+                width: parent.width - 60px - kb.width;
+                text: item.subtitle;
+                role: Role.caption;
+                color: Theme.text-secondary;
+            }
+            if item.kind == PaletteKind.device: StatusText {
+                x: Theme.rtl ? parent.width - 40px - self.width : 40px;
+                y: 21px;
+                height: 15px;
+                state: item.state;
+                text: item.subtitle;
+            }
+            kb := Kbd {
+                visible: item.kbd != "";
+                x: Theme.rtl ? 12px : parent.width - 12px - self.width;
+                text: item.kbd;
+            }
+            ita := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.run(item); }
+            }
+        }
+        if root.items.length == 0: T {
+            y: 60px;
+            height: 40px;
+            x: 16px;
+            width: parent.width - 32px;
+            text: @tr("Nothing matches “{}”.", root.query);
+            color: Theme.text-secondary;
+        }
+    }
+    init => { input.focus(); }
+}

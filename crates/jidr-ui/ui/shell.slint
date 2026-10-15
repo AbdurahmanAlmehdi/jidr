@@ -1,0 +1,456 @@
+// The Workbench window shell: title bar with tabs, sidebar, content area.
+// Regions swap sides in RTL (system README › RTL).
+
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { T, Role, Tone, Tones, Icon, IconButton, Button, ButtonKind, Kbd, Bar, SectionHeader, TrafficLights, Pill } from "components/base.slint";
+import { StatusText, StatusStyle, RootBadge } from "components/status.slint";
+import { DeviceVm, JobVm, TabVm, DevState, RootKind, JobTone, ConnState, FormFactor } from "types.slint";
+
+/// One title-bar tab (`.tab`).
+export component TabItem inherits Rectangle {
+    in property <string> text;
+    in property <bool> active;
+    in property <bool> library: false;
+    in property <DevState> state;
+    in property <string> kbd;
+    in property <bool> closable: false;
+    callback clicked();
+    callback close();
+    property <length> lead: library ? Theme.icon-sm + 7px : 15px;
+    height: active ? 33px : 32px;
+    width: 24px + lead + t.preferred-width + (kbd != "" ? k.width + 7px : 0px) + (closable ? 21px : 0px);
+    border-radius: 8px;
+    background: active ? Theme.surface-base : (ta.has-hover ? Theme.surface-control-hover.with-alpha(0.5) : transparent);
+    border-width: active ? 1px : 0px;
+    border-color: Theme.border-default;
+    // Square off the bottom edge so the active tab joins the content.
+    Rectangle {
+        visible: active;
+        y: parent.height - 9px;
+        x: 1px;
+        width: parent.width - 2px;
+        height: 9px;
+        background: Theme.surface-base;
+    }
+    property <length> start: Theme.rtl ? self.width - 12px : 12px;
+    if library: Icon {
+        x: Theme.rtl ? parent.width - 12px - self.width : 12px;
+        size: Theme.icon-sm;
+        source: Icons.layout-grid;
+        colorize: active ? Theme.text-primary : Theme.text-secondary;
+    }
+    if !library && StatusStyle.spins(state): Pill {
+        x: Theme.rtl ? parent.width - 12px - self.width : 12px;
+        bare: true;
+        small: true;
+        spinning: true;
+        tone: Tone.transition;
+        text: "";
+    }
+    if !library && !StatusStyle.spins(state): Rectangle {
+        x: Theme.rtl ? parent.width - 12px - 8px : 12px;
+        width: 8px;
+        height: 8px;
+        border-radius: 4px;
+        background: Tones.on(StatusStyle.tone(state));
+    }
+    t := T {
+        x: Theme.rtl ? parent.width - 12px - lead - self.width : 12px + lead;
+        width: self.preferred-width;
+        text: root.text;
+        role: Role.label;
+        color: active ? Theme.text-primary : Theme.text-secondary;
+    }
+    k := Kbd {
+        visible: kbd != "";
+        x: Theme.rtl ? t.x - 7px - self.width : t.x + t.width + 7px;
+        text: kbd;
+    }
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+    if closable: IconButton {
+        x: Theme.rtl ? 6px : parent.width - 6px - self.width;
+        size: 18px;
+        icon-size: 12px;
+        icon: Icons.x;
+        clicked => { root.close(); }
+    }
+}
+
+/// The 44 px title bar: traffic lights, Library tab, one tab per open device, tools.
+export component TitleBar inherits Rectangle {
+    in property <[TabVm]> tabs;
+    /// -1 = Library.
+    in property <int> active-tab: -1;
+    in property <bool> draw-lights: true;
+    in property <ConnState> conn: ConnState.online;
+    in property <string> conn-text;
+    callback select-tab(int);
+    callback close-tab(int);
+    callback toggle-sidebar();
+    callback drag-window();
+    height: Theme.window-titlebar-height;
+    background: Theme.surface-chrome;
+    TouchArea {
+        pointer-event(ev) => {
+            if (ev.kind == PointerEventKind.down && ev.button == PointerEventButton.left) {
+                root.drag-window();
+            }
+        }
+    }
+    lights := TrafficLights {
+        drawn: root.draw-lights;
+        x: Theme.rtl ? parent.width - 14px - self.width : 14px;
+        y: (parent.height - self.height) / 2;
+    }
+    // Tabs sit on the bottom edge.
+    tabrow := HorizontalLayout {
+        x: Theme.rtl ? tools.x + tools.width + 10px : lights.x + lights.width + 20px;
+        width: parent.width - lights.width - 34px - 20px - tools.width;
+        y: parent.height - 33px;
+        height: 33px;
+        spacing: 4px;
+        alignment: Theme.rtl ? LayoutAlignment.end : LayoutAlignment.start;
+        for slot[j] in root.tabs.length + 1: TabItem {
+            property <int> i: Theme.rtl ? root.tabs.length - j : j;
+            y: self.active ? 0px : 1px;
+            library: i == 0;
+            text: i == 0 ? @tr("Library") : root.tabs[i - 1].name;
+            state: i == 0 ? DevState.stopped : root.tabs[i - 1].state;
+            active: root.active-tab == i - 1;
+            kbd: i > 0 && i < 10 && root.active-tab != i - 1 ? "⌘" + i : "";
+            closable: i > 0 && root.active-tab == i - 1;
+            clicked => { root.select-tab(i - 1); }
+            close => { root.close-tab(i - 1); }
+        }
+    }
+    tools := HorizontalLayout {
+        x: Theme.rtl ? 10px : parent.width - 10px - self.width;
+        width: self.preferred-width;
+        y: (parent.height - 32px) / 2;
+        height: 32px;
+        spacing: 6px;
+        alignment: end;
+        if root.conn != ConnState.online: Pill {
+            y: 5px;
+            small: true;
+            tone: root.conn == ConnState.offline ? Tone.negative : Tone.transition;
+            spinning: root.conn != ConnState.offline;
+            icon: Icons.plug;
+            text: root.conn-text;
+        }
+        @children
+        IconButton {
+            icon: Icons.panel-left;
+            icon-size: Theme.icon-md;
+            clicked => { root.toggle-sidebar(); }
+        }
+    }
+    Rectangle {
+        y: parent.height - 1px;
+        height: 1px;
+        background: Theme.border-default;
+    }
+}
+
+/// Sidebar device row (`.j-dev`): name + root badge, then status.
+export component SidebarDevice inherits Rectangle {
+    in property <DeviceVm> device;
+    in property <bool> selected;
+    callback clicked();
+    callback double-clicked();
+    height: device.state == DevState.booting ? 61px : 52px;
+    border-radius: Theme.radius-md;
+    background: selected ? Theme.surface-selected : ta.has-hover ? Theme.surface-control-hover.with-alpha(0.4) : transparent;
+    badge := RootBadge {
+        x: Theme.rtl ? 8px : parent.width - 8px - self.width;
+        y: 8px;
+        small: true;
+        kind: device.root;
+        text: device.root-short;
+        beta: device.beta;
+    }
+    T {
+        x: Theme.rtl ? badge.x + badge.width + 6px : 8px;
+        y: 8px;
+        height: 20px;
+        width: parent.width - 22px - badge.width;
+        text: device.name;
+        role: Role.label;
+        font-weight: 600;
+    }
+    StatusText {
+        x: Theme.rtl ? parent.width - 8px - self.width : 8px;
+        y: 30px;
+        height: 16px;
+        state: device.state;
+        text: device.status;
+    }
+    if device.state == DevState.booting: Bar {
+        x: 8px;
+        y: 50px;
+        width: parent.width - 16px;
+        height: 3px;
+        value: device.progress;
+    }
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+        double-clicked => { root.double-clicked(); }
+    }
+}
+
+/// Job row (`.job`): icon, title, bar, bytes and time left, cancel.
+export component JobRow inherits Rectangle {
+    in property <JobVm> job;
+    callback cancel();
+    property <Tone> tone: job.tone == JobTone.running ? Tone.transition
+        : job.tone == JobTone.done ? Tone.positive
+        : job.tone == JobTone.failed ? Tone.negative
+        : Tone.neutral;
+    height: 64px;
+    border-radius: Theme.radius-lg;
+    background: Theme.surface-raised;
+    border-width: 1px;
+    border-color: Theme.border-default;
+    ic := Rectangle {
+        x: Theme.rtl ? parent.width - 12px - 28px : 12px;
+        width: 28px;
+        height: 28px;
+        border-radius: Theme.radius-md;
+        background: Tones.container(tone);
+        Icon {
+            size: Theme.icon-sm;
+            source: job.tone == JobTone.done ? Icons.check
+                : job.tone == JobTone.failed ? Icons.x
+                : job.tone == JobTone.cancelled ? Icons.ban
+                : job.tone == JobTone.queued ? Icons.clock
+                : Icons.download;
+            colorize: Tones.on(tone);
+        }
+    }
+    property <length> text-x: Theme.rtl ? (job.cancellable ? 40px : 12px) : 50px;
+    property <length> text-w: root.width - 62px - (job.cancellable ? 28px : 0px);
+    T {
+        x: text-x;
+        y: 11px;
+        width: text-w;
+        height: 16px;
+        text: job.title;
+        role: Role.label;
+        font-weight: 600;
+    }
+    Bar {
+        x: text-x;
+        y: 31px;
+        width: text-w;
+        value: job.progress;
+        visible: job.tone == JobTone.running;
+    }
+    T {
+        x: text-x;
+        y: 39px;
+        width: text-w;
+        height: 14px;
+        text: job.detail;
+        role: Role.caption;
+        mono: true;
+        color: Theme.text-secondary;
+    }
+    T {
+        x: text-x;
+        y: 39px;
+        width: text-w;
+        height: 14px;
+        text: job.eta;
+        role: Role.caption;
+        color: Theme.text-tertiary;
+        horizontal-alignment: Theme.rtl ? TextHorizontalAlignment.left : TextHorizontalAlignment.right;
+    }
+    if job.cancellable: Button {
+        x: Theme.rtl ? 8px : parent.width - 8px - self.width;
+        small: true;
+        icon-only: true;
+        has-icon: true;
+        kind: ButtonKind.tertiary;
+        icon: Icons.x;
+        clicked => { root.cancel(); }
+    }
+}
+
+/// The 248 px sidebar: command field, devices, jobs, SDK state, settings.
+export component Sidebar inherits Rectangle {
+    in property <[DeviceVm]> devices;
+    in property <[JobVm]> jobs;
+    in property <int> selected: -1;
+    in property <bool> sdk-ready: true;
+    in property <string> sdk-label: @tr("Not installed");
+    callback select(int);
+    callback open(int);
+    callback new-device();
+    callback open-palette();
+    callback open-settings();
+    callback cancel-job(int);
+    width: Theme.window-sidebar-width;
+    background: Theme.surface-chrome;
+    Rectangle {
+        x: Theme.rtl ? 0px : parent.width - 1px;
+        width: 1px;
+        background: Theme.border-default;
+    }
+    // Command field (`.j-cmd`).
+    cmd := Rectangle {
+        x: 10px;
+        y: 12px;
+        width: parent.width - 20px;
+        height: 30px;
+        border-radius: Theme.radius-md;
+        background: Theme.surface-control;
+        border-width: 1px;
+        border-color: Theme.border-default;
+        Icon {
+            x: Theme.rtl ? parent.width - 10px - self.width : 10px;
+            size: Theme.icon-sm;
+            source: Icons.search;
+            colorize: Theme.text-tertiary;
+        }
+        T {
+            x: Theme.rtl ? 40px : 30px;
+            width: parent.width - 70px;
+            text: @tr("Commands and devices");
+            color: Theme.text-tertiary;
+        }
+        Kbd {
+            x: Theme.rtl ? 8px : parent.width - 8px - self.width;
+            text: "⌘K";
+        }
+        TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.open-palette(); }
+        }
+    }
+    list := VerticalLayout {
+        x: 8px;
+        y: cmd.y + cmd.height + 6px;
+        width: parent.width - 16px;
+        height: foot.y - self.y - 4px;
+        spacing: 2px;
+        alignment: start;
+        SectionHeader {
+            text: @tr("Devices");
+            Button {
+                x: Theme.rtl ? 2px : parent.width - 2px - self.width;
+                y: 5px;
+                small: true;
+                icon-only: true;
+                has-icon: true;
+                kind: ButtonKind.tertiary;
+                icon: Icons.plus;
+                clicked => { root.new-device(); }
+            }
+        }
+        if root.devices.length == 0: T {
+            height: 40px;
+            x: 8px;
+            width: parent.width - 16px;
+            text: root.sdk-ready ? @tr("No devices yet. Create one with ⌘N.") : @tr("No devices yet. They appear here once the SDK is ready.");
+            font-size: 12px;
+            color: Theme.text-secondary;
+            wrap: word-wrap;
+            vertical-alignment: top;
+        }
+        for d[i] in root.devices: SidebarDevice {
+            device: d;
+            selected: i == root.selected;
+            clicked => { root.select(i); }
+            double-clicked => { root.open(i); }
+        }
+        if root.jobs.length > 0: SectionHeader {
+            text: @tr("Jobs");
+            trailing: root.jobs.length;
+        }
+        for j[i] in root.jobs: JobRow {
+            job: j;
+            cancel => { root.cancel-job(i); }
+        }
+        Rectangle { vertical-stretch: 1; }
+        if !root.sdk-ready: SectionHeader { text: @tr("Android SDK"); }
+        if !root.sdk-ready: Rectangle {
+            height: 28px;
+            Pill {
+                x: Theme.rtl ? parent.width - 8px - self.width : 8px;
+                small: true;
+                tone: Tone.neutral;
+                icon: Icons.circle-dot;
+                text: root.sdk-label;
+            }
+        }
+    }
+    foot := Rectangle {
+        x: 8px;
+        y: parent.height - 10px - self.height;
+        width: parent.width - 16px;
+        height: 34px;
+        border-radius: Theme.radius-md;
+        background: fta.has-hover ? Theme.surface-control-hover.with-alpha(0.4) : transparent;
+        Icon {
+            x: Theme.rtl ? parent.width - 8px - self.width : 8px;
+            source: Icons.sliders-horizontal;
+        }
+        T {
+            x: Theme.rtl ? 40px : 32px;
+            width: parent.width - 72px;
+            text: @tr("Settings");
+            color: Theme.text-secondary;
+        }
+        Kbd {
+            x: Theme.rtl ? 8px : parent.width - 8px - self.width;
+            text: "⌘,";
+        }
+        fta := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.open-settings(); }
+        }
+    }
+}
+
+/// Mini sidebar in a device tab (`.j-side.mini`): one button per device.
+export component MiniSidebar inherits Rectangle {
+    in property <[DeviceVm]> devices;
+    in property <string> active-id;
+    callback open(int);
+    width: 52px;
+    background: Theme.surface-chrome;
+    Rectangle {
+        x: Theme.rtl ? 0px : parent.width - 1px;
+        width: 1px;
+        background: Theme.border-default;
+    }
+    VerticalLayout {
+        padding-top: 10px;
+        spacing: 4px;
+        alignment: start;
+        for d[i] in root.devices: Rectangle {
+            height: 34px;
+            IconButton {
+                icon: d.form == FormFactor.tablet ? Icons.tablet : Icons.smartphone;
+                icon-size: Theme.icon-md;
+                on: d.id == root.active-id;
+                clicked => { root.open(i); }
+            }
+            Rectangle {
+                x: parent.width / 2 + 8px;
+                y: 6px;
+                width: 6px;
+                height: 6px;
+                border-radius: 3px;
+                visible: d.state != DevState.stopped;
+                background: Tones.on(StatusStyle.tone(d.state));
+            }
+        }
+    }
+}
+

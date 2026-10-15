@@ -1,0 +1,306 @@
+// Snapshot manager (docs/design/screens/Snapshots.dc.html): root-mode tags,
+// thumbnails, save dialog and the cross-mode refusal (D29).
+
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { T, Role, Tone, Tones, Icon, Button, ButtonKind, Tag, TextField, Hint, FieldLabel, Scroll, KV } from "components/base.slint";
+import { RootBadge } from "components/status.slint";
+import { Sheet, SheetFooter } from "forms.slint";
+import { DeviceVm, SnapshotVm, RootKind } from "types.slint";
+
+/// Snapshot card (`.scard`).
+component SnapCard inherits Rectangle {
+    in property <SnapshotVm> snap;
+    callback restore();
+    callback delete();
+    height: 220px + 96px;
+    border-radius: Theme.radius-lg;
+    border-width: 1px;
+    border-color: Theme.border-default;
+    background: Theme.surface-raised;
+    clip: true;
+    opacity: snap.refused ? 0.6 : 1.0;
+    // Thumbnail stage (`.sstg`).
+    Rectangle {
+        y: 0px;
+        height: 220px;
+        background: Theme.surface-sunken;
+        Rectangle {
+            width: 96px;
+            height: 196px;
+            border-radius: 12px;
+            background: Theme.surface-device-bezel;
+            Rectangle {
+                x: 5px;
+                y: 5px;
+                width: parent.width - 10px;
+                height: parent.height - 10px;
+                border-radius: 8px;
+                clip: true;
+                background: snap.auto ? Theme.surface-sunken : #ebe5d6;
+                if snap.has-thumb: Image {
+                    width: parent.width;
+                    height: parent.height;
+                    source: snap.thumb;
+                    image-fit: cover;
+                }
+                if snap.auto && !snap.has-thumb: Icon {
+                    size: Theme.icon-lg;
+                    source: Icons.zap;
+                }
+            }
+        }
+        Rectangle { y: parent.height - 1px; height: 1px; background: Theme.border-default; }
+    }
+    // Body (`.sb`).
+    T {
+        x: 14px;
+        y: 232px;
+        width: parent.width - 28px;
+        height: 18px;
+        text: snap.name;
+        font-weight: 600;
+    }
+    meta := Rectangle {
+        x: 14px;
+        y: 256px;
+        width: parent.width - 28px;
+        height: 20px;
+        badge := RootBadge {
+            visible: !snap.auto;
+            x: Theme.rtl ? parent.width - self.width : 0px;
+            small: true;
+            kind: snap.root == RootKind.none ? RootKind.none : snap.root;
+            text: snap.tag;
+        }
+        auto := Tag {
+            visible: snap.auto;
+            x: Theme.rtl ? parent.width - self.width : 0px;
+            y: 1px;
+            tone: Tone.neutral;
+            text: @tr("Auto");
+        }
+        property <length> lead: (snap.auto ? auto.width : badge.width) + 10px;
+        T {
+            x: Theme.rtl ? 0px : lead;
+            width: parent.width - lead;
+            text: snap.auto ? @tr("Saved on every stop · used for fast start") : snap.size + " · " + snap.when;
+            role: Role.caption;
+            color: Theme.text-secondary;
+        }
+    }
+    Button {
+        x: Theme.rtl ? parent.width - 14px - self.width : 14px;
+        y: 284px;
+        small: true;
+        text: @tr("Restore");
+        clicked => { root.restore(); }
+    }
+    if !snap.auto: Button {
+        x: Theme.rtl ? 14px : parent.width - 14px - self.width;
+        y: 284px;
+        small: true;
+        icon-only: true;
+        has-icon: true;
+        kind: ButtonKind.tertiary;
+        icon: Icons.trash-2;
+        clicked => { root.delete(); }
+    }
+}
+
+export component SnapshotsPage inherits Rectangle {
+    in property <DeviceVm> device;
+    in property <[SnapshotVm]> snapshots;
+    in property <string> banner;
+    in property <bool> banner-warning;
+    in property <bool> can-save: true;
+    callback back();
+    callback save();
+    callback restore(int);
+    callback delete(int);
+    background: Theme.surface-base;
+    property <length> px: 32px;
+    property <length> cw: self.width - 2 * px;
+    property <length> card-w: (cw - 32px) / 3;
+    Scroll {
+        content-height: 150px + ceil(root.snapshots.length / 3) * 332px;
+        // Breadcrumb + title.
+        crumb := T {
+            x: Theme.rtl ? px + cw - self.width : px;
+            y: 28px;
+            width: self.preferred-width;
+            height: 16px;
+            text: device.name + " ›";
+            font-size: 12px;
+            color: Theme.text-secondary;
+            TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.back(); }
+            }
+        }
+        T {
+            x: px;
+            y: 50px;
+            width: cw;
+            height: 34px;
+            text: @tr("Snapshots");
+            role: Role.display;
+        }
+        Button {
+            x: Theme.rtl ? px : px + cw - self.width;
+            y: 54px;
+            kind: ButtonKind.primary;
+            enabled: root.can-save;
+            text: @tr("Save snapshot…");
+            kbd: "⌘S";
+            clicked => { root.save(); }
+        }
+        // Banner (`.banner`).
+        if root.banner != "": Rectangle {
+            x: px;
+            y: 104px;
+            width: cw;
+            height: 40px;
+            border-radius: Theme.radius-md;
+            property <Tone> tone: root.banner-warning ? Tone.warning : Tone.neutral;
+            background: Tones.container(tone);
+            border-width: 1px;
+            border-color: Tones.border(tone);
+            Icon {
+                x: Theme.rtl ? parent.width - 12px - self.width : 12px;
+                size: Theme.icon-sm;
+                source: root.banner-warning ? Icons.triangle-alert : Icons.info;
+                colorize: Tones.on(tone);
+            }
+            T {
+                x: Theme.rtl ? 12px : 34px;
+                width: parent.width - 46px;
+                text: root.banner;
+                font-size: 12px;
+                color: Tones.on(tone);
+                wrap: word-wrap;
+            }
+        }
+        for s[i] in root.snapshots: SnapCard {
+            property <int> column: Math.mod(i, 3);
+            x: px + (Theme.rtl ? 2 - column : column) * (card-w + 16px);
+            y: 160px + floor(i / 3) * 332px;
+            width: card-w;
+            snap: s;
+            restore => { root.restore(i); }
+            delete => { root.delete(i); }
+        }
+        if root.snapshots.length == 0: T {
+            x: px;
+            y: 164px;
+            width: cw;
+            height: 40px;
+            text: @tr("No snapshots yet. A snapshot saves memory and disk exactly as they are, tagged with the root mode.");
+            color: Theme.text-secondary;
+            wrap: word-wrap;
+        }
+    }
+}
+
+/// Save dialog (`.sheet.w-dialog`).
+export component SaveSnapshotDialog inherits Sheet {
+    in-out property <string> name;
+    in property <string> device-name;
+    in property <RootKind> root-kind;
+    in property <string> root-tag;
+    in property <string> sizes-hint;
+    callback save(string);
+    callback cancel();
+    title: @tr("Save snapshot of {}", device-name);
+    subtitle: @tr("Saves memory and disk exactly as they are now. Android pauses for a few seconds while it saves.");
+    sheet-width: 440px;
+    body-height: 124px;
+    dismiss => { root.cancel(); }
+    VerticalLayout {
+        x: 20px;
+        y: 0px;
+        width: root.sheet-width - 40px;
+        spacing: 10px;
+        FieldLabel { height: 16px; text: @tr("Name"); }
+        TextField {
+            text: root.name;
+            focused-look: true;
+            edited(t) => { root.name = t; }
+            accepted(t) => { root.save(t); }
+        }
+        Rectangle {
+            height: 20px;
+            T {
+                x: Theme.rtl ? parent.width - self.width : 0px;
+                width: self.preferred-width;
+                text: @tr("Will be tagged");
+                color: Theme.text-secondary;
+            }
+            RootBadge {
+                x: Theme.rtl ? 0px : 104px;
+                small: true;
+                kind: root.root-kind;
+                text: root.root-tag;
+            }
+        }
+        Hint { height: 15px; text: root.sizes-hint; }
+    }
+    SheetFooter {
+        y: root.body-height;
+        width: root.sheet-width;
+        HorizontalLayout {
+            x: Theme.rtl ? 20px : parent.width - 20px - self.preferred-width;
+            width: self.preferred-width;
+            height: 30px;
+            spacing: 8px;
+            Button { text: @tr("Cancel"); clicked => { root.cancel(); } }
+            Button { kind: ButtonKind.primary; text: @tr("Save"); kbd: "⌘↵"; clicked => { root.save(root.name); } }
+        }
+    }
+}
+
+/// Refusal (`role=alertdialog`): taken with another root mode (D29).
+export component RefuseRestoreDialog inherits Sheet {
+    in property <string> snapshot-name;
+    in property <string> snapshot-line;
+    in property <string> device-line;
+    in property <string> body;
+    in property <string> hint;
+    in property <string> action;
+    callback act();
+    callback cancel();
+    title: @tr("Can't restore “{}”", snapshot-name);
+    subtitle: "";
+    sheet-width: 440px;
+    body-height: 150px;
+    dismiss => { root.cancel(); }
+    VerticalLayout {
+        x: 20px;
+        y: -26px;
+        width: root.sheet-width - 40px;
+        spacing: 10px;
+        T {
+            height: 52px;
+            text: root.body;
+            font-size: 12px;
+            color: Theme.text-secondary;
+            wrap: word-wrap;
+            vertical-alignment: top;
+        }
+        KV { key: @tr("Snapshot"); value: root.snapshot-line; key-width: 90px; }
+        KV { key: @tr("Device now"); value: root.device-line; key-width: 90px; }
+        Hint { height: 30px; text: root.hint; }
+    }
+    SheetFooter {
+        y: root.body-height;
+        width: root.sheet-width;
+        HorizontalLayout {
+            x: Theme.rtl ? 20px : parent.width - 20px - self.preferred-width;
+            width: self.preferred-width;
+            height: 30px;
+            spacing: 8px;
+            Button { text: @tr("Cancel"); clicked => { root.cancel(); } }
+            if root.action != "": Button { kind: ButtonKind.primary; text: root.action; clicked => { root.act(); } }
+        }
+    }
+}
