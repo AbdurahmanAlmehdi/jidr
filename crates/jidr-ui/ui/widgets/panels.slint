@@ -6,6 +6,7 @@ import { Theme } from "../theme.slint";
 import { Icons } from "../icons.slint";
 import { T, Role, Tone, Icon, Button, ButtonKind, Pill, Toggle, Segmented, TextField, Hint, Scroll, Checkbox } from "../components/base.slint";
 import { WidgetsVm } from "../types.slint";
+import { RootDevTools } from "../../src/root/root.slint";
 
 /// Slider (`.slider`) 0–100 with a linked value field.
 export component Slider inherits Rectangle {
@@ -320,7 +321,7 @@ export component MorePanel inherits Rectangle {
     in property <WidgetsVm> vm;
     callback action(string, string);
     Scroll {
-        content-height: 1010px;
+        content-height: 1150px;
         VerticalLayout {
             padding: 16px;
             padding-left: 14px;
@@ -392,6 +393,7 @@ export component MorePanel inherits Rectangle {
             VerticalLayout {
                 spacing: 10px;
                 Cap { text: @tr("Developer tools"); }
+                RootDevTools {}
                 ToggleRow { text: @tr("Show taps"); checked: root.vm.show-taps; toggled(v) => { root.action("dev.show_taps", v ? "true" : "false"); } }
                 ToggleRow { text: @tr("Pointer location"); checked: root.vm.pointer-location; toggled(v) => { root.action("dev.pointer_location", v ? "true" : "false"); } }
                 ToggleRow { text: @tr("Layout bounds"); checked: root.vm.layout-bounds; toggled(v) => { root.action("dev.layout_bounds", v ? "true" : "false"); } }

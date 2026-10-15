@@ -58,7 +58,7 @@ fn app(v: Variant) -> Result<AppWindow, String> {
     Ok(app)
 }
 
-fn shot<C: ComponentHandle>(
+pub(crate) fn shot<C: ComponentHandle>(
     c: &C,
     w: u32,
     h: u32,
@@ -204,7 +204,7 @@ fn settings_tab(v: Variant, tab: i32) -> Result<SharedPixelBuffer<Rgba8Pixel>, S
 }
 
 /// The device tab for `device` (0 = Pixel-ish 6.1) with the mock screen.
-fn device_tab(v: Variant, device: usize) -> Result<AppWindow, String> {
+pub(crate) fn device_tab(v: Variant, device: usize) -> Result<AppWindow, String> {
     let app = populated(v)?;
     let devices = fixtures::devices();
     app.set_tabs(model(vec![
@@ -250,7 +250,7 @@ pub fn populated(v: Variant) -> Result<AppWindow, String> {
 }
 
 pub fn cases() -> Vec<Case> {
-    vec![
+    let mut cases = vec![
         Case {
             name: "launcher-first-run",
             render: |v| {
@@ -539,5 +539,7 @@ pub fn cases() -> Vec<Case> {
                 shot(&app, 1440, 900)
             },
         },
-    ]
+    ];
+    cases.extend(crate::root::golden_cases());
+    cases
 }

@@ -328,3 +328,29 @@ Not done / open:
 - `site/scripts/build-styles.mjs`: the `jidr.css` bridge (`arabicFallbacks`) is removed; `tokens.css` comes from `tokens.json` only. Regression test: `tokens.json carries every Arabic type size jidr.css's token block declares` (26 sizes; fails, as does the variable-resolution test, without the new tokens).
 - `crates/jidr-ui` generates `ui/theme.slint` from the same file, so the merge with main regenerates it with the new roles.
 - Verified: `npm test` (7/7), `npm run build` (no G13 warning).
+
+## Phase 9e: Root UX — plan (2026-10-15)
+
+Built in Abdurahman's coordinating session, on Abdurahman's go-ahead; Stream C reviews. Inputs: `docs/design/screens/Root.dc.html`, `Create.dc.html`, `components/RootBadge`, `components/RootModeSelector`, ADR-0002 (Play Store guided tap), D7, D22, D29, D35.
+
+Findings that shape it:
+- The GUI never sets up Full root: create sends `device.create {root_mode: magisk}` then `device.start`, and nothing calls `root.set magisk`. 9e chains `root.set` after create (and after an edit that changes the mode) and shows the Root sheet for that job.
+- `RootState.auto_grant_all` (D22) is stored but no command reads or writes it. Gap G15 (C's `jidr-root`): `root.auto_grant {device, enabled}`.
+- The failure reason isn't stored on `Device` (only `health: failed`), so the GUI keeps the last root job's error per device.
+- `root.set magisk` reports 11 job messages; the design shows 5 steps. `src/root/steps.rs` maps them monotonically: Download ← resolve/notice/download · Patch ← patching · Reboot ← first cold boot · Install Magisk app ← app install, environment setup, second reboot · Verify ← shell grant, guided tap, verifying.
+
+Build (C writes only `crates/jidr-ui/src/root/**`; B adds the slots in gap B8):
+- `src/root/root.slint`: global `RootUi` (sheet state, steps, proof, log, dev-tools state, `action`/`tools-action` callbacks); `RootLayer` (the 620 px sheet: progress, success, failed, Play Store beta, awaiting grant, unverified); `RootModeSelector` (the spec'd cards: icons, Beta tag and notes, ↑/↓ and 1/2/3, hover and focus; same interface as B's `RootCards` so B swaps the import); `RootDevTools` (mode badge, verified line, Verify again, Revert, the opt-in "Auto-grant root to all apps" toggle for Full-root devices, off by default).
+- `src/root/mod.rs`: `wire`, `sync` (active tab → dev tools), `start(ctx, id, mode)` (runs `root.set`, opens the sheet, follows progress), sheet actions (continue in background, stop and revert = `jobs.cancel` + `root.set none`, try again, revert, copy log, verify, cancel the guided tap), per-device last failure.
+- `src/root/steps.rs` + unit tests: message → step mapping, elapsed times, failure step, proof rows.
+- `src/root/goldens.rs`: `root-progress`, `root-success`, `root-failed`, `root-playstore-beta`, `root-awaiting-grant`, `root-unverified`, `root-badges`, `root-devtools` (× dark/light/rtl), plus updated `create-*` once B swaps the selector.
+
+Validation: `cargo run -p jidr-ui --example snapshot -- --check`, `cargo xtask ci`, and the manual one-click Magisk flow on the dev Mac (API 31 arm64).
+
+## Phase 9e: Root UX — built (2026-10-15)
+
+- Built as planned above, in `crates/jidr-ui/src/root/**` (`root.slint`, `mod.rs`, `steps.rs`, `goldens.rs`). Stream B wired it in through gap B8 (736dad2): wiring, overlay, dev-tools slot, the selector in create, edit, Settings and Setup (with `DeviceForm.play_store` for edit), 134 px Play Store cards, `shield-alert`.
+- Create and edit with Full root now run `root.set magisk` and open the Root sheet. A Play Store image first boots, then roots (the beta frame).
+- Goldens: `root-progress`, `-success`, `-failed`, `-playstore-beta`, `-awaiting-grant`, `-unverified`, `-devtools`, `-devtools-failed` × dark/light/rtl, all RTL-mirrored by hand like B's components. Unit tests cover the message → step mapping, failure classification, sheet states and the dev-tools view model.
+- Skipped: G15 (`root.auto_grant`). Stream C's session couldn't take it; Abdurahman chose to land 9e with the toggle disabled until the daemon lists the command.
+- Open: the manual one-click Magisk flow on the dev Mac. The badge's success animation isn't in (goldens run with Reduce Motion).

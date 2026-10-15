@@ -3,7 +3,8 @@
 import { Theme } from "theme.slint";
 import { Icons } from "icons.slint";
 import { T, Role, Button, ButtonKind, TextField, Checkbox, Hint, FieldLabel } from "components/base.slint";
-import { Select, RootCards, ImageList, Field, Sheet, SheetFooter } from "forms.slint";
+import { Select, ImageList, Field, Sheet, SheetFooter } from "forms.slint";
+import { RootModeSelector } from "../src/root/root.slint";
 import { DeviceForm, RootChoice, ImageRowVm, OptionVm } from "types.slint";
 
 export component DeviceSheet inherits Sheet {
@@ -17,11 +18,15 @@ export component DeviceSheet inherits Sheet {
     callback submit(DeviceForm);
     callback cancel();
     callback image-changed(int);
-    property <bool> ps: form.image >= 0 && form.image < images.length && images[form.image].play-store;
+    property <bool> ps: form.edit ? form.play-store : (form.image >= 0 && form.image < images.length && images[form.image].play-store);
+    // Root cards: three lines of note on Play Store images.
+    property <length> cards-h: ps ? 134px : 96px;
+    // Edit has no image list: the root mode follows name and profile.
+    property <length> root-y: form.edit ? 69px : 300px;
     title: form.edit ? @tr("Edit {}", device-name) : @tr("New device");
     subtitle: form.edit ? @tr("Changes apply the next time the device starts.") : @tr("Defaults are filled in. Change what you need, then create.");
     sheet-width: 680px;
-    body-height: form.edit ? 160px : (ps ? 556px : 532px);
+    body-height: hw-y + 97px;
     dismiss => { root.cancel(); }
 
     property <length> cw: 640px;
@@ -86,17 +91,18 @@ export component DeviceSheet inherits Sheet {
     }
 
     // Root mode.
-    if !form.edit: FieldLabel {
+    FieldLabel {
         x: Theme.rtl ? 20px + cw - self.preferred-width : 20px;
-        y: 300px;
+        y: root-y;
         width: self.preferred-width;
         height: 16px;
         text: @tr("Root mode");
     }
-    if !form.edit: RootCards {
+    RootModeSelector {
         x: 20px;
-        y: 321px;
+        y: root-y + 21px;
         width: cw;
+        height: root.cards-h;
         selected: root.form.root;
         shell-allowed: !root.ps;
         play-store: root.ps;
@@ -105,7 +111,7 @@ export component DeviceSheet inherits Sheet {
     }
 
     // Hardware.
-    property <length> hw-y: form.edit ? 69px : (ps ? 459px : 435px);
+    property <length> hw-y: root-y + 21px + cards-h + 18px;
     Field {
         x: colx(0, third, 14px);
         y: hw-y;
