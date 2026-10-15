@@ -403,3 +403,9 @@ so its cached SharedPreferences re-read the change. Offline tests cover the
 ## Phase 9e: Done (2026-10-16)
 
 - Abdurahman ran the manual one-click Full-root flow on the dev Mac. The first attempt didn't boot because of a daemon launch bug: images in Jidr's private SDK, emulator from Android Studio's (fixed with `-sysdir`, PR #13). With the fix the emulator works. 9e's status is Done.
+
+## 2026-10-16: wait for adb after a cold boot or an adbd restart
+
+- Linux KVM CI failed `magisk_root_cycle_none_magisk_none` twice in a few days: "adb: device offline" on the Magisk app install right after the cold boot (API 35, PR #12), and "adbd did not settle to the expected uid" (API 30, PR #9). `cold_boot` returned once the daemon reported the device started, and the host adb server could still hold a stale transport. `wait_adbd` polled for 60 s but never reconnected.
+- New `adb_ready`: probe the shell until it answers. If it hasn't answered after 5 s, run `adb reconnect offline`, then at most every 10 s. It honours cancel and fails with `root_failed` plus `adb get-state` and the last error. `cold_boot` (Magisk setup, revert, module install) now waits for `echo ok` after every boot, with a 90 s limit, and `wait_adbd` uses the same loop.
+- Tests: the decision (`waits_then_reconnects_at_most_every_ten_seconds`, `gives_up_at_the_timeout`); a fake adb that stays "device offline" until reconnected (`an_offline_transport_is_reconnected`); a device that never answers (`a_device_that_never_answers_fails_with_its_state`). The `adb_emulator` and `magisk_emulator` tests pass on API 31 arm64 (106 s, 192 s).
