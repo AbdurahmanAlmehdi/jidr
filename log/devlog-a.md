@@ -383,3 +383,10 @@ Deferred or open:
 ## 2026-10-15: agent task 3 waits for the search field's focus
 
 - PR #9's API 33 run failed `five_agent_tasks` task 3: the launcher search field was found and tapped three times, but the typed "clock" never showed. Task 3 now waits up to 6 s for an `EditText` with `focused="true"` after the tap (tapping once more if the tap was dropped) before it types, and prints the screen after each missed attempt. Regression test `a_focused_text_field_is_seen`. On API 31 arm64 task 3 lands on the first attempt (21.9 s, was 55.6 s with a retry).
+
+## 2026-10-16: launch with `-sysdir` (images in Jidr's private SDK)
+
+- Abdurahman's manual 9e check failed before root setup started. The device's API 35 arm64 image had been downloaded into Jidr's private SDK, but the emulator (35.6, from Android Studio's SDK) rejected the private SDK given as `ANDROID_SDK_ROOT`: "PANIC: Broken AVD system path". It then searched Studio's SDK, which has only the x86_64 image, and exited. A private SDK holding only `system-images/` isn't a valid SDK root to it; adding `platforms/` or a `package.xml` didn't help. Passing the image directory with `-sysdir` boots it.
+- `LaunchSpec.sysdir` (the image dir in the SDK `launch_spec` picked); `AospBackend::args` always passes `-sysdir`. `FakeBackend::specs()` records launch specs.
+- Regression test `conformance::a_private_sdk_image_launches_with_its_sysdir` (image only in the private SDK, emulator in the fake Studio SDK). It fails with `sysdir` set to the SDK root. `args_cover_every_option` checks `-sysdir`.
+- Verified on the real device (`JIDR_HOME=/tmp/jh9e`): `jidr device start` now boots it (`emulator-5554`); it exited at once before.

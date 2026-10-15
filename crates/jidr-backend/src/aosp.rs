@@ -68,6 +68,10 @@ impl AospBackend {
         .iter()
         .map(|s| s.to_string())
         .collect();
+        a.splice(
+            2..2,
+            ["-sysdir".into(), spec.sysdir.to_string_lossy().into_owned()],
+        );
         a.extend(["-grpc".into(), ports.grpc.to_string()]);
         a.extend(["-port".into(), ports.console.to_string()]);
         a.extend([
@@ -443,6 +447,7 @@ mod tests {
             avd: "dev1".into(),
             avd_home: PathBuf::from("/avd"),
             sdk_root: PathBuf::from("/sdk"),
+            sysdir: PathBuf::from("/jidr/sdk/system-images/android-35/google_apis/arm64-v8a"),
             emulator: PathBuf::from("/sdk/emulator/emulator"),
             adb: PathBuf::from("/sdk/platform-tools/adb"),
             log_dir: PathBuf::from("/logs"),
@@ -458,7 +463,7 @@ mod tests {
         };
         let base = AospBackend::args(&spec(), &LaunchOptions::default(), ports).join(" ");
         assert!(base.starts_with(
-            "-avd dev1 -no-window -no-boot-anim -grpc-use-token -grpc 9000 -port 5556 -gpu "
+            "-avd dev1 -sysdir /jidr/sdk/system-images/android-35/google_apis/arm64-v8a -no-window -no-boot-anim -grpc-use-token -grpc 9000 -port 5556 -gpu "
         ));
         assert!(!base.contains("-no-snapshot"), "D29: quick boot by default");
         assert!(!base.contains("-no-audio"));

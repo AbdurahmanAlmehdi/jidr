@@ -399,3 +399,7 @@ off and no key present never touches the file. After a real write the file is
 chowned to the app's uid and `restorecon`ed, and the Magisk app is force-stopped
 so its cached SharedPreferences re-read the change. Offline tests cover the
 "only write on change" path and the edit-preserves-other-keys path.
+
+## Phase 9e: Done (2026-10-16)
+
+- Abdurahman ran the manual one-click Full-root flow on the dev Mac. The first attempt didn't boot because of a daemon launch bug: images in Jidr's private SDK, emulator from Android Studio's (fixed with `-sysdir`, PR #13). With the fix the emulator works. 9e's status is Done.
