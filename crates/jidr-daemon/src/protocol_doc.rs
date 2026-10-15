@@ -4,7 +4,7 @@
 use jidr_core::provider::CommandSpec;
 use serde_json::Value;
 
-pub const BEGIN: &str = "<!-- commands:begin (generated from commands.list; JIDR_UPDATE_DOCS=1 cargo nextest run -p jidr-daemon protocol_doc) -->";
+pub const BEGIN: &str = "<!-- commands:begin (generated from commands.list; JIDR_UPDATE_DOCS=1 cargo nextest run -p jidr protocol_doc) -->";
 pub const END: &str = "<!-- commands:end -->";
 
 fn type_of(schema: &Value, prop: &Value) -> String {

@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use jidr_core::{ImageRef, Support, SystemImage};
 
 use crate::repo::Repository;
-use crate::sdk::SdkSet;
+use crate::sdk::{Sdk, SdkSet};
 
 #[derive(Debug, Clone)]
 pub struct CatalogFilter {
@@ -89,10 +89,26 @@ pub fn image_catalog(repo: &Repository, sdks: &SdkSet, filter: &CatalogFilter) -
             });
             if entry.installed_in.is_none() {
                 entry.installed_in = Some(sdk.root.clone());
+                // G14: the SDK's ramdisk is never modified (the root engine
+                // patches a per-device copy), so this is the pristine hash.
+                entry.pristine_ramdisk_sha256 = ramdisk_sha256(sdk, &entry.image);
             }
         }
     }
     by_ref.into_values().rev().collect()
+}
+
+/// SHA-256 of `ramdisk.img` in `sdk`'s copy of `image`.
+fn ramdisk_sha256(sdk: &Sdk, image: &ImageRef) -> Option<String> {
+    crate::cache::sha256_file(&sdk.image_dir(image).join("ramdisk.img")).ok()
+}
+
+/// SHA-256 of the unmodified `ramdisk.img` of `image`, from the SDK that
+/// holds it (private first, like a launch), or `None` when it isn't
+/// installed (gap G14).
+pub fn pristine_ramdisk_sha256(sdks: &SdkSet, image: &ImageRef) -> Option<String> {
+    sdks.find_image(image)
+        .and_then(|sdk| ramdisk_sha256(sdk, image))
 }
 
 #[cfg(test)]
@@ -162,5 +178,16 @@ mod tests {
         let cat = image_catalog(&Repository::default(), &sdks, &filter);
         assert_eq!(cat.len(), 1);
         assert_eq!(cat[0].installed_in.as_deref(), Some(studio.as_path()));
+        // G14: the SDK's unmodified ramdisk.img ("x").
+        assert_eq!(
+            cat[0].pristine_ramdisk_sha256.as_deref(),
+            Some("2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881")
+        );
+        assert_eq!(
+            pristine_ramdisk_sha256(&sdks, &img).as_deref(),
+            Some("2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881")
+        );
+        let missing = ImageRef { api: 30, ..img };
+        assert_eq!(pristine_ramdisk_sha256(&sdks, &missing), None);
     }
 }

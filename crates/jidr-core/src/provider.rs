@@ -90,11 +90,15 @@ pub type DeviceUpdate = Box<dyn for<'a> FnOnce(&'a mut Device) + Send + 'static>
 /// Reports job progress: fraction (`None` = indeterminate) and a message.
 pub type ProgressFn = Arc<dyn Fn(Option<f32>, &str) + Send + Sync>;
 
+/// Reports job progress with the bytes done and expected of a download.
+pub type BytesFn = Arc<dyn Fn(Option<f32>, &str, u64, u64) + Send + Sync>;
+
 /// What a provider gets for each call.
 #[derive(Clone)]
 pub struct CallCtx {
     pub daemon: Arc<dyn DaemonContext>,
     pub progress: ProgressFn,
+    pub bytes: BytesFn,
     pub cancel: Cancel,
 }
 
@@ -111,12 +115,19 @@ impl CallCtx {
         Self {
             daemon,
             progress: Arc::new(|_, _| {}),
+            bytes: Arc::new(|_, _, _, _| {}),
             cancel: Cancel::new(),
         }
     }
 
     pub fn report(&self, fraction: Option<f32>, message: &str) {
         (self.progress)(fraction, message);
+    }
+
+    /// Like [`report`](Self::report), with the bytes of the current download
+    /// (`Job.bytes`, gap B5). A plain `report` clears them.
+    pub fn report_bytes(&self, fraction: Option<f32>, message: &str, done: u64, total: u64) {
+        (self.bytes)(fraction, message, done, total);
     }
 }
 
