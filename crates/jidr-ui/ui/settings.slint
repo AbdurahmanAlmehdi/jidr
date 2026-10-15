@@ -3,7 +3,8 @@
 import { Theme } from "theme.slint";
 import { Icons } from "icons.slint";
 import { T, Role, Tone, Icon, Button, ButtonKind, Pill, Tag, TextField, Toggle, Segmented, TrafficLights, Hint, Panel } from "components/base.slint";
-import { Select, RootCards } from "forms.slint";
+import { Select } from "forms.slint";
+import { RootModeSelector } from "../src/root/root.slint";
 import { RootChoice, UsageRow, OptionVm } from "types.slint";
 
 component SetTab inherits Rectangle {
@@ -264,7 +265,7 @@ export component SettingsWindow inherits Window {
         Row {
             label: @tr("Default root mode");
             row-height: 64px;
-            RootCards {
+            RootModeSelector {
                 y: 0px;
                 compact: true;
                 long-copy: false;

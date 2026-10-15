@@ -3,7 +3,7 @@
 import { Theme } from "theme.slint";
 import { Icons } from "icons.slint";
 import { T, Role, Tone, Tones, Icon, Button, ButtonKind, Tag, Hint, FieldLabel, Pill } from "components/base.slint";
-import { RootChoice, ImageRowVm, OptionVm } from "types.slint";
+import { ImageRowVm, OptionVm } from "types.slint";
 
 /// Dropdown (`Select` spec): shows the current option, opens a menu.
 export component Select inherits Rectangle {
@@ -74,121 +74,6 @@ export component Select inherits Rectangle {
                     }
                 }
             }
-        }
-    }
-}
-
-/// One root-mode card (`.rcard`).
-component RootCard inherits Rectangle {
-    in property <string> title;
-    in property <string> body;
-    in property <string> note;
-    in property <bool> on;
-    in property <bool> featured;
-    in property <bool> disabled;
-    in property <bool> beta;
-    in property <bool> compact;
-    callback clicked();
-    border-radius: Theme.radius-lg;
-    border-width: on ? 2px : 1px;
-    border-color: on ? Theme.accent-fill : featured ? Theme.status-root-soft-border : Theme.border-default;
-    background: disabled ? transparent : on ? Theme.accent-container : featured ? Theme.status-root-soft-container : Theme.surface-raised;
-    property <length> pad: compact ? 10px : 14px;
-    // Radio (`.box.round`) on the end edge.
-    Rectangle {
-        x: Theme.rtl ? pad : parent.width - pad - 16px;
-        y: compact ? (parent.height - 16px) / 2 : pad;
-        width: 16px;
-        height: 16px;
-        border-radius: 8px;
-        border-width: on ? 5px : 1px;
-        border-color: on ? Theme.accent-fill : Theme.border-strong;
-        background: on ? Theme.text-on-accent : Theme.surface-control;
-    }
-    title-t := T {
-        x: Theme.rtl ? parent.width - pad - self.width : pad;
-        y: compact ? (parent.height - self.height) / 2 : pad;
-        width: self.preferred-width;
-        height: 18px;
-        text: root.title;
-        font-weight: 600;
-        color: disabled ? Theme.text-disabled : Theme.text-primary;
-    }
-    if beta: Tag {
-        x: Theme.rtl ? title-t.x - 8px - self.width : title-t.x + title-t.width + 8px;
-        y: pad;
-        text: @tr("Beta");
-    }
-    if !compact: T {
-        x: pad;
-        y: pad + 24px;
-        width: parent.width - 2 * pad;
-        height: 34px;
-        text: root.body;
-        font-size: 12px;
-        color: disabled ? Theme.text-disabled : Theme.text-secondary;
-        wrap: word-wrap;
-        overflow: clip;
-        vertical-alignment: top;
-    }
-    if !compact && note != "": Rectangle {
-        x: pad;
-        y: pad + 62px;
-        width: parent.width - 2 * pad;
-        height: 1px;
-        background: Theme.border-subtle;
-    }
-    if !compact && note != "": T {
-        x: pad;
-        y: pad + 68px;
-        width: parent.width - 2 * pad;
-        height: 32px;
-        text: root.note;
-        font-size: 11px;
-        color: Theme.text-tertiary;
-        wrap: word-wrap;
-        overflow: clip;
-        vertical-alignment: top;
-    }
-    TouchArea {
-        enabled: !root.disabled;
-        mouse-cursor: pointer;
-        clicked => { root.clicked(); }
-    }
-}
-
-/// None · Shell root (adb) · Full root (D7: Shell default where allowed,
-/// Full highlighted; Play Store disables Shell and marks Full as Beta).
-export component RootCards inherits Rectangle {
-    in-out property <RootChoice> selected: RootChoice.shell;
-    in property <bool> shell-allowed: true;
-    in property <bool> play-store: false;
-    in property <string> magisk-version: "30.7";
-    in property <bool> compact: false;
-    in property <bool> long-copy: true;
-    callback changed(RootChoice);
-    height: compact ? 40px : (play-store ? 120px : 96px);
-    property <length> w: (self.width - 20px) / 3;
-    for slot[j] in 3: RootCard {
-        property <int> i: Theme.rtl ? 2 - j : j;
-        x: j * (w + 10px);
-        width: w;
-        height: parent.height;
-        compact: root.compact;
-        title: i == 0 ? @tr("None") : i == 1 ? (root.long-copy ? @tr("Shell root (adb)") : @tr("Shell root")) : @tr("Full root");
-        body: i == 0 ? (root.long-copy ? @tr("A stock device. Test apps as users see them.") : @tr("A stock device."))
-            : i == 1 ? (root.long-copy ? @tr("adb root works. Nothing on the system changes.") : @tr("adb root works. Nothing changes."))
-            : (root.long-copy ? @tr("Installs and verifies Magisk {}. Reboots once (about 40 s).", root.magisk-version) : @tr("Magisk, verified. One reboot."));
-        note: i == 1 && !root.shell-allowed ? @tr("Play Store images don't allow adb root.")
-            : i == 2 && root.play-store ? @tr("Rooted emulators can't pass Play Integrity. Apps that check it will refuse to run.")
-            : "";
-        on: (i == 0 && root.selected == RootChoice.none) || (i == 1 && root.selected == RootChoice.shell) || (i == 2 && root.selected == RootChoice.full);
-        featured: i == 2;
-        disabled: i == 1 && !root.shell-allowed;
-        beta: i == 2 && root.play-store;
-        clicked => {
-            root.selected = i == 0 ? RootChoice.none : i == 1 ? RootChoice.shell : RootChoice.full;
-            root.changed(root.selected);
         }
     }
 }

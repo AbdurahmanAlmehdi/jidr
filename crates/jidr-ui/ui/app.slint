@@ -23,6 +23,8 @@ import { RootBadge } from "components/status.slint";
 import { SnapshotsPage, SaveSnapshotDialog, RefuseRestoreDialog } from "snapshots.slint";
 import { SetupWindow } from "wizard.slint";
 import { SettingsWindow } from "settings.slint";
+import { RootUi, RootLayer, RootSheetState, RootStep, RootStepState, RootStepVm, RootLogLine } from "../src/root/root.slint";
+export { RootUi, RootSheetState, RootStep, RootStepState, RootStepVm, RootLogLine }
 import { DeviceVm, JobVm, TabVm, SnapshotVm, DevState, RootKind, FormFactor, JobTone, ConnState, RootChoice, ImageRowVm, OptionVm, DeviceForm, DetectRow, PlanRow, UsageRow, PaletteKind, PaletteItem, LogLine, WidgetsVm } from "types.slint";
 
 export { Theme, Icons, DeviceVm, JobVm, TabVm, SnapshotVm, DevState, RootKind, FormFactor, JobTone, ConnState, RootChoice, ImageRowVm, OptionVm, DeviceForm, DetectRow, PlanRow, UsageRow, PaletteKind, PaletteItem, LogLine, WidgetsVm, SetupWindow, SettingsWindow }
@@ -196,6 +198,7 @@ export component AppWindow inherits Window {
                 root.confirm-open = false;
                 root.save-open = false;
                 root.refuse-open = false;
+                RootUi.open = false;
                 return accept;
             }
             if (ev.text == Key.Return && root.active-tab < 0 && root.selected >= 0) {
@@ -449,6 +452,10 @@ export component AppWindow inherits Window {
             root.confirm-open = false;
             keys.focus();
         }
+    }
+    if RootUi.open: RootLayer {
+        y: titlebar.height;
+        height: root.height - titlebar.height;
     }
     if root.toast != "": Toast {
         y: root.height - 64px;

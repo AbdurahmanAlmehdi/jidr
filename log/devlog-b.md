@@ -176,3 +176,12 @@ On #7, `snapshot_round_trip_and_cross_root_refusal` failed on API 33 and 35: aft
 ## 2026-10-15: app.launch starts and confirms the activity
 
 On API 35, CI's new diagnostics showed `app.launch com.android.settings` returning ok while the launcher stayed in front for 30 s. `monkey -p … 1` only injects an event. `app.launch` now resolves the launcher activity (`cmd package resolve-activity --brief`), starts it with `am start -W -n`, accepts `Status: ok` / `Complete`, and turns `Error…` lines into an sdk error. It waits up to 5 s for `dumpsys window` to show the package in front, starting it once more if needed. The result gains `focused`. When no activity resolves it falls back to monkey and its not_found error. Parsers are unit-tested (`launch_output_is_parsed`). The rotation test launches Settings again if it isn't focused after 10 s. `widgets_core_commands` passes on API 31 arm64 (68 s).
+
+## 2026-10-15: B8 slots for Phase 9e (root UX)
+
+On `feat/9e-root-ux`, starting from C's reference diff (`ref/9e-b8-slots`): `pub mod root`, `root::wire`/`sync` in the app, root golden cases, the `RootLayer` overlay (Esc closes it), `RootDevTools` in the More panel, `RootModeSelector` replacing `RootCards` (now deleted from forms.slint) in the create/edit sheet, Settings and Setup, the shield-alert icon, and `root::start_later` after create (Full root) and after an edit that changes the mode. My changes on top:
+- app.slint exports only the root globals and structs (not `export *`, which warned for every non-window component).
+- The edit sheet shows the root cards (9e scope). `DeviceForm` gains `play-store`, filled by `edit_form` from the device's image, so Shell stays disabled on Play Store devices. Test: `edit_form_knows_play_store_devices`.
+- Play Store root cards are 134 px in the create sheet and Setup. The form offsets follow, and Setup's error line moves below the cards.
+- Updated goldens: create-play-store and edit-device (plus C's updated create-google-apis, settings-general, setup-4-first-device, widgets-more).
+Open for C: `ModeCard`'s note text box is 32 px high, so the third line still clips until C lets it fill the card.
