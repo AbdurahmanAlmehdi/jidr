@@ -210,6 +210,7 @@ impl State {
                 avd: d.avd.clone(),
                 avd_home: self.paths.avd_home(),
                 sdk_root: image_sdk.root.clone(),
+                sysdir: image_sdk.image_dir(&d.image),
                 emulator: tools.emulator(),
                 adb: tools.adb(),
                 log_dir: self.paths.device_logs(&d.avd),
