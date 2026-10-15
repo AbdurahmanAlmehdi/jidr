@@ -321,3 +321,10 @@ Not done / open:
 - Arabic page margin is thin on mobile (Noto Kufi Arabic is ~45 KB per
   weight); subsetting the Kufi faces to the page's glyphs is the next lever.
 - The Arabic copy needs a native-speaker read.
+
+## G13: Arabic landing type sizes in tokens.json (2026-10-15)
+
+- `docs/design/tokens.json`, "Arabic (RTL)" group: `type-web-hero-ar` 52/80, `-hero-sm-ar` 34/56, `-display-ar` 34/56, `-headline-ar` 21/36 (all 600), `-lede-ar` 19/34, `-body-ar` 17/30 (400). These are the sizes the approved Landing-AR screens use in `docs/design/screens/jidr.css`; code stays `type-web-code` (Geist Mono, LTR).
+- `site/scripts/build-styles.mjs`: the `jidr.css` bridge (`arabicFallbacks`) is removed; `tokens.css` comes from `tokens.json` only. Regression test: `tokens.json carries every Arabic type size jidr.css's token block declares` (26 sizes; fails, as does the variable-resolution test, without the new tokens).
+- `crates/jidr-ui` generates `ui/theme.slint` from the same file, so the merge with main regenerates it with the new roles.
+- Verified: `npm test` (7/7), `npm run build` (no G13 warning).

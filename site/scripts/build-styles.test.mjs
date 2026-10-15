@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { arabicFallbacks, parseCss, print, prune, tokensCss } from "./build-styles.mjs";
+import { parseCss, print, prune, tokensCss } from "./build-styles.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -102,20 +102,28 @@ test("prunes rules to the used classes, keeping at-rules and keyframes in use", 
   assert.doesNotMatch(out, /unused|gone|is-hover|spinner|@keyframes/);
 });
 
-test("Arabic type sizes missing from the tokens come from jidr.css's token block (G13)", () => {
-  const jidrCss = ":root {\n  --jidr-type-hero-size-ar: 30px;\n  --jidr-type-web-hero-size-ar: 52px;\n  --jidr-space-lg: 16px;\n}\n.x{color:red}";
-  const generated = ":root {\n  --jidr-type-hero-size-ar: 30px;\n}";
-  assert.deepEqual(arabicFallbacks(jidrCss, generated), ["  --jidr-type-web-hero-size-ar: 52px;"]);
-  assert.deepEqual(arabicFallbacks(jidrCss, `${generated}\n  --jidr-type-web-hero-size-ar: 50px;`), []);
-});
-
 test("the real tokens resolve every variable the design's component CSS uses", () => {
   const design = join(here, "../../docs/design");
   const jidrCss = readFileSync(join(design, "screens/jidr.css"), "utf8");
   const tokens = tokensCss(JSON.parse(readFileSync(join(design, "tokens.json"), "utf8")));
-  const css = `${tokens}\n${arabicFallbacks(jidrCss, tokens).join("\n")}`;
-  const defined = new Set([...css.matchAll(/(--jidr-[\w-]+):/g)].map((m) => m[1]));
+  const defined = new Set([...tokens.matchAll(/(--jidr-[\w-]+):/g)].map((m) => m[1]));
   const comp = jidrCss.split("page chrome */")[1];
   const used = new Set([...comp.matchAll(/var\((--jidr-[\w-]+)/g)].map((m) => m[1]));
   assert.deepEqual([...used].filter((v) => !defined.has(v)), []);
+});
+
+// Regression (G13): tokens.json had no Arabic landing sizes, so the RTL hero,
+// lede and section titles pointed at undefined variables. The design's token
+// block and tokens.json must now agree on every Arabic size.
+test("tokens.json carries every Arabic type size jidr.css's token block declares", () => {
+  const design = join(here, "../../docs/design");
+  const jidrCss = readFileSync(join(design, "screens/jidr.css"), "utf8");
+  const tokens = tokensCss(JSON.parse(readFileSync(join(design, "tokens.json"), "utf8")));
+  const decls = (css) =>
+    new Map([...(/:root\s*\{([^}]*)\}/.exec(css)?.[1] ?? "").matchAll(/(--jidr-type-[\w-]+-ar):\s*([^;]+);/g)]
+      .map(([, name, value]) => [name, value.trim()]));
+  const want = decls(jidrCss);
+  const ours = decls(tokens);
+  assert.ok(want.size >= 26, `jidr.css declares ${want.size} Arabic sizes`);
+  for (const [name, value] of want) assert.equal(ours.get(name), value, name);
 });
