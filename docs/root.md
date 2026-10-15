@@ -70,6 +70,23 @@ The CLI adds the APK to the download cache by SHA-256 and `root.set` uses that
 cached copy (`magisk_sha256`) instead of downloading. The SHA-256 is still
 checked, so a tampered or wrong file is rejected.
 
+## Auto-grant all (D22)
+
+On a Full-root device the adb shell is always auto-granted `su`. Every other
+app gets Magisk's normal allow/deny prompt — unless you opt in per device:
+
+```bash
+jidr root auto-grant <device> true    # grant every app root without a prompt
+jidr root auto-grant <device> false   # back to the prompt (off by default)
+```
+
+`root.auto_grant` stores the flag on the device and, when it is running, sets
+Magisk's superuser *automatic response* (`su_auto_response`: `2` = grant,
+`0` = prompt) over `adb root`, reading the value back to confirm it. On a
+stopped device it stores the flag and applies it on the next boot. Leaving Full
+root resets the flag to off. The flag is off by default; Play Integrity is
+unaffected.
+
 ## Play Store images (beta)
 
 `google_apis_playstore` images refuse `adb root`, so the shell grant cannot be

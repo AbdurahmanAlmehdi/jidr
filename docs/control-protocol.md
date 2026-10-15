@@ -401,3 +401,4 @@ No params.
 |---|---|
 | 0.1 | Initial protocol: hello, errors, jobs, events, core device/sdk/image/profile/file/logcat/jobs commands. |
 | 0.1 (additive) | Phase 5b: `cache.list`, `cache.import`, `cache.prune`, `device.logs`. No existing command changed. |
+| 0.1 (additive) | G15: `root.auto_grant` (D22 "auto-grant all", from the root provider). No existing command changed. |

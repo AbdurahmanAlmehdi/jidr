@@ -52,6 +52,21 @@ case "$1" in
             if [ -f "$grant" ]; then echo "policy=2"; else echo "policy=0"; fi;;
           *) echo "done";;
         esac;;
+      "cat /data/user_de/0/com.topjohnwu.magisk/shared_prefs/com.topjohnwu.magisk_preferences.xml")
+        if [ -f "$dir/auto-response" ]; then
+          v=$(cat "$dir/auto-response")
+          echo "<map><string name=\"su_auto_response\">$v</string></map>"
+        else
+          exit 1
+        fi;;
+      "am force-stop com.topjohnwu.magisk")
+        echo 1 >> "$dir/force-stopped"; echo "ok";;
+      *"su_auto_response"*)
+        # root.auto_grant writes Magisk's SharedPreferences; remember the value.
+        case "$cmd" in
+          *'">2</string>'*) echo 2 > "$dir/auto-response"; echo '<map><string name="su_auto_response">2</string></map>';;
+          *) echo 0 > "$dir/auto-response"; echo '<map><string name="su_auto_response">0</string></map>';;
+        esac;;
       *) echo ok;;
     esac;;
   *) echo ok;;
@@ -224,6 +239,21 @@ impl Env {
 
     pub fn revoke_su(&self) {
         let _ = std::fs::remove_file(self.studio.join("platform-tools/su-granted"));
+    }
+
+    /// The Magisk automatic-response value the fake adb last wrote ("" if never).
+    pub fn auto_response(&self) -> String {
+        std::fs::read_to_string(self.studio.join("platform-tools/auto-response"))
+            .unwrap_or_default()
+            .trim()
+            .to_string()
+    }
+
+    /// How many times the fake adb force-stopped the Magisk app.
+    pub fn force_stop_count(&self) -> usize {
+        std::fs::read_to_string(self.studio.join("platform-tools/force-stopped"))
+            .map(|s| s.lines().count())
+            .unwrap_or(0)
     }
 
     /// SHA-256 of the pristine `ramdisk.img` the fake SDK provides.
