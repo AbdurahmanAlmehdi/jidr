@@ -794,6 +794,8 @@ export component RootDevTools inherits VerticalLayout {
             y: 1px;
             checked: RootUi.tools-auto-grant;
             enabled: RootUi.tools-auto-grant-supported && !RootUi.tools-busy;
+            // Toggle has no disabled look of its own.
+            opacity: self.enabled ? 1.0 : 0.4;
             toggled(v) => { RootUi.tools-action("auto-grant", v ? "true" : "false"); }
         }
         T {
