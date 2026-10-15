@@ -1,0 +1,197 @@
+// View models shared by Rust and Slint. Labels are computed in Rust
+// (crates/jidr-ui/src/model.rs) so the UI holds no business logic.
+
+/// Device status as the user sees it (PRODUCT.md §5).
+export enum DevState { stopped, starting, booting, running, paused, stopping, crashed, busy }
+
+/// Root badge state (RootBadge spec).
+export enum RootKind { none, shell, full, setting-up, verified, unverified, failed }
+
+export enum FormFactor { phone, small-phone, tablet }
+
+export enum JobTone { queued, running, done, failed, cancelled }
+
+export struct DeviceVm {
+    id: string,
+    name: string,
+    /// "Phone 6.1″ FHD+"
+    profile: string,
+    /// "1080×2400 · 420 dpi"
+    screen: string,
+    /// "Android 15 · API 35"
+    android: string,
+    /// "Google APIs"
+    image: string,
+    state: DevState,
+    /// "Running · 2 h 14 m", "Booting Android… 62%", "Busy · in use by CLI"
+    status: string,
+    /// Boot progress 0..1 while booting.
+    progress: float,
+    root: RootKind,
+    /// "Rooted · Magisk 30.7", "Shell root (adb)", "Full root"
+    root-label: string,
+    /// Sidebar form: "Rooted", "Shell", "Full", "No root"
+    root-short: string,
+    /// Play Store image with Full root.
+    beta: bool,
+    /// "Full root", "Shell root", "Not rooted" (health panel mode line).
+    root-mode: string,
+    magisk: string,
+    /// "2 min ago · su -c id → uid=0"
+    verified: string,
+    serial: string,
+    disk: string,
+    ram: string,
+    cpus: string,
+    uptime: string,
+    last-started: string,
+    form: FormFactor,
+    width-px: int,
+    height-px: int,
+    play-store: bool,
+}
+
+export struct JobVm {
+    id: string,
+    /// "Android 16 (API 36) image"
+    title: string,
+    tone: JobTone,
+    progress: float,
+    indeterminate: bool,
+    /// "1.4 / 2.1 GB"
+    detail: string,
+    /// "2 min left"
+    eta: string,
+    cancellable: bool,
+}
+
+export struct TabVm {
+    id: string,
+    name: string,
+    state: DevState,
+}
+
+export struct SnapshotVm {
+    name: string,
+    /// "Taken with: Full root"
+    tag: string,
+    root: RootKind,
+    auto: bool,
+    size: string,
+    when: string,
+    /// Restoring is refused under the device's current root mode (D29).
+    refused: bool,
+    thumb: image,
+    has-thumb: bool,
+}
+
+export enum ConnState { connecting, online, reconnecting, offline }
+
+/// Root mode choice in forms (`root_mode`: none | adb | magisk).
+export enum RootChoice { none, shell, full }
+
+export struct ImageRowVm {
+    package: string,
+    /// "Android 15 · API 35 · Google APIs"
+    label: string,
+    /// "Installed · 2.0 GB", "Download · 2.1 GB", "Downloading · 1.4 / 2.1 GB"
+    status: string,
+    installed: bool,
+    /// Selectable (not mid-download, supported API).
+    enabled: bool,
+    play-store: bool,
+}
+
+export struct OptionVm {
+    id: string,
+    label: string,
+}
+
+/// The create/edit form; Rust validates and turns it into `device.create` / `device.edit`.
+export struct DeviceForm {
+    edit: bool,
+    name: string,
+    profile: int,
+    image: int,
+    root: RootChoice,
+    ram-gb: string,
+    cpus: string,
+    screen: string,
+    density: string,
+    start-after: bool,
+    error: string,
+}
+
+/// First-run setup (Setup.dc.html).
+export struct DetectRow { path: string, state: string, found: bool }
+export struct PlanRow { label: string, size: string }
+
+export struct UsageRow {
+    name: string,
+    sub: string,
+    fraction: float,
+    size: string,
+}
+
+export enum PaletteKind { action, device, setting }
+
+export struct PaletteItem {
+    kind: PaletteKind,
+    title: string,
+    subtitle: string,
+    kbd: string,
+    /// Opaque action id handled in Rust.
+    action: string,
+    state: DevState,
+}
+
+/// One logcat line (threadtime format).
+export struct LogLine {
+    ts: string,
+    pid: string,
+    /// V D I W E F
+    level: string,
+    tag: string,
+    msg: string,
+}
+
+/// What the widget panels show for the active device (loaded from the
+/// `*.get` commands, updated after each `*.set`).
+export struct WidgetsVm {
+    battery-level: int,
+    charging: bool,
+    battery-health: string,
+    wifi: bool,
+    mobile: bool,
+    /// Index into the network profiles (Full, LTE, HSDPA, UMTS, EDGE, GPRS, GSM).
+    profile: int,
+    signal: int,
+    rotation: int,
+    show-taps: bool,
+    pointer-location: bool,
+    layout-bounds: bool,
+    /// Index into 0, 0.5, 1, 1.5, 2, 5, 10.
+    animation: int,
+    clipboard: string,
+    phone-number: string,
+    sms-text: string,
+    /// Index into Emulated, Webcam, Virtual scene, None.
+    camera-back: int,
+    light: string,
+    temperature: string,
+    pressure: string,
+    humidity: string,
+    proximity-near: bool,
+    gps-lat: string,
+    gps-lon: string,
+    gps-alt: string,
+    gps-bearing: string,
+    route-name: string,
+    route-active: bool,
+    route-progress: float,
+    route-text: string,
+    route-paused: bool,
+    /// Index into 1×, 2×, 4×.
+    route-speed: int,
+    route-loop: bool,
+}

@@ -1,0 +1,585 @@
+// Settings window (docs/design/screens/Settings.dc.html).
+
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { T, Role, Tone, Icon, Button, ButtonKind, Pill, Tag, TextField, Toggle, Segmented, TrafficLights, Hint, Panel } from "components/base.slint";
+import { Select, RootCards } from "forms.slint";
+import { RootChoice, UsageRow, OptionVm } from "types.slint";
+
+component SetTab inherits Rectangle {
+    in property <string> text;
+    in property <image> icon;
+    in property <bool> on;
+    callback clicked();
+    width: 84px;
+    height: 50px;
+    border-radius: Theme.radius-md;
+    background: on ? Theme.surface-control-pressed : ta.has-hover ? Theme.surface-control-hover : transparent;
+    Icon {
+        y: 9px;
+        source: root.icon;
+        colorize: on ? Theme.text-primary : Theme.text-secondary;
+    }
+    T {
+        y: 31px;
+        height: 12px;
+        text: root.text;
+        font-size: 11px;
+        font-weight: 500;
+        horizontal-alignment: center;
+        color: on ? Theme.text-primary : Theme.text-secondary;
+    }
+    ta := TouchArea { clicked => { root.clicked(); } }
+}
+
+/// A settings row (`.set-row`): 180 px label column, then the control.
+component Row inherits Rectangle {
+    in property <string> label;
+    in property <length> row-height: 30px;
+    /// Content width; children use it (inside children `parent` is this row).
+    out property <length> cw: root.width - 196px;
+    height: row-height;
+    T {
+        x: Theme.rtl ? parent.width - 180px : 0px;
+        y: 6px;
+        width: 180px;
+        height: 18px;
+        text: root.label;
+        role: Role.label;
+        color: Theme.text-secondary;
+    }
+    Rectangle {
+        x: Theme.rtl ? 0px : 196px;
+        width: parent.width - 196px;
+        @children
+    }
+}
+
+/// Usage table (`.usage`): name, meter or note, size.
+component Usage inherits Rectangle {
+    in property <[UsageRow]> rows;
+    in property <bool> meters: true;
+    height: rows.length * 35px;
+    border-radius: Theme.radius-lg;
+    border-width: 1px;
+    border-color: Theme.border-default;
+    background: Theme.surface-raised;
+    clip: true;
+    for r[i] in root.rows: Rectangle {
+        y: i * 35px;
+        height: 35px;
+        property <bool> total: r.fraction < 0;
+        if i > 0: Rectangle {
+            y: 0px;
+            height: 1px;
+            background: Theme.border-subtle;
+        }
+        name := T {
+            x: Theme.rtl ? parent.width - 12px - self.width : 12px;
+            width: min(self.preferred-width, parent.width - 250px);
+            text: r.name;
+            font-weight: total ? 600 : 400;
+        }
+        if r.sub != "" && root.meters: T {
+            x: Theme.rtl ? name.x - 4px - self.width : name.x + name.width + 4px;
+            width: self.preferred-width;
+            text: "· " + r.sub;
+            color: Theme.text-tertiary;
+        }
+        if root.meters && !total: Rectangle {
+            x: Theme.rtl ? 88px : parent.width - 88px - 140px;
+            width: 140px;
+            height: 6px;
+            border-radius: 3px;
+            background: Theme.surface-sunken;
+            border-width: 1px;
+            border-color: Theme.border-subtle;
+            clip: true;
+            Rectangle {
+                x: Theme.rtl ? parent.width - self.width : 0px;
+                width: parent.width * r.fraction;
+                background: Theme.accent-fill;
+            }
+        }
+        if !root.meters && r.sub != "": T {
+            x: Theme.rtl ? 88px : parent.width - 88px - 140px;
+            width: 140px;
+            text: r.sub;
+            font-size: 12px;
+            color: Theme.text-tertiary;
+        }
+        T {
+            x: Theme.rtl ? 12px : parent.width - 12px - 64px;
+            width: 64px;
+            text: r.size;
+            role: Role.code;
+            font-weight: total ? 600 : 400;
+            horizontal-alignment: Theme.rtl ? TextHorizontalAlignment.left : TextHorizontalAlignment.right;
+        }
+    }
+}
+
+/// Code block with a copy button (`.cli`). Always LTR.
+component Cli inherits Rectangle {
+    in property <string> caption;
+    in property <string> code;
+    in property <bool> prompt;
+    callback copy(string);
+    height: 33px + 46px;
+    border-radius: Theme.radius-lg;
+    border-width: 1px;
+    border-color: Theme.border-default;
+    background: Theme.surface-sunken;
+    clip: true;
+    T {
+        x: 12px;
+        y: 0px;
+        height: 33px;
+        width: parent.width - 80px;
+        text: root.caption;
+        font-size: 12px;
+        color: Theme.text-secondary;
+        ltr: true;
+    }
+    Button {
+        x: parent.width - 6px - self.width;
+        y: 4px;
+        small: true;
+        kind: ButtonKind.tertiary;
+        text: @tr("Copy");
+        clicked => { root.copy(root.code); }
+    }
+    Rectangle {
+        y: 33px;
+        height: 1px;
+        background: Theme.border-default;
+    }
+    T {
+        x: 14px;
+        y: 33px;
+        height: 46px;
+        width: parent.width - 28px;
+        text: (root.prompt ? "$ " : "") + root.code;
+        role: Role.code;
+        font-size: 13px;
+        color: Theme.text-code;
+        ltr: true;
+    }
+}
+
+export component SettingsWindow inherits Window {
+    in-out property <int> tab: 0;
+    in property <bool> draw-lights: true;
+    // General
+    in-out property <RootChoice> default-root: RootChoice.shell;
+    in property <[OptionVm]> tile-options;
+    in-out property <int> tile-choice: 0;
+    in-out property <string> tile-url;
+    in-out property <int> appearance: 0;
+    in-out property <bool> quick-boot: true;
+    // Storage
+    in property <string> sdk-path;
+    in property <string> sdk-state: @tr("Ready");
+    in property <bool> sdk-ready: true;
+    in property <string> sdk-note;
+    in property <[UsageRow]> device-usage;
+    in property <[UsageRow]> image-usage;
+    in property <string> cache-size;
+    // Agents
+    in property <string> mcp-command: "claude mcp add jidr -- jidr mcp";
+    in property <string> mcp-json: "{ \"mcpServers\": { \"jidr\": { \"command\": \"jidr\", \"args\": [\"mcp\"] } } }";
+    // About
+    in property <string> version;
+
+    callback default-root-changed(RootChoice);
+    callback tiles-changed(int, string);
+    callback appearance-changed(int);
+    callback quick-boot-changed(bool);
+    callback change-sdk();
+    callback show-sdk();
+    callback clear-cache();
+    callback add-to-claude();
+    callback copy(string);
+    callback show-licences();
+    callback open-source();
+    callback sponsor();
+    callback check-updates();
+
+    title: @tr("Settings");
+    width: 820px;
+    height: 640px;
+    background: Theme.surface-base;
+    default-font-family: Theme.font-ui;
+    default-font-size: Theme.type-body-size;
+
+    // Toolbar (`.set-tb`).
+    Rectangle {
+        y: 0px;
+        height: 98px;
+        background: Theme.surface-chrome;
+        TrafficLights {
+            drawn: root.draw-lights;
+            x: Theme.rtl ? parent.width - 14px - self.width : 14px;
+            y: 16px;
+        }
+        T {
+            y: 10px;
+            height: 24px;
+            text: root.tab == 0 ? @tr("General") : root.tab == 1 ? @tr("Storage") : root.tab == 2 ? @tr("Agents") : @tr("About");
+            font-weight: 600;
+            color: Theme.text-secondary;
+            horizontal-alignment: center;
+        }
+        HorizontalLayout {
+            x: (parent.width - self.preferred-width) / 2;
+            y: 40px;
+            width: self.preferred-width;
+            height: 50px;
+            spacing: 4px;
+            for slot[j] in 4: SetTab {
+                property <int> i: Theme.rtl ? 3 - j : j;
+                text: i == 0 ? @tr("General") : i == 1 ? @tr("Storage") : i == 2 ? @tr("Agents") : @tr("About");
+                icon: i == 0 ? Icons.sliders-horizontal : i == 1 ? Icons.hard-drive : i == 2 ? Icons.wand-sparkles : Icons.info;
+                on: root.tab == i;
+                clicked => { root.tab = i; }
+            }
+        }
+        Rectangle {
+            y: parent.height - 1px;
+            height: 1px;
+            background: Theme.border-default;
+        }
+    }
+
+    property <length> bx: 28px;
+    property <length> bw: self.width - 56px;
+    property <length> by: 118px;
+
+    // General.
+    if root.tab == 0: VerticalLayout {
+        x: bx;
+        y: by;
+        width: bw;
+        spacing: 18px;
+        Row {
+            label: @tr("Default root mode");
+            row-height: 64px;
+            RootCards {
+                y: 0px;
+                compact: true;
+                long-copy: false;
+                selected: root.default-root;
+                changed(c) => { root.default-root-changed(c); }
+            }
+            Hint {
+                y: 46px;
+                height: 15px;
+                text: @tr("Used by New device and by jidr device create when --root is not given.");
+            }
+        }
+        Rectangle { height: 1px; background: Theme.border-subtle; }
+        Row {
+            label: @tr("Map tiles");
+            row-height: 100px;
+            Select {
+                y: 0px;
+                options: root.tile-options;
+                selected: root.tile-choice;
+                changed(i) => {
+                    root.tile-choice = i;
+                    root.tiles-changed(i, root.tile-url);
+                }
+            }
+            TextField {
+                y: 38px;
+                text: root.tile-url;
+                placeholder: "https://tiles.example.com/{z}/{x}/{y}.png";
+                mono: true;
+                enabled: root.tile-choice == root.tile-options.length - 1;
+                accepted(t) => { root.tiles-changed(root.tile-choice, t); }
+            }
+            Hint {
+                y: 76px;
+                height: 24px;
+                text: @tr("Pick Custom to use your own tile server. The attribution stays visible on the GPS map.");
+            }
+        }
+        Rectangle { height: 1px; background: Theme.border-subtle; }
+        Row {
+            label: @tr("Appearance");
+            Segmented {
+                x: Theme.rtl ? parent.cw - self.width : 0px;
+                width: 220px;
+                items: [@tr("System"), @tr("Light"), @tr("Dark")];
+                selected: root.appearance;
+                stretch: true;
+                changed(i) => { root.appearance-changed(i); }
+            }
+        }
+        Row {
+            label: @tr("Quick boot");
+            row-height: 44px;
+            Toggle {
+                x: Theme.rtl ? parent.cw - self.width : 0px;
+                y: 6px;
+                checked: root.quick-boot;
+                toggled(v) => { root.quick-boot-changed(v); }
+            }
+            T {
+                x: Theme.rtl ? 0px : 44px;
+                y: 2px;
+                height: 24px;
+                width: parent.cw - 44px;
+                text: @tr("Save a quick-boot snapshot when a device stops");
+            }
+            Hint {
+                x: Theme.rtl ? 0px : 44px;
+                y: 26px;
+                height: 15px;
+                width: parent.cw - 44px;
+                text: @tr("Starts take seconds instead of a full boot. Uses disk per device.");
+            }
+        }
+    }
+
+    // Storage.
+    if root.tab == 1: VerticalLayout {
+        x: bx;
+        y: by;
+        width: bw;
+        spacing: 14px;
+        Row {
+            label: @tr("Android SDK");
+            row-height: 68px;
+            TextField {
+                y: 0px;
+                width: parent.cw - 94px;
+                x: Theme.rtl ? 94px : 0px;
+                text: root.sdk-path;
+                mono: true;
+                enabled: false;
+            }
+            Button {
+                y: 0px;
+                x: Theme.rtl ? 0px : parent.cw - self.width;
+                text: @tr("Change…");
+                clicked => { root.change-sdk(); }
+            }
+            Pill {
+                x: Theme.rtl ? parent.cw - self.width : 0px;
+                y: 42px;
+                small: true;
+                has-icon: false;
+                tone: root.sdk-ready ? Tone.positive : Tone.neutral;
+                text: root.sdk-state;
+            }
+            Hint {
+                x: Theme.rtl ? 120px : 70px;
+                y: 44px;
+                width: parent.cw - 200px;
+                height: 15px;
+                text: root.sdk-note;
+            }
+            Button {
+                x: Theme.rtl ? 0px : parent.cw - self.width;
+                y: 40px;
+                small: true;
+                kind: ButtonKind.tertiary;
+                text: @tr("Show in Finder");
+                clicked => { root.show-sdk(); }
+            }
+        }
+        Row {
+            label: @tr("Devices");
+            row-height: max(35px, root.device-usage.length * 35px);
+            Usage { y: 0px; rows: root.device-usage; }
+        }
+        Row {
+            label: @tr("System images");
+            row-height: max(35px, root.image-usage.length * 35px);
+            Usage { y: 0px; rows: root.image-usage; meters: false; }
+        }
+        Row {
+            label: @tr("Download cache");
+            T {
+                x: Theme.rtl ? parent.cw - self.preferred-width : 0px;
+                width: self.preferred-width;
+                text: root.cache-size;
+                role: Role.code;
+            }
+            Hint {
+                x: Theme.rtl ? 110px : 64px;
+                width: parent.cw - 180px;
+                height: 15px;
+                text: @tr("Magisk and finished downloads. Safe to clear.");
+            }
+            Button {
+                x: Theme.rtl ? 0px : parent.cw - self.width;
+                small: true;
+                text: @tr("Clear cache");
+                clicked => { root.clear-cache(); }
+            }
+        }
+    }
+
+    // Agents.
+    if root.tab == 2: VerticalLayout {
+        x: bx;
+        y: by;
+        width: bw;
+        spacing: 14px;
+        T {
+            height: 20px;
+            text: @tr("Add Jidr to Claude");
+            role: Role.title;
+        }
+        T {
+            height: 38px;
+            text: @tr("Jidr runs an MCP server, so an agent can take screenshots, tap, type and read logs. While it drives, the device shows Busy · in use by agent and you can watch in the device window.");
+            color: Theme.text-secondary;
+            wrap: word-wrap;
+            vertical-alignment: top;
+        }
+        Panel {
+            height: 62px;
+            T {
+                x: Theme.rtl ? parent.width - 16px - self.width : 16px;
+                y: 13px;
+                width: parent.width - 220px;
+                height: 18px;
+                text: @tr("Claude Desktop");
+                font-weight: 600;
+            }
+            T {
+                x: Theme.rtl ? parent.width - 16px - self.width : 16px;
+                y: 32px;
+                width: parent.width - 220px;
+                height: 16px;
+                text: @tr("Adds the server to claude_desktop_config.json. Restart Claude after.");
+                font-size: 12px;
+                color: Theme.text-secondary;
+            }
+            Button {
+                x: Theme.rtl ? 16px : parent.width - 16px - self.width;
+                kind: ButtonKind.primary;
+                text: @tr("Add to Claude Desktop");
+                clicked => { root.add-to-claude(); }
+            }
+        }
+        T { height: 14px; text: @tr("Claude Code"); role: Role.caption; font-weight: 600; color: Theme.text-secondary; }
+        Cli {
+            caption: @tr("Terminal");
+            code: root.mcp-command;
+            prompt: true;
+            copy(c) => { root.copy(c); }
+        }
+        T { height: 14px; text: @tr("Any other MCP client"); role: Role.caption; font-weight: 600; color: Theme.text-secondary; }
+        Cli {
+            caption: @tr("mcp config (JSON)");
+            code: root.mcp-json;
+            copy(c) => { root.copy(c); }
+        }
+        HorizontalLayout {
+            height: 18px;
+            spacing: 6px;
+            alignment: Theme.rtl ? LayoutAlignment.end : LayoutAlignment.start;
+            T { width: self.preferred-width; text: @tr("Tools"); role: Role.caption; font-weight: 600; color: Theme.text-secondary; }
+            for tool in ["screenshot", "tap", "type", "ui_tree", "logcat"]: Tag {
+                tone: Tone.neutral;
+                text: tool;
+            }
+        }
+    }
+
+    // About.
+    if root.tab == 3: VerticalLayout {
+        x: bx;
+        y: by;
+        width: bw;
+        spacing: 16px;
+        Rectangle {
+            height: 64px;
+            Image {
+                x: Theme.rtl ? parent.width - 64px : 0px;
+                width: 64px;
+                height: 64px;
+                source: @image-url("../../../apps/jidr-gui/assets/icons/app-icon-256.png");
+            }
+            T {
+                x: Theme.rtl ? parent.width - 80px - self.width : 80px;
+                y: 10px;
+                width: self.preferred-width;
+                height: 26px;
+                text: "Jidr";
+                role: Role.headline;
+            }
+            T {
+                x: Theme.rtl ? parent.width - 80px - 50px - self.width : 80px + 50px;
+                y: 10px;
+                width: self.preferred-width;
+                height: 26px;
+                text: "جذر";
+                font-family: Theme.font-arabic;
+                font-size: 16px;
+                font-weight: 600;
+                color: Theme.root;
+            }
+            T {
+                x: Theme.rtl ? parent.width - 80px - self.width : 80px;
+                y: 38px;
+                width: self.preferred-width;
+                height: 16px;
+                text: @tr("Version {} · macOS 14+ · Apple Silicon", root.version);
+                role: Role.code;
+                color: Theme.text-secondary;
+            }
+            Button {
+                x: Theme.rtl ? 0px : parent.width - self.width;
+                y: 17px;
+                text: @tr("Check for updates");
+                clicked => { root.check-updates(); }
+            }
+        }
+        T { height: 14px; text: @tr("Licences"); role: Role.caption; font-weight: 600; color: Theme.text-secondary; }
+        VerticalLayout {
+            spacing: 6px;
+            for l in [
+                { a: @tr("Jidr app (this window)"), b: "GPL-3.0" },
+                { a: @tr("jidr CLI and daemon"), b: "Apache-2.0" },
+                { a: @tr("Slint UI toolkit"), b: "GPL-3.0" },
+                { a: @tr("Magisk, downloaded on your Mac"), b: "GPL-3.0" },
+                { a: @tr("Android Emulator and system images, downloaded on your Mac"), b: @tr("Android SDK License") },
+                { a: @tr("Lucide icons"), b: "ISC" },
+                { a: @tr("Geist, Geist Mono, Noto Kufi Arabic"), b: "OFL-1.1" },
+                { a: @tr("Map data © OpenStreetMap contributors"), b: "ODbL" },
+            ]: Rectangle {
+                height: 18px;
+                T {
+                    x: Theme.rtl ? 160px : 0px;
+                    width: parent.width - 160px;
+                    text: l.a;
+                    font-size: 12px;
+                }
+                T {
+                    x: Theme.rtl ? 0px : parent.width - self.preferred-width;
+                    width: self.preferred-width;
+                    text: l.b;
+                    font-size: 12px;
+                    color: Theme.text-secondary;
+                }
+            }
+        }
+        HorizontalLayout {
+            height: 24px;
+            spacing: 8px;
+            alignment: Theme.rtl ? LayoutAlignment.end : LayoutAlignment.start;
+            Button { small: true; text: @tr("Show full licence texts"); clicked => { root.show-licences(); } }
+            Button { small: true; kind: ButtonKind.tertiary; text: @tr("Source on GitHub"); clicked => { root.open-source(); } }
+            Button { small: true; kind: ButtonKind.tertiary; text: @tr("Sponsor Jidr"); clicked => { root.sponsor(); } }
+        }
+        Hint {
+            height: 15px;
+            text: @tr("Android is a trademark of Google LLC. Jidr is not affiliated with Google or Genymotion.");
+        }
+    }
+}
