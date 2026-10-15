@@ -363,3 +363,7 @@ Open: `ui_dump` is slow (uiautomator, 4–6 s median); a faster accessibility pa
 - `jidr daemon` registered only the core and jobs providers, so the CLI and MCP got `unknown method` for every widget command (`gps.*`, `battery.*`, `snapshot.*`, ...). `run_daemon` now builds the daemon through `build_daemon`, which adds `jidr_widgets::provider()`. `apps/jidr` depends on `jidr-widgets` (Apache-2.0, no Slint, so D18 holds).
 - Regression test `tests::daemon_serves_widget_commands` (in `apps/jidr/src/main.rs`): the daemon's registry has `gps.set`, `battery.set` and `snapshot.save`. It fails without the provider line.
 - `jidr-root` (G7) is still not registered; `jidr root …` keeps the "aren't available" message.
+
+## 2026-10-15: agent task 3 waits for the search field's focus
+
+- PR #9's API 33 run failed `five_agent_tasks` task 3: the launcher search field was found and tapped three times, but the typed "clock" never showed. Task 3 now waits up to 6 s for an `EditText` with `focused="true"` after the tap (tapping once more if the tap was dropped) before it types, and prints the screen after each missed attempt. Regression test `a_focused_text_field_is_seen`. On API 31 arm64 task 3 lands on the first attempt (21.9 s, was 55.6 s with a retry).
