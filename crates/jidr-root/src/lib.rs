@@ -59,6 +59,15 @@ pub struct ModuleInstallParams {
     pub path: PathBuf,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AutoGrantParams {
+    /// Device name or id (must be in `magisk` mode).
+    pub device: String,
+    /// Grant every app root without a prompt (D22, off by default).
+    pub enabled: bool,
+}
+
 #[async_trait]
 impl CommandProvider for RootProvider {
     fn name(&self) -> &str {
@@ -86,6 +95,11 @@ impl CommandProvider for RootProvider {
             .locks_device()
             .long_running()
             .destructive(),
+            CommandSpec::new::<AutoGrantParams>(
+                "root.auto_grant",
+                "Grant every app root without a prompt on a Full-root device (D22, off by default)",
+            )
+            .locks_device(),
         ]
     }
 
@@ -109,6 +123,7 @@ impl CommandProvider for RootProvider {
                 ensure_running(&device)?;
                 magisk::install_module(ctx, &device, &p.path).await
             }
+            "root.auto_grant" => auto_grant(ctx, parse_params(params)?).await,
             other => Err(JidrError::not_found(format!("unknown method {other}"))),
         }
     }
@@ -216,4 +231,40 @@ fn mode_label(mode: RootMode) -> &'static str {
         RootMode::Adb => "shell (adb)",
         RootMode::Magisk => "full (Magisk)",
     }
+}
+
+/// `root.auto_grant`: toggle the D22 "auto-grant all" flag. Only Full root.
+/// Stored on the device; applied live when running, on the next boot otherwise.
+async fn auto_grant(ctx: &CallCtx, p: AutoGrantParams) -> JidrResult<Value> {
+    let device = ctx.daemon.device(&p.device).await?;
+    if device.root.mode != RootMode::Magisk {
+        return Err(JidrError::usage(format!(
+            "{} isn't Full-root (Magisk); auto-grant applies to Magisk devices only",
+            device.name
+        )));
+    }
+    let enabled = p.enabled;
+    let device = ctx
+        .daemon
+        .update_device(
+            device.id,
+            Box::new(move |d: &mut Device| {
+                d.root.auto_grant_all = enabled;
+            }),
+        )
+        .await?;
+    if !is_running(&device) {
+        return Ok(json!({
+            "device": device.id,
+            "auto_grant_all": enabled,
+            "applied": "next_boot",
+        }));
+    }
+    let adb = verify::device_adb(ctx, &device).await?;
+    magisk::auto_grant::apply(&adb, enabled).await?;
+    Ok(json!({
+        "device": device.id,
+        "auto_grant_all": enabled,
+        "applied": "live",
+    }))
 }

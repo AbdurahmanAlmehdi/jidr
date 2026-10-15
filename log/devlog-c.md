@@ -354,3 +354,48 @@ Validation: `cargo run -p jidr-ui --example snapshot -- --check`, `cargo xtask c
 - Goldens: `root-progress`, `-success`, `-failed`, `-playstore-beta`, `-awaiting-grant`, `-unverified`, `-devtools`, `-devtools-failed` × dark/light/rtl, all RTL-mirrored by hand like B's components. Unit tests cover the message → step mapping, failure classification, sheet states and the dev-tools view model.
 - Skipped: G15 (`root.auto_grant`). Stream C's session couldn't take it; Abdurahman chose to land 9e with the toggle disabled until the daemon lists the command.
 - Open: the manual one-click Magisk flow on the dev Mac. The badge's success animation isn't in (goldens run with Reduce Motion).
+
+## G15: `root.auto_grant` (D22 "auto-grant all") — done (2026-10-15)
+
+Built on `feat/9e-root-ux` (`feat/g15-auto-grant`). The 9e dev-tools toggle now
+works against the daemon.
+
+- `root.auto_grant {device, enabled} -> {device, auto_grant_all}` in
+  `crates/jidr-root` (`magisk/auto_grant.rs`): Full-root only (`usage`
+  otherwise); stores `RootState.auto_grant_all` (so `device.updated` fires and
+  the GUI follows); applies live over `adb root` or on the next boot from
+  `on_booted`; `clear_patch` resets the flag when leaving Magisk. Marked
+  `locks_device()`, not destructive.
+- The setting: Magisk 30.7's superuser *automatic response* is
+  `su_auto_response` in the app's SharedPreferences
+  (`/data/user_de/0/com.topjohnwu.magisk/shared_prefs/com.topjohnwu.magisk_preferences.xml`),
+  values `"0"` = prompt (default), `"2"` = auto-allow — **not** a
+  `magisk --sqlite` `settings` row. Verified read-only from `Config.kt`,
+  `SuRequestHandler.kt` and `PreferenceConfig.kt`; no GPL code copied
+  (clean-room log updated). Jidr writes the XML over `adb root` and reads the
+  value back to confirm. The adb shell's own grant (grant.rs) is untouched.
+- Tests: 5 offline (`tests/auto_grant.rs` — mode check, params, live vs
+  next-boot, reset on leaving Magisk, command flags) and the emulator cycle in
+  `tests/magisk_emulator.rs` now toggles on → reads `su_auto_response` = `2`
+  and off → `0` on a real arm64 API 31 device.
+- Docs: `docs/root.md` section, protocol changelog row, regenerated the command
+  reference, G15 → Done (G16 filed for Stream A to register the root provider
+  in `jidr-daemon`'s `protocol_doc` test so `root.*` commands appear there too).
+
+Validation: `cargo xtask ci` (295 tests) and
+`cargo nextest run -p jidr-root --features emulator` (the Magisk cycle passes
+in 200 s on API 31 arm64 `google_apis`).
+
+Open: `root.*` commands still don't appear in the generated command reference
+(`docs/control-protocol.md`) because `protocol_doc.rs` builds the daemon
+without the root provider — gap G16, Stream A's file.
+
+Review fixes to G15 (folded into the same commit): the preference write now
+edits only the `su_auto_response` key in place — a pure Rust `edit_content`
+function removes any existing entry and appends the new one before `</map>`,
+preserving every other preference (no `sed -i` on-device). `apply` reads the
+current value first and writes only when it differs, so a boot with the flag
+off and no key present never touches the file. After a real write the file is
+chowned to the app's uid and `restorecon`ed, and the Magisk app is force-stopped
+so its cached SharedPreferences re-read the change. Offline tests cover the
+"only write on change" path and the edit-preserves-other-keys path.
