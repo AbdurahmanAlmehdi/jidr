@@ -8,6 +8,7 @@
 //! file and cold-boots. Re-patching happens whenever the pristine hash or the
 //! pinned version differs from what was recorded; patches never stack.
 
+pub mod auto_grant;
 pub mod env;
 pub mod grant;
 pub mod patch;
@@ -268,6 +269,8 @@ pub(crate) async fn clear_patch(
                 d.root.mode = target;
                 d.root.magisk_version = None;
                 d.root.patched_ramdisk_path = None;
+                // D22: leaving Full root also drops "auto-grant all".
+                d.root.auto_grant_all = false;
                 d.root.health = RootHealth::Unverified;
                 d.root.verified_at = None;
                 d.launch.ramdisk = None;
@@ -316,6 +319,13 @@ pub(crate) async fn on_booted(ctx: &CallCtx, device: &Device) -> JidrResult<()> 
                 }),
             )
             .await;
+    }
+
+    // Apply the stored "auto-grant all" flag (D22). Best-effort: on the very
+    // first boot of a fresh setup the Magisk app is not installed yet, and a
+    // boot must never fail over a preference write.
+    if let Ok(adb) = verify::device_adb(ctx, device).await {
+        let _ = auto_grant::apply(&adb, device.root.auto_grant_all).await;
     }
     Ok(())
 }

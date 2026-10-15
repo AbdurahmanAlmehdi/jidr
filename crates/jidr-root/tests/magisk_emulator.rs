@@ -12,6 +12,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use jidr_adb::Adb;
 use jidr_backend::AospBackend;
 use jidr_backend::testing::{AvdGuard, kill_orphans, unique_avd};
 use jidr_core::provider::{CallCtx, DaemonContext};
@@ -107,6 +108,40 @@ async fn magisk_root_cycle_none_magisk_none() {
 
     // 2. The shared SDK ramdisk is byte-identical.
     assert_eq!(jidr_sdk::cache::sha256_file(&pristine).unwrap(), before);
+
+    // 2b. auto-grant all (D22/G15): on → Magisk's setting reads "grant", off → "prompt".
+    let info = state.connect_info(d.id).await.unwrap();
+    let adb = Adb::new(info.adb_path).device(info.adb_serial);
+    let prefs =
+        "/data/user_de/0/com.topjohnwu.magisk/shared_prefs/com.topjohnwu.magisk_preferences.xml";
+
+    let r = call(
+        &daemon,
+        &ctx,
+        "root.auto_grant",
+        json!({ "device": name, "enabled": true }),
+    )
+    .await;
+    assert_eq!(r["applied"], "live", "{r}");
+    let out = adb.shell(&format!("su -c 'cat {prefs}'")).await.unwrap();
+    assert!(
+        out.contains("su_auto_response\">2</string>"),
+        "Magisk auto-grants every app: {out}"
+    );
+
+    let r = call(
+        &daemon,
+        &ctx,
+        "root.auto_grant",
+        json!({ "device": name, "enabled": false }),
+    )
+    .await;
+    assert_eq!(r["applied"], "live", "{r}");
+    let out = adb.shell(&format!("su -c 'cat {prefs}'")).await.unwrap();
+    assert!(
+        out.contains("su_auto_response\">0</string>"),
+        "Magisk is back to the prompt: {out}"
+    );
 
     // 3. magisk → none: revert deletes the patched copy and cold-boots.
     let r = call(
