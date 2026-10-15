@@ -357,3 +357,9 @@ Open: `ui_dump` is slow (uiautomator, 4–6 s median); a faster accessibility pa
 
 - PR #2's emulator jobs (Linux KVM, API 30/33/35, `google_apis;x86_64`) failed in `five_agent_tasks` task 3: the drawer search field was never found ("field found: false" ×3). The x86_64 images run Launcher3, whose drawer search has neither Pixel label the test looked for, and one swipe doesn't always open the drawer. Fix: `find_search_field` falls back to the drawer's `EditText`, then to a node whose `resource-id` contains `search`; task 3 swipes up to three times, as task 2 does, and prints the drawer dump when no field shows. `attr` now also reads a node's first attribute. Regression test `search_field_falls_back_to_the_text_field`. The arm64 API 31 run still passes (105 s).
 - `.config/nextest.toml`: the emulator test group filter is `binary(~_emulator) | binary(agent_tasks)`, so it covers Stream C's `jidr-root` `adb_emulator`. An exact `binary(adb_emulator)` fails nextest's config check on branches that lack that binary.
+
+## 2026-10-14: G6, the widgets provider in `jidr daemon`
+
+- `jidr daemon` registered only the core and jobs providers, so the CLI and MCP got `unknown method` for every widget command (`gps.*`, `battery.*`, `snapshot.*`, ...). `run_daemon` now builds the daemon through `build_daemon`, which adds `jidr_widgets::provider()`. `apps/jidr` depends on `jidr-widgets` (Apache-2.0, no Slint, so D18 holds).
+- Regression test `tests::daemon_serves_widget_commands` (in `apps/jidr/src/main.rs`): the daemon's registry has `gps.set`, `battery.set` and `snapshot.save`. It fails without the provider line.
+- `jidr-root` (G7) is still not registered; `jidr root …` keeps the "aren't available" message.

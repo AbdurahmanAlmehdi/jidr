@@ -1,0 +1,382 @@
+// Form building blocks: Select, root-mode cards, image list, sheet.
+
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { T, Role, Tone, Tones, Icon, Button, ButtonKind, Tag, Hint, FieldLabel, Pill } from "components/base.slint";
+import { RootChoice, ImageRowVm, OptionVm } from "types.slint";
+
+/// Dropdown (`Select` spec): shows the current option, opens a menu.
+export component Select inherits Rectangle {
+    in property <[OptionVm]> options;
+    in-out property <int> selected;
+    in property <string> trailing;
+    callback changed(int);
+    height: Theme.control-height-md;
+    border-radius: Theme.radius-md;
+    border-width: 1px;
+    border-color: Theme.border-strong;
+    background: ta.has-hover ? Theme.surface-control-hover : Theme.surface-control;
+    T {
+        x: Theme.rtl ? 30px : 10px;
+        width: parent.width - 40px - (root.trailing != "" ? tr.preferred-width + 8px : 0px);
+        text: root.selected >= 0 && root.selected < root.options.length ? root.options[root.selected].label : "";
+    }
+    tr := T {
+        visible: root.trailing != "";
+        x: Theme.rtl ? 30px : parent.width - 30px - self.preferred-width;
+        width: self.preferred-width;
+        text: root.trailing;
+        role: Role.caption;
+        color: Theme.text-secondary;
+    }
+    Icon {
+        x: Theme.rtl ? 10px : parent.width - 10px - self.width;
+        size: Theme.icon-sm;
+        source: Icons.chevron-down;
+    }
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { menu.show(); }
+    }
+    menu := PopupWindow {
+        x: 0px;
+        y: root.height + 4px;
+        width: root.width;
+        Rectangle {
+            background: Theme.surface-overlay;
+            border-radius: Theme.radius-lg;
+            border-width: 1px;
+            border-color: Theme.border-default;
+            drop-shadow-offset-y: Theme.elevation-2-shadow-y;
+            drop-shadow-blur: Theme.elevation-2-shadow-blur;
+            drop-shadow-color: Theme.elevation-2-shadow-color;
+            VerticalLayout {
+                padding: 4px;
+                for o[i] in root.options: Rectangle {
+                    height: 28px;
+                    border-radius: Theme.radius-sm;
+                    background: ita.has-hover ? Theme.surface-selected : transparent;
+                    T {
+                        x: Theme.rtl ? 28px : 10px;
+                        width: parent.width - 38px;
+                        text: o.label;
+                    }
+                    if i == root.selected: Icon {
+                        x: Theme.rtl ? 8px : parent.width - 8px - self.width;
+                        size: Theme.icon-sm;
+                        source: Icons.check;
+                    }
+                    ita := TouchArea {
+                        clicked => {
+                            root.selected = i;
+                            root.changed(i);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// One root-mode card (`.rcard`).
+component RootCard inherits Rectangle {
+    in property <string> title;
+    in property <string> body;
+    in property <string> note;
+    in property <bool> on;
+    in property <bool> featured;
+    in property <bool> disabled;
+    in property <bool> beta;
+    in property <bool> compact;
+    callback clicked();
+    border-radius: Theme.radius-lg;
+    border-width: on ? 2px : 1px;
+    border-color: on ? Theme.accent-fill : featured ? Theme.status-root-soft-border : Theme.border-default;
+    background: disabled ? transparent : on ? Theme.accent-container : featured ? Theme.status-root-soft-container : Theme.surface-raised;
+    property <length> pad: compact ? 10px : 14px;
+    // Radio (`.box.round`) on the end edge.
+    Rectangle {
+        x: Theme.rtl ? pad : parent.width - pad - 16px;
+        y: compact ? (parent.height - 16px) / 2 : pad;
+        width: 16px;
+        height: 16px;
+        border-radius: 8px;
+        border-width: on ? 5px : 1px;
+        border-color: on ? Theme.accent-fill : Theme.border-strong;
+        background: on ? Theme.text-on-accent : Theme.surface-control;
+    }
+    title-t := T {
+        x: Theme.rtl ? parent.width - pad - self.width : pad;
+        y: compact ? (parent.height - self.height) / 2 : pad;
+        width: self.preferred-width;
+        height: 18px;
+        text: root.title;
+        font-weight: 600;
+        color: disabled ? Theme.text-disabled : Theme.text-primary;
+    }
+    if beta: Tag {
+        x: Theme.rtl ? title-t.x - 8px - self.width : title-t.x + title-t.width + 8px;
+        y: pad;
+        text: @tr("Beta");
+    }
+    if !compact: T {
+        x: pad;
+        y: pad + 24px;
+        width: parent.width - 2 * pad;
+        height: 34px;
+        text: root.body;
+        font-size: 12px;
+        color: disabled ? Theme.text-disabled : Theme.text-secondary;
+        wrap: word-wrap;
+        overflow: clip;
+        vertical-alignment: top;
+    }
+    if !compact && note != "": Rectangle {
+        x: pad;
+        y: pad + 62px;
+        width: parent.width - 2 * pad;
+        height: 1px;
+        background: Theme.border-subtle;
+    }
+    if !compact && note != "": T {
+        x: pad;
+        y: pad + 68px;
+        width: parent.width - 2 * pad;
+        height: 32px;
+        text: root.note;
+        font-size: 11px;
+        color: Theme.text-tertiary;
+        wrap: word-wrap;
+        overflow: clip;
+        vertical-alignment: top;
+    }
+    TouchArea {
+        enabled: !root.disabled;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+/// None · Shell root (adb) · Full root (D7: Shell default where allowed,
+/// Full highlighted; Play Store disables Shell and marks Full as Beta).
+export component RootCards inherits Rectangle {
+    in-out property <RootChoice> selected: RootChoice.shell;
+    in property <bool> shell-allowed: true;
+    in property <bool> play-store: false;
+    in property <string> magisk-version: "30.7";
+    in property <bool> compact: false;
+    in property <bool> long-copy: true;
+    callback changed(RootChoice);
+    height: compact ? 40px : (play-store ? 120px : 96px);
+    property <length> w: (self.width - 20px) / 3;
+    for slot[j] in 3: RootCard {
+        property <int> i: Theme.rtl ? 2 - j : j;
+        x: j * (w + 10px);
+        width: w;
+        height: parent.height;
+        compact: root.compact;
+        title: i == 0 ? @tr("None") : i == 1 ? (root.long-copy ? @tr("Shell root (adb)") : @tr("Shell root")) : @tr("Full root");
+        body: i == 0 ? (root.long-copy ? @tr("A stock device. Test apps as users see them.") : @tr("A stock device."))
+            : i == 1 ? (root.long-copy ? @tr("adb root works. Nothing on the system changes.") : @tr("adb root works. Nothing changes."))
+            : (root.long-copy ? @tr("Installs and verifies Magisk {}. Reboots once (about 40 s).", root.magisk-version) : @tr("Magisk, verified. One reboot."));
+        note: i == 1 && !root.shell-allowed ? @tr("Play Store images don't allow adb root.")
+            : i == 2 && root.play-store ? @tr("Rooted emulators can't pass Play Integrity. Apps that check it will refuse to run.")
+            : "";
+        on: (i == 0 && root.selected == RootChoice.none) || (i == 1 && root.selected == RootChoice.shell) || (i == 2 && root.selected == RootChoice.full);
+        featured: i == 2;
+        disabled: i == 1 && !root.shell-allowed;
+        beta: i == 2 && root.play-store;
+        clicked => {
+            root.selected = i == 0 ? RootChoice.none : i == 1 ? RootChoice.shell : RootChoice.full;
+            root.changed(root.selected);
+        }
+    }
+}
+
+/// Android version list (`.imglist`): host-ABI images with their state.
+export component ImageList inherits Rectangle {
+    in property <[ImageRowVm]> images;
+    in-out property <int> selected;
+    callback changed(int);
+    height: min(6, images.length) * 32px + 2px;
+    border-radius: Theme.radius-md;
+    border-width: 1px;
+    border-color: Theme.border-strong;
+    background: Theme.surface-control;
+    clip: true;
+    Flickable {
+        y: 1px;
+        height: parent.height - 2px;
+        content-height: root.images.length * 32px;
+        for img[i] in root.images: Rectangle {
+            y: i * 32px;
+            height: 32px;
+            background: i == root.selected ? Theme.accent-container : transparent;
+            if i > 0: Rectangle {
+                height: 1px;
+                y: 0px;
+                background: Theme.border-subtle;
+            }
+            Rectangle {
+                x: Theme.rtl ? parent.width - 26px : 10px;
+                width: 16px;
+                height: 16px;
+                border-radius: 8px;
+                border-width: i == root.selected ? 5px : 1px;
+                border-color: i == root.selected ? Theme.accent-fill : Theme.border-strong;
+                background: i == root.selected ? Theme.text-on-accent : Theme.surface-control;
+                visible: img.enabled;
+            }
+            if !img.enabled: Icon {
+                x: Theme.rtl ? parent.width - 26px : 10px;
+                size: 16px;
+                source: Icons.download;
+                colorize: Theme.text-disabled;
+            }
+            T {
+                x: Theme.rtl ? st.preferred-width + 20px : 36px;
+                width: parent.width - 56px - st.preferred-width;
+                text: img.label;
+                color: img.enabled ? Theme.text-primary : Theme.text-disabled;
+            }
+            st := T {
+                x: Theme.rtl ? 10px : parent.width - 10px - self.preferred-width;
+                width: self.preferred-width;
+                text: img.status;
+                font-size: 12px;
+                color: Theme.text-secondary;
+            }
+            TouchArea {
+                enabled: img.enabled;
+                mouse-cursor: pointer;
+                clicked => {
+                    root.selected = i;
+                    root.changed(i);
+                }
+            }
+        }
+    }
+}
+
+/// Label above a control.
+export component Field inherits VerticalLayout {
+    in property <string> label;
+    in property <string> hint;
+    spacing: 5px;
+    FieldLabel { text: root.label; height: 16px; }
+    @children
+    if root.hint != "": Hint { text: root.hint; height: 15px; }
+}
+
+/// Sheet over a scrim (`.scrim` + `.sheet`), dropped from the title bar.
+export component Sheet inherits Rectangle {
+    in property <string> title;
+    in property <string> subtitle;
+    in property <length> sheet-width: 680px;
+    in property <length> body-height: 400px;
+    callback dismiss();
+    background: Theme.scrim;
+    TouchArea { clicked => { root.dismiss(); } }
+    sheet := Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: 0px;
+        width: root.sheet-width;
+        height: 72px + root.body-height + 56px;
+        background: Theme.elevation-3-surface;
+        border-width: 1px;
+        border-color: Theme.border-default;
+        border-radius: Theme.radius-xl;
+        drop-shadow-offset-y: Theme.elevation-3-shadow-y;
+        drop-shadow-blur: Theme.elevation-3-shadow-blur;
+        drop-shadow-color: Theme.elevation-3-shadow-color;
+        clip: true;
+        TouchArea {}
+        T {
+            x: 20px;
+            y: 18px;
+            width: parent.width - 40px;
+            height: 20px;
+            text: root.title;
+            font-size: 15px;
+            font-weight: 600;
+        }
+        T {
+            x: 20px;
+            y: 42px;
+            width: parent.width - 40px;
+            height: 17px;
+            text: root.subtitle;
+            font-size: 12px;
+            color: Theme.text-secondary;
+        }
+        // Body and footer: children lay out the body in the top `body-height`
+        // and put a `SheetFooter` at `y: root.body-height` (inside children,
+        // `parent` is the sheet's root, not this container).
+        Rectangle {
+            x: 0px;
+            y: 72px;
+            width: root.sheet-width;
+            height: root.body-height + 56px;
+            @children
+        }
+    }
+}
+
+/// Sheet footer bar (`.sf`); place at `Sheet.footer-y`.
+export component SheetFooter inherits Rectangle {
+    height: 56px;
+    background: Theme.surface-chrome;
+    border-radius: Theme.radius-xl;
+    Rectangle {
+        y: 0px;
+        height: 14px;
+        background: Theme.surface-chrome;
+    }
+    Rectangle {
+        y: 0px;
+        height: 1px;
+        background: Theme.border-default;
+    }
+    @children
+}
+
+/// Alert dialog (`.sheet.w-dialog`): what happens, whether data is safe.
+export component ConfirmDialog inherits Sheet {
+    in property <string> body;
+    in property <string> action;
+    in property <bool> destructive: true;
+    callback ok();
+    callback cancel();
+    sheet-width: 440px;
+    body-height: 64px;
+    dismiss => { root.cancel(); }
+    T {
+        x: 20px;
+        y: 0px;
+        width: root.sheet-width - 40px;
+        height: 56px;
+        text: root.body;
+        color: Theme.text-secondary;
+        wrap: word-wrap;
+        vertical-alignment: top;
+    }
+    SheetFooter {
+        y: root.body-height;
+        width: root.sheet-width;
+        HorizontalLayout {
+            x: Theme.rtl ? 20px : parent.width - 20px - self.preferred-width;
+            width: self.preferred-width;
+            height: 30px;
+            spacing: 8px;
+            Button {
+                text: @tr("Cancel");
+                clicked => { root.cancel(); }
+            }
+            Button {
+                kind: root.destructive ? ButtonKind.destructive : ButtonKind.primary;
+                text: root.action;
+                clicked => { root.ok(); }
+            }
+        }
+    }
+}

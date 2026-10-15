@@ -1,0 +1,424 @@
+// Launcher 1A content: device detail (populated) and the first-run empty
+// state (docs/design/screens/Main.dc.html).
+
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { T, Role, Tone, Tones, Icon, Button, ButtonKind, Panel, Pill, Tag, KV, Kbd, Scroll } from "components/base.slint";
+import { StatusPill, RootBadge } from "components/status.slint";
+import { DeviceVm, SnapshotVm, DevState, RootKind, FormFactor } from "types.slint";
+
+/// Neutral device silhouette (`.dd-sil`); no brand shape.
+export component Silhouette inherits Rectangle {
+    in property <bool> on: true;
+    in property <FormFactor> form: FormFactor.phone;
+    width: form == FormFactor.tablet ? 96px : 72px;
+    height: form == FormFactor.tablet ? 120px : 120px;
+    border-radius: 14px;
+    background: Theme.surface-device-bezel;
+    Rectangle {
+        x: 5px;
+        y: 5px;
+        width: parent.width - 10px;
+        height: parent.height - 10px;
+        border-radius: 10px;
+        background: on ? #ebe5d6 : Theme.surface-sunken;
+    }
+}
+
+/// Snapshot card in the detail view (`.snap`).
+component SnapCard inherits Rectangle {
+    in property <SnapshotVm> snap;
+    callback restore();
+    height: 60px;
+    border-radius: Theme.radius-lg;
+    background: Theme.surface-raised;
+    border-width: 1px;
+    border-color: Theme.border-default;
+    th := Rectangle {
+        x: Theme.rtl ? parent.width - 12px - self.width : 12px;
+        width: 22px;
+        height: 40px;
+        border-radius: 4px;
+        background: snap.auto ? Theme.surface-sunken : #ebe5d6;
+        border-width: 1px;
+        border-color: Theme.border-default;
+    }
+    btn := Button {
+        x: Theme.rtl ? 12px : parent.width - 12px - self.width;
+        small: true;
+        text: @tr("Restore");
+        enabled: !snap.refused;
+        clicked => { root.restore(); }
+    }
+    property <length> tx: Theme.rtl ? btn.x + btn.width + 12px : th.x + th.width + 12px;
+    property <length> tw: root.width - 24px - th.width - btn.width - 24px;
+    T {
+        x: tx;
+        y: 12px;
+        width: tw;
+        height: 16px;
+        text: snap.name;
+        role: Role.label;
+        font-weight: 600;
+    }
+    badge := RootBadge {
+        visible: !snap.auto;
+        x: Theme.rtl ? tx + tw - self.width : tx;
+        y: 31px;
+        small: true;
+        kind: snap.root;
+        text: snap.tag;
+    }
+    auto := Tag {
+        visible: snap.auto;
+        x: Theme.rtl ? tx + tw - self.width : tx;
+        y: 32px;
+        tone: Tone.neutral;
+        text: @tr("Auto");
+    }
+    property <length> lead-w: (snap.auto ? auto.width : badge.width) + 8px;
+    T {
+        x: Theme.rtl ? tx : tx + lead-w;
+        y: 31px;
+        width: tw - lead-w;
+        height: 20px;
+        text: snap.auto ? @tr("Saved on every stop") : snap.size;
+        role: snap.auto ? Role.caption : Role.code;
+        font-size: 11px;
+        color: Theme.text-secondary;
+        horizontal-alignment: Theme.rtl ? TextHorizontalAlignment.right : TextHorizontalAlignment.left;
+    }
+}
+
+/// Section title (`.h-sec`).
+component H inherits T {
+    font-size: 13px;
+    font-weight: 600;
+    height: 18px;
+}
+
+/// Populated library: the selected device's detail.
+export component DeviceDetail inherits Rectangle {
+    in property <DeviceVm> device;
+    in property <[SnapshotVm]> snapshots;
+    in property <string> driven-by: @tr("This window only");
+    callback open();
+    callback start();
+    callback stop();
+    callback more();
+    callback verify-root();
+    callback revert-root();
+    callback manage-snapshots();
+    callback restore-snapshot(int);
+    background: Theme.surface-base;
+    property <length> px: 32px;
+    property <length> cw: self.width - 2 * px;
+    Scroll {
+        content-height: 760px;
+        // Head: silhouette, title block, actions.
+        sil := Silhouette {
+            x: Theme.rtl ? px + cw - self.width : px;
+            y: 28px;
+            on: device.state == DevState.running;
+            form: device.form;
+        }
+        acts := HorizontalLayout {
+            x: Theme.rtl ? px : px + cw - self.preferred-width;
+            y: 28px;
+            height: 30px;
+            spacing: 8px;
+            if device.state == DevState.running || device.state == DevState.booting || device.state == DevState.busy: Button {
+                kind: ButtonKind.primary;
+                has-icon: true;
+                icon: Icons.external-link;
+                text: @tr("Open");
+                kbd: "↵";
+                clicked => { root.open(); }
+            }
+            if device.state == DevState.stopped || device.state == DevState.crashed: Button {
+                kind: ButtonKind.primary;
+                has-icon: true;
+                icon: Icons.play;
+                text: @tr("Start");
+                kbd: "↵";
+                clicked => { root.start(); }
+            }
+            if device.state == DevState.running || device.state == DevState.booting: Button {
+                has-icon: true;
+                icon: Icons.square;
+                text: @tr("Stop");
+                clicked => { root.stop(); }
+            }
+            Button {
+                icon-only: true;
+                has-icon: true;
+                icon: Icons.ellipsis;
+                clicked => { root.more(); }
+            }
+        }
+        property <length> tx: Theme.rtl ? acts.x + acts.preferred-width + 20px : sil.x + sil.width + 20px;
+        property <length> tw: cw - sil.width - acts.preferred-width - 40px;
+        T {
+            x: tx;
+            y: 28px;
+            width: tw;
+            height: 38px;
+            text: device.name;
+            role: Role.hero;
+        }
+        T {
+            x: tx;
+            y: 70px;
+            width: tw;
+            height: 18px;
+            text: device.profile + " · " + device.screen;
+            color: Theme.text-secondary;
+        }
+        badges := HorizontalLayout {
+            x: Theme.rtl ? tx + tw - self.preferred-width : tx;
+            y: 96px;
+            height: 24px;
+            spacing: 8px;
+            // RTL reverses the badge order.
+            for slot[j] in 3: Rectangle {
+                property <int> i: Theme.rtl ? 2 - j : j;
+                width: i == 0 ? sp.width : i == 1 ? rb.width : serial.preferred-width;
+                sp := StatusPill {
+                    visible: i == 0;
+                    state: device.state;
+                    text: device.status;
+                }
+                rb := RootBadge {
+                    visible: i == 1;
+                    kind: device.root;
+                    text: device.root-label;
+                    beta: device.beta;
+                }
+                serial := T {
+                    visible: i == 2;
+                    text: device.serial;
+                    role: Role.code;
+                    color: Theme.text-secondary;
+                }
+            }
+        }
+
+        // Three panels: Android, Hardware, Root health.
+        property <length> gw: (cw - 32px) / 3;
+        for p[j] in 3: Panel {
+            property <int> i: Theme.rtl ? 2 - j : j;
+            x: px + j * (gw + 16px);
+            y: 172px;
+            width: gw;
+            height: 152px;
+            H {
+                x: 16px;
+                y: 14px;
+                width: parent.width - 32px;
+                text: i == 0 ? @tr("Android") : i == 1 ? @tr("Hardware") : @tr("Root health");
+            }
+            // Position `j`, content `i` (mirrored in RTL).
+            VerticalLayout {
+                x: 16px;
+                y: 44px;
+                width: parent.width - 32px;
+                spacing: 6px;
+                alignment: LayoutAlignment.start;
+                if i == 0: KV { key: @tr("Version"); value: device.android; }
+                if i == 0: KV { key: @tr("Image"); value: device.image; }
+                if i == 0: KV { key: @tr("Profile"); value: device.profile; }
+                if i == 0: KV { key: @tr("Serial"); value: device.serial; mono: true; }
+                if i == 1: KV { key: @tr("RAM"); value: device.ram; mono: true; }
+                if i == 1: KV { key: @tr("CPU"); value: device.cpus; mono: true; }
+                if i == 1: KV { key: @tr("Screen"); value: device.screen; mono: true; }
+                if i == 1: KV { key: @tr("Disk"); value: device.disk; mono: true; }
+                if i == 2: KV { key: @tr("Mode"); value: device.root-mode; }
+                if i == 2 && device.magisk != "": KV { key: @tr("Magisk"); value: device.magisk; mono: true; }
+                if i == 2: KV { key: @tr("Verified"); value: device.verified; }
+            }
+            if i == 2 && device.root != RootKind.none: HorizontalLayout {
+                x: Theme.rtl ? parent.width - 16px - self.preferred-width : 16px;
+                y: parent.height - 14px - 24px;
+                height: 24px;
+                spacing: 8px;
+                Button {
+                    small: true;
+                    text: @tr("Verify again");
+                    clicked => { root.verify-root(); }
+                }
+                Button {
+                    small: true;
+                    kind: ButtonKind.tertiary;
+                    has-icon: true;
+                    icon: Icons.undo-2;
+                    text: @tr("Revert to unrooted…");
+                    clicked => { root.revert-root(); }
+                }
+            }
+        }
+
+        // Snapshots.
+        H {
+            x: Theme.rtl ? px + cw - self.preferred-width : px;
+            y: 352px;
+            width: self.preferred-width;
+            text: @tr("Snapshots");
+        }
+        T {
+            x: Theme.rtl ? px + cw - 90px - self.preferred-width : px + 82px;
+            y: 352px;
+            height: 18px;
+            width: self.preferred-width;
+            text: root.snapshots.length;
+            color: Theme.text-secondary;
+        }
+        Button {
+            x: Theme.rtl ? px : px + cw - self.width;
+            y: 349px;
+            small: true;
+            kind: ButtonKind.tertiary;
+            text: @tr("Manage snapshots");
+            kbd: "⇧⌘S";
+            clicked => { root.manage-snapshots(); }
+        }
+        property <length> sw: (cw - 24px) / 3;
+        for s[j] in root.snapshots: SnapCard {
+            x: Theme.rtl ? px + cw - (j + 1) * sw - j * 12px : px + j * (sw + 12px);
+            y: 382px;
+            width: sw;
+            snap: s;
+            restore => { root.restore-snapshot(j); }
+        }
+        if root.snapshots.length == 0: T {
+            x: px;
+            y: 382px;
+            width: cw;
+            height: 40px;
+            text: @tr("No snapshots yet. Save one from the device window with ⌘S.");
+            color: Theme.text-secondary;
+        }
+
+        // Session.
+        H {
+            x: px;
+            y: 474px;
+            width: cw;
+            text: @tr("Session");
+        }
+        VerticalLayout {
+            x: Theme.rtl ? px + cw - self.width : px;
+            y: 504px;
+            width: min(cw, 420px);
+            spacing: 8px;
+            alignment: LayoutAlignment.start;
+            KV { key: @tr("Uptime"); value: device.uptime; mono: true; key-width: 120px; role: Role.body; }
+            KV { key: @tr("Last started"); value: device.last-started; key-width: 120px; role: Role.body; }
+            KV { key: @tr("Driven by"); value: root.driven-by; key-width: 120px; role: Role.body; }
+        }
+    }
+}
+
+/// First run (`.empty`): no SDK yet, three steps, one primary action.
+export component FirstRunEmpty inherits Rectangle {
+    in property <string> sdk-label: @tr("Not installed");
+    in property <string> download-size: "2.3 GB";
+    callback setup-sdk();
+    callback use-existing();
+    background: Theme.surface-base;
+    VerticalLayout {
+        alignment: center;
+        spacing: 10px;
+        HorizontalLayout {
+            alignment: center;
+            Rectangle {
+                width: 44px;
+                height: 44px;
+                border-radius: 12px;
+                background: Theme.surface-control;
+                Icon { size: 24px; source: Icons.smartphone; }
+            }
+        }
+        T {
+            text: @tr("No devices yet");
+            role: Role.title;
+            font-size: 18px;
+            horizontal-alignment: center;
+        }
+        HorizontalLayout {
+            alignment: center;
+            T {
+                width: 420px;
+                text: @tr("Jidr needs Google's Android Emulator and one system image before it can create a device. Nothing downloads until you accept Google's license.");
+                color: Theme.text-secondary;
+                wrap: word-wrap;
+                horizontal-alignment: center;
+            }
+        }
+        HorizontalLayout {
+            alignment: center;
+            padding-top: 8px;
+            Panel {
+                width: 520px;
+                height: 172px;
+                drop-shadow-blur: 0px;
+                for row[i] in [
+                    { n: "1", t: @tr("Find an Android SDK on this Mac, or install one"), r: root.sdk-label, pill: true },
+                    { n: "2", t: @tr("Read and accept Google's SDK license"), r: "", pill: false },
+                    { n: "3", t: @tr("Download the emulator and Android 15 (API 35)"), r: root.download-size, pill: false },
+                ]: Rectangle {
+                    y: 18px + i * 30px;
+                    x: 18px;
+                    width: parent.width - 36px;
+                    height: 22px;
+                    Pill {
+                        x: Theme.rtl ? parent.width - self.width : 0px;
+                        small: true;
+                        has-icon: false;
+                        text: row.n;
+                    }
+                    T {
+                        x: Theme.rtl ? 0px : 30px;
+                        width: parent.width - 30px;
+                        text: row.t;
+                    }
+                    if row.pill: Pill {
+                        x: Theme.rtl ? 0px : parent.width - self.width;
+                        small: true;
+                        has-icon: false;
+                        text: row.r;
+                    }
+                    if !row.pill && row.r != "": T {
+                        x: Theme.rtl ? 0px : parent.width - self.preferred-width;
+                        width: self.preferred-width;
+                        text: row.r;
+                        role: Role.code;
+                        color: Theme.text-secondary;
+                    }
+                }
+                HorizontalLayout {
+                    x: Theme.rtl ? parent.width - 18px - self.preferred-width : 18px;
+                    y: 18px + 3 * 30px + 12px;
+                    height: 30px;
+                    spacing: 8px;
+                    for slot[j] in 2: Rectangle {
+                        property <int> i: Theme.rtl ? 1 - j : j;
+                        width: i == 0 ? b0.width : b1.width;
+                        b0 := Button {
+                            visible: i == 0;
+                            kind: ButtonKind.primary;
+                            text: @tr("Set up Android SDK");
+                            kbd: "⌘↵";
+                            clicked => { root.setup-sdk(); }
+                        }
+                        b1 := Button {
+                            visible: i == 1;
+                            kind: ButtonKind.tertiary;
+                            text: @tr("Use an SDK I already have…");
+                            clicked => { root.use-existing(); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
