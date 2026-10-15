@@ -1,0 +1,457 @@
+// Jidr app window (Workbench direction, D41).
+
+import "../../../apps/jidr-gui/assets/fonts/Geist-Regular.ttf";
+import "../../../apps/jidr-gui/assets/fonts/Geist-Medium.ttf";
+import "../../../apps/jidr-gui/assets/fonts/Geist-SemiBold.ttf";
+import "../../../apps/jidr-gui/assets/fonts/Geist-Bold.ttf";
+import "../../../apps/jidr-gui/assets/fonts/GeistMono-Regular.ttf";
+import "../../../apps/jidr-gui/assets/fonts/GeistMono-Medium.ttf";
+import "../../../apps/jidr-gui/assets/fonts/GeistMono-SemiBold.ttf";
+import "../../../apps/jidr-gui/assets/fonts/NotoKufiArabic.ttf";
+
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { T, Role, Tone, Toast } from "components/base.slint";
+import { TitleBar, Sidebar, MiniSidebar } from "shell.slint";
+import { DeviceDetail, FirstRunEmpty } from "launcher.slint";
+import { DeviceSheet } from "device_form.slint";
+import { ConfirmDialog } from "forms.slint";
+import { Palette } from "palette.slint";
+import { DeviceView, WidgetPanel } from "player.slint";
+import { BatteryPanel, NetworkPanel, SensorsPanel, MorePanel, GpsPanel } from "widgets/panels.slint";
+import { RootBadge } from "components/status.slint";
+import { SnapshotsPage, SaveSnapshotDialog, RefuseRestoreDialog } from "snapshots.slint";
+import { SetupWindow } from "wizard.slint";
+import { SettingsWindow } from "settings.slint";
+import { DeviceVm, JobVm, TabVm, SnapshotVm, DevState, RootKind, FormFactor, JobTone, ConnState, RootChoice, ImageRowVm, OptionVm, DeviceForm, DetectRow, PlanRow, UsageRow, PaletteKind, PaletteItem, LogLine, WidgetsVm } from "types.slint";
+
+export { Theme, Icons, DeviceVm, JobVm, TabVm, SnapshotVm, DevState, RootKind, FormFactor, JobTone, ConnState, RootChoice, ImageRowVm, OptionVm, DeviceForm, DetectRow, PlanRow, UsageRow, PaletteKind, PaletteItem, LogLine, WidgetsVm, SetupWindow, SettingsWindow }
+
+export component AppWindow inherits Window {
+    in-out property <[DeviceVm]> devices;
+    in-out property <[JobVm]> jobs;
+    in-out property <[TabVm]> tabs;
+    /// -1 = Library; otherwise an index into `tabs`.
+    in-out property <int> active-tab: -1;
+    in-out property <int> selected: -1;
+    /// Index into `devices` of the active tab's device (-1 = Library).
+    in-out property <int> active-device: -1;
+    in-out property <[SnapshotVm]> snapshots;
+    in-out property <bool> sdk-ready: true;
+    in-out property <string> sdk-label: @tr("Not installed");
+    in-out property <ConnState> conn: ConnState.online;
+    in-out property <string> conn-text;
+    in-out property <bool> sidebar-visible: true;
+    /// Drawn traffic lights (snapshots); the live app uses the native ones.
+    in property <bool> draw-lights: true;
+    in-out property <string> toast;
+    // Create / edit sheet.
+    in-out property <bool> sheet-open: false;
+    in-out property <DeviceForm> form;
+    in-out property <[OptionVm]> profiles;
+    in-out property <[ImageRowVm]> images;
+    in-out property <string> host-ram: "16 GB";
+    in-out property <string> host-cpus: "10";
+    // Command palette.
+    in-out property <bool> palette-open: false;
+    in-out property <[PaletteItem]> palette-items;
+    in-out property <string> palette-query;
+    // Confirmation dialog.
+    in-out property <bool> confirm-open: false;
+    in-out property <string> confirm-title;
+    in-out property <string> confirm-body;
+    in-out property <string> confirm-action;
+    // Player (active device tab).
+    in-out property <image> player-frame;
+    in-out property <bool> player-has-frame;
+    in-out property <int> player-frame-w;
+    in-out property <int> player-frame-h;
+    in-out property <bool> player-mock: false;
+    in-out property <bool> player-pixel-perfect;
+    in-out property <float> player-scale: 1.0;
+    in-out property <bool> player-recording;
+    in-out property <string> player-record-text;
+    in-out property <bool> player-panel-open: true;
+    in-out property <int> player-panel-tab: 0;
+    in-out property <bool> player-clipboard;
+    in-out property <bool> player-overlay;
+    in-out property <string> player-overlay-text;
+    in-out property <bool> drop-hover;
+    in-out property <string> drop-title;
+    in-out property <string> drop-body;
+    in-out property <bool> logcat-open;
+    in-out property <[LogLine]> log-lines;
+    in-out property <string> log-summary;
+    in-out property <int> log-errors;
+    in-out property <string> log-last-error;
+    in-out property <int> log-level: 1;
+    in-out property <string> log-filter;
+    in-out property <bool> log-following: true;
+    in-out property <WidgetsVm> widgets;
+    // Snapshot manager.
+    in-out property <bool> snapshots-open;
+    in-out property <string> snap-banner;
+    in-out property <bool> snap-banner-warning;
+    in-out property <bool> snap-can-save: true;
+    in-out property <bool> save-open;
+    in-out property <string> save-name;
+    in-out property <RootKind> save-root-kind;
+    in-out property <string> save-root-tag;
+    in-out property <string> save-hint;
+    in-out property <bool> refuse-open;
+    in-out property <string> refuse-name;
+    in-out property <string> refuse-snapshot-line;
+    in-out property <string> refuse-device-line;
+    in-out property <string> refuse-body;
+    in-out property <string> refuse-hint;
+    in-out property <string> refuse-action;
+    in-out property <image> gps-map;
+    in-out property <bool> gps-has-map;
+    in-out property <float> gps-marker-x: 0.5;
+    in-out property <float> gps-marker-y: 0.5;
+    in-out property <string> gps-route-path;
+
+    callback select-device(int);
+    callback open-device(int);
+    callback start-device(int);
+    callback stop-device(int);
+    callback more-device(int);
+    callback new-device();
+    callback open-palette();
+    callback open-settings();
+    callback cancel-job(int);
+    callback select-tab(int);
+    callback close-tab(int);
+    callback setup-sdk();
+    callback use-existing-sdk();
+    callback drag-window();
+    callback verify-root(int);
+    callback revert-root(int);
+    callback manage-snapshots(int);
+    callback restore-snapshot(int, int);
+    callback submit-form(DeviceForm);
+    callback cancel-form();
+    callback form-image-changed(int);
+    callback palette-query-changed(string);
+    callback palette-run(PaletteItem);
+    /// ⌘1…9 and other shortcuts Rust handles.
+    callback shortcut(string);
+    callback confirm-ok();
+    callback player-pointer(int, float, float, bool, bool);
+    callback player-wheel(length, length);
+    callback player-key(string, bool);
+    callback player-tool(string);
+    callback player-start();
+    callback player-resized(length, length);
+    callback log-level-changed(int);
+    callback log-filter-changed(string);
+    callback log-clear();
+    callback log-toggle-follow();
+    callback log-open(bool);
+    /// A widget control changed: (action id, value).
+    callback widget-action(string, string);
+    callback widget-tab(int);
+    callback gps-map-click(float, float);
+    callback snapshot-save-request();
+    callback snapshot-save(string);
+    callback snapshot-delete(int);
+    callback refuse-act();
+
+    title: "Jidr";
+    icon: @image-url("../../../apps/jidr-gui/assets/icons/app-icon-256.png");
+    preferred-width: 1440px;
+    preferred-height: 900px;
+    min-width: Theme.window-launcher-min-width;
+    min-height: Theme.window-launcher-min-height;
+    background: Theme.surface-base;
+    default-font-family: Theme.font-ui;
+    default-font-size: Theme.type-body-size;
+    forward-focus: keys;
+
+    /// Meta shortcuts, shared by the window and the device screen.
+    function meta-key(text: string, alt: bool, shift: bool) -> bool {
+        if (alt && (text == "i" || text == "I")) { root.shortcut("overlay"); return true; }
+        if (alt && text == "0") { root.shortcut("pixel-perfect"); return true; }
+        if (shift && (text == "s" || text == "S")) { root.shortcut("screenshot"); return true; }
+        if (alt || shift) { return false; }
+        if (text == "l") { root.shortcut("logcat"); return true; }
+        if (text == "j") { root.shortcut("panel"); return true; }
+        if (text == "k") { root.open-palette(); return true; }
+        if (text == "n") { root.new-device(); return true; }
+        if (text == ",") { root.open-settings(); return true; }
+        if (text == "w") { root.shortcut("close-tab"); return true; }
+        if (text >= "1" && text <= "9") { root.shortcut("tab-" + text); return true; }
+        if (text == "0") { root.shortcut("library"); return true; }
+        return false;
+    }
+
+    keys := FocusScope {
+        key-pressed(ev) => {
+            if (ev.modifiers.meta && root.meta-key(ev.text, ev.modifiers.alt, ev.modifiers.shift)) {
+                return accept;
+            }
+            if (ev.text == Key.Escape) {
+                root.sheet-open = false;
+                root.palette-open = false;
+                root.confirm-open = false;
+                root.save-open = false;
+                root.refuse-open = false;
+                return accept;
+            }
+            if (ev.text == Key.Return && root.active-tab < 0 && root.selected >= 0) {
+                root.open-device(root.selected);
+                return accept;
+            }
+            return reject;
+        }
+    }
+
+    titlebar := TitleBar {
+        y: 0px;
+        tabs: root.tabs;
+        active-tab: root.active-tab;
+        draw-lights: root.draw-lights;
+        conn: root.conn;
+        conn-text: root.conn-text;
+        select-tab(i) => { root.select-tab(i); }
+        close-tab(i) => { root.close-tab(i); }
+        toggle-sidebar => { root.sidebar-visible = !root.sidebar-visible; }
+        drag-window => { root.drag-window(); }
+        // Device tab: its root badge and serial on the end side.
+        if root.active-tab >= 0 && root.active-device >= 0: RootBadge {
+            y: 6px;
+            small: true;
+            kind: root.devices[root.active-device].root;
+            text: root.devices[root.active-device].root-label;
+            beta: root.devices[root.active-device].beta;
+        }
+        if root.active-tab >= 0 && root.active-device >= 0: T {
+            width: self.preferred-width + 8px;
+            text: root.devices[root.active-device].serial;
+            role: Role.code;
+            color: Theme.text-secondary;
+        }
+    }
+    body := Rectangle {
+        y: titlebar.height;
+        height: root.height - titlebar.height;
+        property <bool> library: root.active-tab < 0;
+        property <length> side-w: !library ? 52px : root.sidebar-visible ? Theme.window-sidebar-width : 0px;
+        if library && root.sidebar-visible: Sidebar {
+            x: Theme.rtl ? parent.width - self.width : 0px;
+            height: parent.height;
+            devices: root.devices;
+            jobs: root.jobs;
+            selected: root.selected;
+            sdk-ready: root.sdk-ready;
+            sdk-label: root.sdk-label;
+            select(i) => { root.select-device(i); }
+            open(i) => { root.open-device(i); }
+            new-device => { root.new-device(); }
+            open-palette => { root.open-palette(); }
+            open-settings => { root.open-settings(); }
+            cancel-job(i) => { root.cancel-job(i); }
+        }
+        if !library: MiniSidebar {
+            x: Theme.rtl ? parent.width - self.width : 0px;
+            height: parent.height;
+            devices: root.devices;
+            active-id: root.tabs[root.active-tab].id;
+            open(i) => { root.open-device(i); }
+        }
+        main := Rectangle {
+            x: Theme.rtl ? 0px : parent.side-w;
+            width: parent.width - parent.side-w;
+            height: parent.height;
+            if library && root.devices.length == 0: FirstRunEmpty {
+                sdk-label: root.sdk-label;
+                setup-sdk => { root.setup-sdk(); }
+                use-existing => { root.use-existing-sdk(); }
+            }
+            if !library && root.active-device >= 0: DeviceView {
+                device: root.devices[root.active-device];
+                frame: root.player-frame;
+                has-frame: root.player-has-frame;
+                frame-w: root.player-frame-w > 0 ? root.player-frame-w : root.devices[root.active-device].width-px;
+                frame-h: root.player-frame-h > 0 ? root.player-frame-h : root.devices[root.active-device].height-px;
+                mock-screen: root.player-mock;
+                pixel-perfect <=> root.player-pixel-perfect;
+                scale: root.player-scale;
+                recording: root.player-recording;
+                record-text: root.player-record-text;
+                panel-open <=> root.player-panel-open;
+                clipboard-shared: root.player-clipboard;
+                overlay: root.player-overlay;
+                overlay-text: root.player-overlay-text;
+                drop-hover: root.drop-hover;
+                drop-title: root.drop-title;
+                drop-body: root.drop-body;
+                logcat-open <=> root.logcat-open;
+                log-lines: root.log-lines;
+                log-summary: root.log-summary;
+                log-errors: root.log-errors;
+                log-last-error: root.log-last-error;
+                log-level <=> root.log-level;
+                log-filter <=> root.log-filter;
+                log-following: root.log-following;
+                pointer(k, x, y, alt, shift) => { root.player-pointer(k, x, y, alt, shift); }
+                wheel(dx, dy) => { root.player-wheel(dx, dy); }
+                key(t, down) => { root.player-key(t, down); }
+                tool(t) => { root.player-tool(t); }
+                start => { root.player-start(); }
+                screen-resized(w, h) => { root.player-resized(w, h); }
+                log-level-changed(i) => { root.log-level-changed(i); }
+                log-filter-changed(t) => { root.log-filter-changed(t); }
+                log-clear => { root.log-clear(); }
+                log-toggle-follow => { root.log-toggle-follow(); }
+                log-open(o) => { root.log-open(o); }
+                meta-key(t, a, sh) => { root.meta-key(t, a, sh); }
+                WidgetPanel {
+                    tab <=> root.player-panel-tab;
+                    tab-changed(i) => { root.widget-tab(i); }
+                    if root.player-panel-tab == 0: BatteryPanel {
+                        vm: root.widgets;
+                        action(a, v) => { root.widget-action(a, v); }
+                    }
+                    if root.player-panel-tab == 1: GpsPanel {
+                        vm: root.widgets;
+                        map: root.gps-map;
+                        has-map: root.gps-has-map;
+                        marker-x: root.gps-marker-x;
+                        marker-y: root.gps-marker-y;
+                        route-path: root.gps-route-path;
+                        action(a, v) => { root.widget-action(a, v); }
+                        map-click(x, y) => { root.gps-map-click(x, y); }
+                    }
+                    if root.player-panel-tab == 2: NetworkPanel {
+                        vm: root.widgets;
+                        action(a, v) => { root.widget-action(a, v); }
+                    }
+                    if root.player-panel-tab == 3: SensorsPanel {
+                        vm: root.widgets;
+                        action(a, v) => { root.widget-action(a, v); }
+                    }
+                    if root.player-panel-tab == 4: MorePanel {
+                        vm: root.widgets;
+                        action(a, v) => { root.widget-action(a, v); }
+                    }
+                }
+            }
+            if library && root.snapshots-open && root.selected >= 0: SnapshotsPage {
+                device: root.devices[root.selected];
+                snapshots: root.snapshots;
+                banner: root.snap-banner;
+                banner-warning: root.snap-banner-warning;
+                can-save: root.snap-can-save;
+                back => { root.snapshots-open = false; }
+                save => { root.snapshot-save-request(); }
+                restore(i) => { root.restore-snapshot(root.selected, i); }
+                delete(i) => { root.snapshot-delete(i); }
+            }
+            if library && !root.snapshots-open && root.devices.length > 0 && root.selected >= 0: DeviceDetail {
+                device: root.devices[root.selected];
+                snapshots: root.snapshots;
+                open => { root.open-device(root.selected); }
+                start => { root.start-device(root.selected); }
+                stop => { root.stop-device(root.selected); }
+                more => { root.more-device(root.selected); }
+                verify-root => { root.verify-root(root.selected); }
+                revert-root => { root.revert-root(root.selected); }
+                manage-snapshots => { root.manage-snapshots(root.selected); }
+                restore-snapshot(i) => { root.restore-snapshot(root.selected, i); }
+            }
+        }
+    }
+    if root.sheet-open: DeviceSheet {
+        y: titlebar.height;
+        height: root.height - titlebar.height;
+        form: root.form;
+        profiles: root.profiles;
+        images: root.images;
+        device-name: root.form.name;
+        host-ram: root.host-ram;
+        host-cpus: root.host-cpus;
+        submit(f) => { root.submit-form(f); }
+        cancel => {
+            root.cancel-form();
+            keys.focus();
+        }
+        image-changed(i) => { root.form-image-changed(i); }
+    }
+    if root.palette-open: Palette {
+        y: 0px;
+        height: root.height;
+        items: root.palette-items;
+        query: root.palette-query;
+        query-changed(q) => {
+            root.palette-query = q;
+            root.palette-query-changed(q);
+        }
+        run(item) => {
+            root.palette-open = false;
+            keys.focus();
+            root.palette-run(item);
+        }
+        dismiss => {
+            root.palette-open = false;
+            keys.focus();
+        }
+    }
+    if root.save-open: SaveSnapshotDialog {
+        y: titlebar.height;
+        height: root.height - titlebar.height;
+        name: root.save-name;
+        device-name: root.selected >= 0 ? root.devices[root.selected].name : "";
+        root-kind: root.save-root-kind;
+        root-tag: root.save-root-tag;
+        sizes-hint: root.save-hint;
+        save(n) => {
+            root.save-open = false;
+            keys.focus();
+            root.snapshot-save(n);
+        }
+        cancel => {
+            root.save-open = false;
+            keys.focus();
+        }
+    }
+    if root.refuse-open: RefuseRestoreDialog {
+        y: titlebar.height;
+        height: root.height - titlebar.height;
+        snapshot-name: root.refuse-name;
+        snapshot-line: root.refuse-snapshot-line;
+        device-line: root.refuse-device-line;
+        body: root.refuse-body;
+        hint: root.refuse-hint;
+        action: root.refuse-action;
+        act => {
+            root.refuse-open = false;
+            keys.focus();
+            root.refuse-act();
+        }
+        cancel => {
+            root.refuse-open = false;
+            keys.focus();
+        }
+    }
+    if root.confirm-open: ConfirmDialog {
+        y: titlebar.height;
+        height: root.height - titlebar.height;
+        title: root.confirm-title;
+        body: root.confirm-body;
+        action: root.confirm-action;
+        ok => {
+            root.confirm-open = false;
+            keys.focus();
+            root.confirm-ok();
+        }
+        cancel => {
+            root.confirm-open = false;
+            keys.focus();
+        }
+    }
+    if root.toast != "": Toast {
+        y: root.height - 64px;
+        text: root.toast;
+    }
+}

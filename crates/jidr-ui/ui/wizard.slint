@@ -1,0 +1,584 @@
+// First-run setup window (docs/design/screens/Setup.dc.html):
+// find SDK → Google's license → download → first device.
+
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { T, Role, Tone, Tones, Icon, Button, ButtonKind, Pill, Bar, TextField, Checkbox, TrafficLights, Hint, FieldLabel } from "components/base.slint";
+import { Select, RootCards, Field } from "forms.slint";
+import { JobVm, JobTone, DetectRow, PlanRow, DeviceForm, OptionVm, RootChoice } from "types.slint";
+
+component Step inherits Rectangle {
+    in property <int> n;
+    in property <string> text;
+    in property <int> current;
+    property <bool> done: n < current;
+    property <bool> on: n == current;
+    width: 18px + 6px + t.preferred-width;
+    height: 18px;
+    Rectangle {
+        x: Theme.rtl ? parent.width - 18px : 0px;
+        width: 18px;
+        height: 18px;
+        border-radius: 9px;
+        border-width: 1px;
+        border-color: on ? Theme.accent-fill : Theme.border-strong;
+        background: done ? Theme.status-positive-container : on ? Theme.accent-fill : transparent;
+        if done: Icon {
+            size: 11px;
+            source: Icons.check;
+            colorize: Theme.status-positive-on-container;
+        }
+        if !done: T {
+            text: root.n;
+            font-size: 10px;
+            font-weight: 600;
+            mono: true;
+            horizontal-alignment: center;
+            color: on ? Theme.text-on-accent : Theme.text-tertiary;
+        }
+    }
+    t := T {
+        x: Theme.rtl ? 0px : 24px;
+        width: self.preferred-width;
+        text: root.text;
+        role: Role.label;
+        color: on ? Theme.text-primary : done ? Theme.text-secondary : Theme.text-tertiary;
+    }
+}
+
+/// A download row (`.dlrow`).
+component DownloadRow inherits Rectangle {
+    in property <JobVm> job;
+    property <Tone> tone: job.tone == JobTone.running ? Tone.transition
+        : job.tone == JobTone.done ? Tone.positive
+        : job.tone == JobTone.failed ? Tone.negative
+        : Tone.neutral;
+    height: job.tone == JobTone.running ? 66px : 58px;
+    border-radius: Theme.radius-lg;
+    background: Theme.surface-raised;
+    border-width: 1px;
+    border-color: Theme.border-default;
+    Rectangle {
+        x: Theme.rtl ? parent.width - 14px - 28px : 14px;
+        y: 12px;
+        width: 28px;
+        height: 28px;
+        border-radius: Theme.radius-md;
+        background: Tones.container(tone);
+        Icon {
+            size: Theme.icon-sm;
+            colorize: Tones.on(tone);
+            source: job.tone == JobTone.done ? Icons.check : job.tone == JobTone.failed ? Icons.x : job.tone == JobTone.queued ? Icons.clock : Icons.download;
+        }
+    }
+    property <length> tx: Theme.rtl ? 14px : 54px;
+    property <length> tw: root.width - 68px;
+    T {
+        x: tx;
+        y: 12px;
+        width: tw;
+        height: 18px;
+        text: job.title;
+        font-weight: 600;
+    }
+    if job.tone == JobTone.running: Bar {
+        x: tx;
+        y: 36px;
+        width: tw;
+        value: job.progress;
+    }
+    T {
+        x: tx;
+        y: job.tone == JobTone.running ? 46px : 34px;
+        width: tw;
+        height: 14px;
+        text: job.detail;
+        role: Role.caption;
+        mono: true;
+        color: Theme.text-secondary;
+    }
+    T {
+        x: tx;
+        y: job.tone == JobTone.running ? 46px : 34px;
+        width: tw;
+        height: 14px;
+        text: job.eta;
+        role: Role.caption;
+        color: Theme.text-tertiary;
+        horizontal-alignment: Theme.rtl ? TextHorizontalAlignment.left : TextHorizontalAlignment.right;
+    }
+}
+
+export component SetupWindow inherits Window {
+    in-out property <int> step: 1;
+    in property <bool> draw-lights: true;
+    // 1 · find SDK
+    in property <[DetectRow]> detect;
+    in property <[PlanRow]> plan;
+    in property <string> plan-dir;
+    in property <string> plan-total;
+    in property <bool> sdk-found: false;
+    // 2 · license
+    in property <string> license-title;
+    in property <string> license-text;
+    in-out property <bool> license-read: false;
+    // 3 · download
+    in property <string> accepted-note;
+    in property <[JobVm]> downloads;
+    in property <bool> downloads-done: false;
+    // 4 · first device
+    in-out property <DeviceForm> form;
+    in property <[OptionVm]> profiles;
+    in property <string> image-label;
+    in property <string> image-status;
+    in property <bool> image-play-store: false;
+    in property <string> error;
+
+    callback next();
+    callback quit();
+    callback use-existing();
+    callback back();
+    callback decline();
+    callback accept();
+    callback cancel-download();
+    callback run-in-background();
+    callback create(DeviceForm);
+    callback more-options();
+
+    title: @tr("Set up Jidr");
+    width: 760px;
+    height: 580px;
+    background: Theme.surface-base;
+    default-font-family: Theme.font-ui;
+    default-font-size: Theme.type-body-size;
+
+    // Header (`.setup-h`).
+    Rectangle {
+        y: 0px;
+        height: 44px;
+        background: Theme.surface-chrome;
+        TrafficLights {
+            drawn: root.draw-lights;
+            x: Theme.rtl ? parent.width - 14px - self.width : 14px;
+        }
+        T {
+            text: @tr("Set up Jidr");
+            font-weight: 600;
+            color: Theme.text-secondary;
+            horizontal-alignment: center;
+        }
+        Rectangle {
+            y: parent.height - 1px;
+            height: 1px;
+            background: Theme.border-default;
+        }
+    }
+    // Stepper.
+    HorizontalLayout {
+        x: Theme.rtl ? parent.width - 28px - self.preferred-width : 28px;
+        y: 60px;
+        width: self.preferred-width;
+        height: 18px;
+        spacing: 6px;
+        for slot[j] in 7: Rectangle {
+            property <int> i: Theme.rtl ? 6 - j : j;
+            width: i == 1 || i == 3 || i == 5 ? 24px : st.width;
+            if i == 1 || i == 3 || i == 5: Rectangle {
+                height: 1px;
+                background: Theme.border-default;
+            }
+            st := Step {
+                visible: i == 0 || i == 2 || i == 4 || i == 6;
+                n: i / 2 + 1;
+                current: root.step;
+                text: i == 0 ? @tr("Find SDK") : i == 2 ? @tr("License") : i == 4 ? @tr("Download") : @tr("First device");
+            }
+        }
+    }
+
+    property <length> bx: 28px;
+    property <length> bw: self.width - 56px;
+    property <length> by: 100px;
+
+    // Heading + lede per step.
+    T {
+        x: bx;
+        y: by;
+        width: bw;
+        height: 26px;
+        role: Role.headline;
+        text: root.step == 1 ? (root.sdk-found ? @tr("Found an Android SDK") : @tr("No Android SDK on this Mac"))
+            : root.step == 2 ? @tr("Accept Google's SDK license")
+            : root.step == 3 ? (root.downloads-done ? @tr("Downloaded") : @tr("Downloading"))
+            : @tr("Create your first device");
+    }
+    T {
+        x: bx;
+        y: by + 32px;
+        width: bw;
+        height: 36px;
+        wrap: word-wrap;
+        vertical-alignment: top;
+        color: Theme.text-secondary;
+        text: root.step == 1 ? (root.sdk-found ? @tr("Jidr will use it read-only and keep its own downloads in a separate folder.") : @tr("Jidr looked in the usual places. It can install what it needs in its own folder and leave your other tools alone."))
+            : root.step == 2 ? @tr("Jidr downloads Google's Android Emulator and a system image to your Mac. Google's license applies to those files. Jidr shows it in full, unchanged.")
+            : root.step == 3 ? root.accepted-note
+            : @tr("Defaults are filled in. Change what you need, then create.");
+    }
+
+    // 1 · detection + plan.
+    if root.step == 1: Rectangle {
+        x: bx;
+        y: by + 80px;
+        width: bw;
+        height: root.detect.length * 41px;
+        border-radius: Theme.radius-lg;
+        border-width: 1px;
+        border-color: Theme.border-default;
+        background: Theme.surface-raised;
+        clip: true;
+        for d[i] in root.detect: Rectangle {
+            y: i * 41px;
+            height: 41px;
+            if i > 0: Rectangle {
+                y: 0px;
+                height: 1px;
+                background: Theme.border-subtle;
+            }
+            Icon {
+                x: Theme.rtl ? parent.width - 14px - self.width : 14px;
+                size: Theme.icon-sm;
+                source: d.found ? Icons.check : Icons.minus;
+                colorize: d.found ? Theme.positive : Theme.text-tertiary;
+            }
+            T {
+                x: Theme.rtl ? 100px : 40px;
+                width: parent.width - 140px;
+                text: d.path;
+                role: Role.code;
+                ltr: true;
+            }
+            T {
+                x: Theme.rtl ? 14px : parent.width - 14px - self.preferred-width;
+                width: self.preferred-width;
+                text: d.state;
+                color: Theme.text-secondary;
+            }
+        }
+    }
+    if root.step == 1: T {
+        x: bx;
+        y: by + 96px + root.detect.length * 41px;
+        width: bw;
+        height: 14px;
+        text: @tr("Jidr will download, after you accept Google's license");
+        role: Role.caption;
+        font-weight: 600;
+        color: Theme.text-secondary;
+    }
+    if root.step == 1: Rectangle {
+        x: bx;
+        y: by + 118px + root.detect.length * 41px;
+        width: bw;
+        height: 28px + (root.plan.length + 1) * 26px + 8px;
+        border-radius: Theme.radius-lg;
+        border-width: 1px;
+        border-color: Theme.border-default;
+        background: Theme.surface-sunken;
+        for p[i] in root.plan: Rectangle {
+            x: 16px;
+            y: 14px + i * 26px;
+            width: parent.width - 32px;
+            height: 18px;
+            T {
+                x: Theme.rtl ? 70px : 0px;
+                width: parent.width - 70px;
+                text: p.label;
+            }
+            T {
+                x: Theme.rtl ? 0px : parent.width - self.preferred-width;
+                width: self.preferred-width;
+                text: p.size;
+                role: Role.code;
+            }
+        }
+        Rectangle {
+            x: 16px;
+            y: 14px + root.plan.length * 26px;
+            width: parent.width - 32px;
+            height: 1px;
+            background: Theme.border-default;
+        }
+        Rectangle {
+            x: 16px;
+            y: 22px + root.plan.length * 26px;
+            width: parent.width - 32px;
+            height: 18px;
+            T {
+                x: Theme.rtl ? 70px : 0px;
+                width: parent.width - 70px;
+                text: @tr("Into {}", root.plan-dir);
+                font-weight: 600;
+            }
+            T {
+                x: Theme.rtl ? 0px : parent.width - self.preferred-width;
+                width: self.preferred-width;
+                text: root.plan-total;
+                role: Role.code;
+                font-weight: 600;
+            }
+        }
+    }
+
+    // 2 · license (scroll to the end to accept).
+    if root.step == 2: Rectangle {
+        x: bx;
+        y: by + 80px;
+        width: bw;
+        height: 250px;
+        border-radius: Theme.radius-md;
+        border-width: 1px;
+        border-color: Theme.border-default;
+        background: Theme.surface-sunken;
+        clip: true;
+        flick := Flickable {
+            x: 14px;
+            y: 12px;
+            width: parent.width - 28px;
+            height: parent.height - 24px;
+            content-height: body.height + 30px;
+            property <bool> at-end: self.content-y <= self.height - self.content-height + 4px;
+            changed at-end => {
+                if (self.at-end) {
+                    root.license-read = true;
+                }
+            }
+            T {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: 18px;
+                text: root.license-title;
+                font-weight: 600;
+                font-size: 12px;
+            }
+            body := T {
+                x: 0px;
+                y: 26px;
+                width: parent.width;
+                height: self.preferred-height;
+                text: root.license-text;
+                font-size: 12px;
+                color: Theme.text-secondary;
+                wrap: word-wrap;
+                overflow: clip;
+                vertical-alignment: top;
+                ltr: true;
+            }
+        }
+        Rectangle {
+            x: Theme.rtl ? 3px : parent.width - 7px;
+            y: 6px + (parent.height - 56px) * clamp(-flick.content-y / max(1px, flick.content-height - flick.height), 0, 1);
+            width: 4px;
+            height: 44px;
+            border-radius: 2px;
+            background: Theme.border-strong;
+        }
+    }
+    if root.step == 2: T {
+        x: bx;
+        y: by + 342px;
+        width: bw;
+        height: 16px;
+        text: root.license-read ? @tr("You reached the end. Accept to continue, or decline to leave the SDK uninstalled.") : @tr("Scroll to the end to accept. Declining leaves the SDK uninstalled.");
+        font-size: 12px;
+        color: Theme.text-secondary;
+    }
+
+    // 3 · downloads.
+    if root.step == 3: VerticalLayout {
+        x: bx;
+        y: by + 80px;
+        width: bw;
+        spacing: 12px;
+        for d in root.downloads: DownloadRow { job: d; }
+    }
+    if root.step == 3 && root.error != "": T {
+        x: bx;
+        y: parent.height - 70px - 24px;
+        width: bw;
+        height: 18px;
+        text: root.error;
+        color: Theme.negative;
+    }
+
+    // 4 · first device.
+    property <length> half: (bw - 14px) / 2;
+    if root.step == 4: Field {
+        x: Theme.rtl ? bx + half + 14px : bx;
+        y: by + 72px;
+        width: half;
+        label: @tr("Name");
+        TextField {
+            text: root.form.name;
+            edited(t) => { root.form.name = t; }
+        }
+    }
+    if root.step == 4: Field {
+        x: Theme.rtl ? bx : bx + half + 14px;
+        y: by + 72px;
+        width: half;
+        label: @tr("Hardware profile");
+        Select {
+            options: root.profiles;
+            selected: root.form.profile;
+            changed(i) => { root.form.profile = i; }
+        }
+    }
+    if root.step == 4: Field {
+        x: bx;
+        y: by + 137px;
+        width: bw;
+        label: @tr("Android version");
+        Rectangle {
+            height: Theme.control-height-md;
+            border-radius: Theme.radius-md;
+            border-width: 1px;
+            border-color: Theme.border-strong;
+            background: Theme.surface-control;
+            T {
+                x: Theme.rtl ? ip.width + 20px : 10px;
+                width: parent.width - ip.width - 30px;
+                text: root.image-label;
+            }
+            ip := Pill {
+                x: Theme.rtl ? 6px : parent.width - 6px - self.width;
+                small: true;
+                has-icon: false;
+                tone: Tone.positive;
+                text: root.image-status;
+            }
+        }
+    }
+    if root.step == 4: FieldLabel {
+        x: Theme.rtl ? bx + bw - self.preferred-width : bx;
+        y: by + 202px;
+        width: self.preferred-width;
+        height: 16px;
+        text: @tr("Root mode");
+    }
+    if root.step == 4: RootCards {
+        x: bx;
+        y: by + 223px;
+        width: bw;
+        long-copy: false;
+        selected: root.form.root;
+        shell-allowed: !root.image-play-store;
+        play-store: root.image-play-store;
+        changed(c) => { root.form.root = c; }
+    }
+    if root.step == 4 && root.error != "": T {
+        x: bx;
+        y: by + 330px;
+        width: bw;
+        height: 18px;
+        text: root.error;
+        color: Theme.negative;
+    }
+
+    // Footer (`.setup-f`).
+    Rectangle {
+        y: parent.height - self.height;
+        height: 58px;
+        background: Theme.surface-chrome;
+        Rectangle {
+            y: 0px;
+            height: 1px;
+            background: Theme.border-default;
+        }
+        // Start-side button.
+        HorizontalLayout {
+            x: Theme.rtl ? parent.width - 20px - self.preferred-width : 20px;
+            width: self.preferred-width;
+            height: 30px;
+            spacing: 8px;
+            if root.step == 1: Button {
+                kind: ButtonKind.tertiary;
+                text: @tr("Use an existing SDK…");
+                clicked => { root.use-existing(); }
+            }
+            if root.step == 2: Button {
+                text: @tr("Back");
+                clicked => { root.back(); }
+            }
+            if root.step == 2: Button {
+                text: @tr("Decline");
+                clicked => { root.decline(); }
+            }
+            if root.step == 3: Button {
+                kind: ButtonKind.tertiary;
+                text: @tr("Continue in background");
+                clicked => { root.run-in-background(); }
+            }
+            if root.step == 4: Button {
+                kind: ButtonKind.tertiary;
+                text: @tr("More options…");
+                clicked => { root.more-options(); }
+            }
+        }
+        // End-side buttons.
+        HorizontalLayout {
+            x: Theme.rtl ? 20px : parent.width - 20px - self.preferred-width;
+            width: self.preferred-width;
+            height: 30px;
+            spacing: 8px;
+            alignment: end;
+            if root.step == 1: Button {
+                text: @tr("Quit");
+                clicked => { root.quit(); }
+            }
+            if root.step == 1: Button {
+                kind: ButtonKind.primary;
+                text: @tr("Continue");
+                kbd: "↵";
+                clicked => { root.next(); }
+            }
+            if root.step == 2: T {
+                width: self.preferred-width;
+                text: @tr("Download: {}", root.plan-total);
+                role: Role.code;
+                color: Theme.text-secondary;
+            }
+            if root.step == 2: Button {
+                kind: ButtonKind.primary;
+                text: @tr("I accept");
+                enabled: root.license-read;
+                clicked => { root.accept(); }
+            }
+            if root.step == 3: Button {
+                text: @tr("Cancel");
+                kbd: "⌘.";
+                enabled: !root.downloads-done;
+                clicked => { root.cancel-download(); }
+            }
+            if root.step == 3: Button {
+                kind: ButtonKind.primary;
+                text: @tr("Continue");
+                enabled: root.downloads-done;
+                clicked => { root.next(); }
+            }
+            if root.step == 4: Checkbox {
+                y: 6px;
+                text: @tr("Start after creating");
+                checked: root.form.start-after;
+                toggled(v) => { root.form.start-after = v; }
+            }
+            if root.step == 4: Button {
+                kind: ButtonKind.primary;
+                text: @tr("Create");
+                kbd: "⌘↵";
+                clicked => { root.create(root.form); }
+            }
+        }
+    }
+}

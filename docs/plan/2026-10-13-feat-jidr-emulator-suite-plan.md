@@ -265,49 +265,49 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `cargo nextest run -p jidr-mcp --features emulator`
 
 ### Phase 7a (B): UI shell
-- **Status:** Not started
+- **Status:** Done (12 goldens: first run, populated 1440/1280, reconnecting × dark/light/RTL; see log/devlog-b.md)
 - **Scope:** Slint app shell in the **Workbench** direction (D41; `docs/design/README.md`, `docs/design/system/README.md`, screens `Main.dc.html` 1A). `crates/jidr-ui/build.rs` generates `ui/theme.slint` (`export global Theme`, dark + light) from `docs/design/tokens.json`, with no hand-copied hex. Bundle the Geist / Geist Mono / Noto Kufi Arabic fonts (OFL) in `apps/jidr-gui/assets/fonts/`. Lucide icons via `@image-url` + `colorize`. Components follow `docs/design/system/components/*/README.md`. app/window icon `apps/jidr-gui/assets/icons/app-icon-256.png` and the in-app symbol `apps/jidr-gui/assets/icons/symbol.svg` (tint with `colorize`; see `assets/brand/README.md`, D39), light/dark, `@tr` for every string, RTL mirroring check (D33), offscreen snapshot harness with golden PNGs per theme, daemon connection + reconnect.
 - **Files touched:** `crates/jidr-ui/**`, `apps/jidr-gui/**`
 - **Acceptance criteria:** the snapshot harness renders the shell in light, dark and RTL and matches the goldens.
 - **Validation:** `cargo nextest run -p jidr-ui && cargo run -p jidr-ui --example snapshot -- --check`
 
 ### Phase 7b (B): Launcher, first run, create/edit
-- **Status:** Not started
+- **Status:** Done (57 goldens incl. 4 setup steps, create GA/Play Store, edit, palette, 4 settings tabs, empty/error; live first-run walkthrough waits on `jidr daemon`, gap B1)
 - **Scope:** per `docs/design/screens/Setup.dc.html`, `Main.dc.html` (1A), `Create.dc.html` and `Settings.dc.html`: first-run wizard (SDK detection, license text with explicit accept, image download progress), device list with live status/root badge/disk usage, create/edit dialog (profile, Android version, root mode defaulting to `adb` where allowed with Magisk highlighted (D7), RAM/CPU, resolution/density), command palette (⌘K).
 - **Files touched:** `crates/jidr-ui/src/{launcher,wizard,device_form,palette}/**`
 - **Acceptance criteria:** golden snapshots for each screen and state (empty, populated, downloading, error); manual first-run walkthrough.
 - **Validation:** `cargo run -p jidr-ui --example snapshot -- --check`
 
 ### Phase 7c (B): Player window
-- **Status:** Not started
+- **Status:** Done (release build, API 31 arm64, `-gpu host`: 60.0 fps active scrolling Settings for 30 s, touch → next frame 8.3 ms median / 14.5 ms p90, player CPU 15%; a dropped APK installed and opened; see log/devlog-b.md)
 - **Scope:** per `docs/design/screens/Device.dc.html` (concept 4A: docked widget panel): direct gRPC frame stream from `device.connect_info` (ADR-0001 transport), input (mouse, keyboard, multitouch via modifiers), right toolbar (volume, rotate, pixel-perfect, back/home/recents, power, screenshot, record), drag-drop (apk → install with signature-mismatch prompt; zip → Magisk module install + reboot on Full-root devices, otherwise pushed to `/sdcard/Download` with a note (D35); other → `/sdcard/Download`), shared clipboard toggle, widget panel host.
 - **Files touched:** `crates/jidr-ui/src/player/**`
 - **Acceptance criteria:** player hits the ADR-0001 budget on the dev Mac; drag-drop installs an APK; golden snapshots of the chrome.
 - **Validation:** `manual 1. start "Pixel-ish 6.1" 2. scroll Settings 30 s with the debug overlay on (≥30 fps) 3. drag an APK onto the screen and confirm it launches`
 
 ### Phase 8a (B): Core widgets
-- **Status:** Not started
+- **Status:** Done (`widgets_core_commands` passes on API 31 arm64: every command checked through adb; see log/devlog-b.md)
 - **Scope:** `jidr-widgets` `CommandProvider` + panels laid out as in `docs/design/screens/Device.dc.html`: battery, rotation + motion sensors, network (Wi-Fi/mobile toggles, speed/delay profiles), phone/SMS + gsm baseband, Android controls, dev tools (show taps, pointer location, layout bounds, animation scales), clipboard, plus three single-command extras (D36): fingerprint recognised/unrecognised (`finger touch`/`remove`, R8), mobile signal bars (`gsm signal-profile`, R3), host webcam as camera (`-camera-back webcam0` via `LaunchOptions`, R7). Identifiers, audio injection, rich biometric scenarios and every other `docs/gaps.md` 🟠 item are post-MVP.
 - **Files touched:** `crates/jidr-widgets/**`, `crates/jidr-ui/src/widgets/**`
 - **Acceptance criteria:** every widget command has an adb-observable assertion (`dumpsys battery`, `settings get`, etc.) in an emulator test.
 - **Validation:** `cargo nextest run -p jidr-widgets --features emulator`
 
 ### Phase 8b (B): GPS
-- **Status:** Not started
+- **Status:** Done (`gps_fix_and_route_replay` passes on API 31 arm64: Tripoli in `dumpsys location`, 3-point GPX fixes in order)
 - **Scope:** GPS widget with an OpenStreetMap tile map (attribution, configurable URL, D14), coordinate fields, GPX/KML route replay job with speed control.
 - **Files touched:** `crates/jidr-widgets/src/gps/**`, `crates/jidr-ui/src/widgets/gps/**`
 - **Acceptance criteria:** setting Tripoli coordinates shows in `dumpsys location`; replay of a 3-point GPX moves the reported location in order.
 - **Validation:** `cargo nextest run -p jidr-widgets --features emulator -- gps`
 
 ### Phase 10a (B): Screenshots + recording
-- **Status:** Not started
+- **Status:** Done (5-minute recording on API 31 arm64: ffprobe h264, 300.000 s, 9000 frames; see log/devlog-b.md)
 - **Scope:** `media.screenshot` (PNG to folder + clipboard); `media.record` encodes the frame stream to MP4/H.264 with VideoToolbox (D13; audio post-MVP).
 - **Files touched:** `crates/jidr-widgets/src/media/**`, `crates/jidr-ui/src/recording.rs`
 - **Acceptance criteria:** a 5-minute recording passes `ffprobe` (codec h264, duration ≈300 s ±2 s, frame count ≥ 30×300×0.9).
 - **Validation:** `cargo nextest run -p jidr-widgets --features emulator -- media`
 
 ### Phase 10b (B): Snapshot manager
-- **Status:** Not started
+- **Status:** Done (`snapshot_round_trip_and_cross_root_refusal` passes on API 31 arm64; see log/devlog-b.md)
 - **Scope:** per `docs/design/screens/Snapshots.dc.html`: `snapshot.*` provider (list/save/load/delete with root-mode tags; refuse loading under a different root mode, D29) and the snapshot UI with thumbnails.
 - **Files touched:** `crates/jidr-widgets/src/snapshots.rs`, `crates/jidr-ui/src/snapshots/**`
 - **Acceptance criteria:** save → modify → load round-trip restores the state; a cross-root-mode load is refused.
