@@ -168,3 +168,7 @@ Branch `fix/b-review-blockers` (from `fix/b-player-emulator-waits`). Each fix ha
 4. GUI recording state was one global flag. It's now per device (`recording::Active`), and `player::sync` shows the active tab's device. Test: `recording_state_is_per_device`.
 
 Not done in this pass (review follow-ups 5–9): unplayable MP4 after a push timeout, "Clear cache" also removing the daemon's downloads/, `media.screenshot` overwriting an existing path, logcat not restarting after reconnect, nits.
+
+## 2026-10-15: snapshot.load waits for adb
+
+On #7, `snapshot_round_trip_and_cross_root_refusal` failed on API 33 and 35: after `snapshot.load`, `adb shell` printed nothing for 30 s. LoadSnapshot returns before the guest's adbd connection is usable again, and the host adb server can keep the stale transport `offline`. `snapshot.load` now calls `device::wait_for_adb`: it probes `adb shell echo ok` (reports "Waiting for the device"), runs `adb reconnect offline` after 5 s without an answer (at most every 10 s), honours cancel, and returns `boot_timeout` with `adb get-state` and the last adb error after 60 s. The decision is `AdbWait::step`, with unit tests. The test helpers keep adb's stderr, and `eventually_shell` prints it plus `adb get-state` on timeout. Passes on API 31 arm64 (133 s).

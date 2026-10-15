@@ -135,14 +135,23 @@ impl Env {
         }
     }
 
-    pub fn adb(&self, args: &[&str]) -> String {
+    /// `adb -s <serial> …`: (stdout, stderr). adb reports "device offline"
+    /// and closed transports on stderr.
+    pub fn adb_out(&self, args: &[&str]) -> (String, String) {
         let out = std::process::Command::new(&self.info.adb_path)
             .arg("-s")
             .arg(&self.info.adb_serial)
             .args(args)
             .output()
             .unwrap();
-        String::from_utf8_lossy(&out.stdout).into_owned()
+        (
+            String::from_utf8_lossy(&out.stdout).into_owned(),
+            String::from_utf8_lossy(&out.stderr).into_owned(),
+        )
+    }
+
+    pub fn adb(&self, args: &[&str]) -> String {
+        self.adb_out(args).0
     }
 
     pub fn shell(&self, cmd: &str) -> String {
@@ -175,9 +184,9 @@ impl Env {
         ok: impl Fn(&str) -> bool,
     ) {
         let deadline = Instant::now() + Duration::from_secs(30);
-        let mut out = String::new();
+        let (mut out, mut err) = (String::new(), String::new());
         while Instant::now() < deadline {
-            out = self.shell(cmd);
+            (out, err) = self.adb_out(&["shell", cmd]);
             if ok(&out) {
                 return;
             }
@@ -187,9 +196,13 @@ impl Env {
             .lines()
             .filter(|l| show.iter().any(|k| l.contains(k)))
             .collect();
+        let (state, state_err) = self.adb_out(&["get-state"]);
         panic!(
-            "timed out waiting for: {what}\n`{cmd}` showed:\n{}\n{context}",
-            seen.join("\n")
+            "timed out waiting for: {what}\n`{cmd}` showed:\n{}\nstderr: {}\nadb get-state: {} {}\n{context}",
+            seen.join("\n"),
+            err.trim(),
+            state.trim(),
+            state_err.trim()
         );
     }
 
