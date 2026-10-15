@@ -1,0 +1,31 @@
+---
+// From docs/design/screens/Landing.dc.html (D41).
+import { links } from "../config";
+import { strings } from "../i18n";
+
+const t = strings(Astro.currentLocale);
+const f = t.footer;
+---
+
+<footer class="lfoot">
+  <div>
+    <h5 aria-level="2"><bdi lang="en">Jidr</bdi> <span lang="ar" style="color:var(--jidr-color-root)">جذر</span></h5>
+    <ul>
+      <li>{f.licences}</li>
+      <li><a href={links.repo}>{f.source}</a></li>
+      <li>{f.copyright}</li>
+    </ul>
+  </div>
+  <div>
+    <h5 aria-level="2">{f.downloaded}</h5>
+    <ul>{f.downloadedItems.map((item) => <li>{item}</li>)}</ul>
+  </div>
+  <div>
+    <h5 aria-level="2">{f.builtWith}</h5>
+    <ul>{f.builtWithItems.map((item) => <li>{item}</li>)}</ul>
+  </div>
+  <div>
+    <h5 aria-level="2">{f.trademarks}</h5>
+    <ul>{f.trademarkItems.map((item) => <li>{item}</li>)}</ul>
+  </div>
+</footer>

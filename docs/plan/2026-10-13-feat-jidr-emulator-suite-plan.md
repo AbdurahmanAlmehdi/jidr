@@ -179,7 +179,7 @@ Coordination: a stream that needs something from another stream's crate files an
 The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent works on them until Abdurahman's research lands in `docs/gaps.md` (D11).
 
 ### Phase 0 (A): Workspace bootstrap
-- **Status:** Done
+- **Status:** Not started
 - **Scope:** Cargo workspace with every crate stubbed, `rust-toolchain.toml`, never-crash clippy policy (`deny(unwrap_used, expect_used, panic)` outside tests), CI (fmt, clippy, tests on macOS + Linux; a Linux KVM job for `--features emulator`), `xtask ci` and `xtask license-check` (fails if `slint` is in the dependency tree of `apps/jidr`), split licensing (D18), `AGENTS.md`/`CLAUDE.md` (rules, finish checklist, stream ownership), `docs/clean-room.md` (allowed sources and log), `docs/gaps.md`, `docs/parity.md` (hand-edited table: Feature | Genymotion tier | Jidr status | Evidence), `docs/decisions/`. All other docs are created by the phase that needs them.
 - **Files touched:** `Cargo.toml`, `crates/*/Cargo.toml` + `src/lib.rs` stubs, `apps/*/`, `xtask/src/{main,license_check}.rs`, `.github/workflows/ci.yml`, `AGENTS.md`, `CLAUDE.md`, `LICENSE-APACHE`, `crates/jidr-ui/LICENSE-GPL`, `apps/jidr-gui/LICENSE-GPL`, `NOTICE`, `docs/{clean-room,gaps,parity}.md`
 - **Acceptance criteria:** `cargo xtask ci` is green; `cargo xtask license-check` fails when `slint` is temporarily added to `apps/jidr` (shown by a test).
@@ -314,28 +314,28 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `cargo nextest run -p jidr-widgets --features emulator -- snapshot`
 
 ### Phase 9a (C): Play Store root R&D spike ★ (day 1, no product code)
-- **Status:** Not started
+- **Status:** Done (beta pass per ADR-0002, accepted 2026-10-14: the guided tap ships as the Play Store beta in 9d; options 1 and 2 deferred to post-MVP)
 - **Scope:** time-boxed ≈3 agent-days in `spikes/playstore-root/` using adb and the emulator directly (no daemon needed). Try, in order (D21): (1) a ramdisk `overlay.d` boot script that writes the shell uid's grant into Magisk's policy DB; (2) uiautomator auto-tap of the Grant prompt; (3) guided tap. Write `docs/decisions/0002-play-store-root.md`.
 - **Files touched:** `spikes/playstore-root/**`, `docs/decisions/0002-play-store-root.md`
 - **Acceptance criteria:** **full-support pass** = `su -c id` → uid=0 with zero human input on API 33/34/35 `google_apis_playstore` arm64; **beta pass** = the ADR documents why (1) and (2) failed and specifies the guided-tap flow.
 - **Validation:** `manual 1. run spikes/playstore-root/run.sh --api 35 2. confirm uid=0 printed without touching the device 3. read ADR-0002`
 
 ### Phase 9b (C): Ramdisk cpio library (day 1)
-- **Status:** Not started
+- **Status:** Done
 - **Scope:** standalone `jidr-cpio`: read/write cpio newc, gz/lz4-legacy/xz compression detection and round-trip, add/replace/remove entries. Clean-room from the cpio format spec; no GPL code copied.
 - **Files touched:** `crates/jidr-cpio/**`
 - **Acceptance criteria:** round-trip of a real emulator `ramdisk.img` is byte-identical after decompress → parse → write → compress with the same settings; property tests.
 - **Validation:** `cargo nextest run -p jidr-cpio`
 
 ### Phase 9c (C): adb root mode
-- **Status:** Not started
+- **Status:** Done (arm64 API 31 `google_apis` locally; API 30/33/35 x86_64 run in the Linux KVM CI job once the branch is pushed)
 - **Scope:** `jidr-root` `CommandProvider`: `root.set {mode: none|adb}`, `root.verify`, `root.status`; adb mode via `adb root` after boot (optional `writable_system` is post-MVP); revert; root-mode tags written into snapshots via `snapshot.*` metadata (request through gaps if 10b isn't ready).
 - **Files touched:** `crates/jidr-root/src/{lib,adb_mode,verify}.rs`
 - **Acceptance criteria:** `none → adb → none` on API 30/33/35 `google_apis`, verified each step.
 - **Validation:** `cargo nextest run -p jidr-root --features emulator -- adb`
 
 ### Phase 9d (C): Magisk mode ★ headline
-- **Status:** Not started
+- **Status:** Done (offline tests + `cargo xtask ci` pass; the real-emulator e2e — `scripts/e2e-root.sh` on API 30/33/35 x86_64 and `cargo nextest run -p jidr-root --features emulator` — runs on Linux KVM CI once the branch is pushed, and in `xtask e2e-mac` on arm64 before release)
 - **Scope:** pinned Magisk release (`assets/magisk-pins.toml`: version, URL, SHA-256), download through the 5b cache, host-side patch with `jidr-cpio` into `<avd>/jidr/ramdisk.magisk-<ver>.img`, launch via `LaunchOptions.ramdisk` + cold boot, app install + env setup + reboot, shell su auto-grant (D22; Play Store path per ADR-0002), verify, revert, re-patch when the pristine hash or the pin changes, Play Integrity notice, `docs/root.md`, and `root.module.install {path}` (`magisk --install-module` + reboot) used by the player's zip drop (D35, R12).
 - **Files touched:** `crates/jidr-root/src/magisk/**`, `assets/magisk-pins.toml`, `docs/root.md`, `scripts/e2e-root.sh`
 - **Acceptance criteria:** `scripts/e2e-root.sh` cycles none → adb → magisk → none on API 30/33/35 `google_apis` and checks `su -c id` = uid=0 in magisk mode; the SDK `ramdisk.img` hash is unchanged at the end. Linux KVM (x86_64) on PRs; arm64 in `xtask e2e-mac` before release.
@@ -356,28 +356,28 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `cargo run -p jidr-ui --example snapshot -- --check`
 
 ### Phase 11a (C): Coming-soon site (day 1)
-- **Status:** Not started
+- **Status:** Done (rebuilt to the D41 Workbench design)
 - **Scope:** Astro site in `site/`, built to `docs/design/screens/Landing.dc.html` (concept 8A) and `Landing-Soon-390.dc.html`. Generate `site/src/styles/tokens.css` from `docs/design/tokens.json` (no hand-copied values), and self-host the Geist fonts (D41). Replace the placeholder favicon and logo with `assets/brand/web/*` copied into `site/public/` (favicon.svg/.ico/-32.png, apple-touch-icon, og-image.png for `og:image`/`twitter:image`, symbol.svg for the header; D39): pitch, root showcase, feature grid ("Genymotion's paid features, free"; text only, no logos), Star on GitHub button, Sponsors link, no email capture (D34). Uses the brand kit and design tokens when available.
 - **Files touched:** `site/**`
 - **Acceptance criteria:** builds; Lighthouse performance and accessibility ≥ 95.
 - **Validation:** `cd site && npm ci && npm run build && npx @lhci/cli autorun --collect.staticDistDir=dist --assert.preset=lighthouse:recommended`
 
 ### Phase 11b (C): Launch site
-- **Status:** Not started
+- **Status:** Built, not deployed. `site/` renders the launch page in English (`/`) and Arabic RTL (`/ar/`); `phase` in `site/src/config.ts` switches back to the coming-soon page. Before launch: release size and SHA-256 in `site/src/config.ts`, the `jidr-dev` org and repo, and Abdurahman connects jidr.ly and getjidr.com on Cloudflare Pages.
 - **Scope:** after the Magisk demo works (9d), built to `Landing-Launch.dc.html` / `-390` and `Landing-AR.dc.html` / `-390`: full home page, root and agent/MCP sections, CLI snippet, download (GitHub Releases), docs links, Arabic version (D33); deploy to Cloudflare Pages on jidr.ly with getjidr.com redirecting (Abdurahman connects the domains).
 - **Files touched:** `site/**`
 - **Acceptance criteria:** same Lighthouse gate in both languages; RTL page renders correctly.
 - **Validation:** `cd site && npm ci && npm run build`
 
 ### Phase 12a (C): Unsigned release pipeline
-- **Status:** Not started
+- **Status:** Done (validation passes on the dev Mac; the right-click → Open check on a downloaded, quarantined DMG needs a human run, and `release.yml` runs once the branch is pushed)
 - **Scope:** `.app` bundle + DMG (arm64) with `apps/jidr-gui/assets/macos/Jidr.icns` as `CFBundleIconFile` (D39); release on a push to the `release` branch → draft GitHub Release + `SHA256SUMS.txt`; artifact scan for Google SDK binaries, system images and Magisk; unsigned build with a `::warning::` when the signing secrets are missing (D32).
 - **Files touched:** `.github/workflows/release.yml`, `packaging/macos/**`, `xtask/src/release.rs`
 - **Acceptance criteria:** **unsigned path** = `cargo xtask release --dry-run --scan` produces a DMG that mounts, and the app launches after a right-click → Open.
 - **Validation:** `cargo xtask release --dry-run --scan`
 
 ### Phase 12b (C): Signing, notarization, Homebrew (blocked on the Apple Developer ID)
-- **Status:** Blocked: needs Abdurahman's Developer ID certificate and notarization credentials as repository secrets.
+- **Status:** Blocked: needs Abdurahman's Developer ID certificate and notarization credentials as repository secrets. Scripts prepared: `packaging/macos/{sign,verify}.sh`, `packaging/homebrew/jidr.rb`.
 - **Scope:** hardened runtime, inside-out signing, `notarytool` + staple for the app and DMG, `packaging/macos/verify.sh`, Homebrew cask.
 - **Files touched:** `packaging/macos/{sign,verify}.sh`, `.github/workflows/release.yml`
 - **Acceptance criteria:** `spctl -a -vv Jidr.app` accepted; `brew install --cask` works from a tap.

@@ -1,0 +1,25 @@
+---
+// From docs/design/screens/Landing.dc.html (D41, concept 8A). Text only, no
+// logos.
+import Icon from "./Icon.astro";
+import { strings } from "../i18n";
+
+const t = strings(Astro.currentLocale);
+const [feature, genymotion, jidr] = t.compare.head;
+---
+
+<section class="lp-sec">
+  <h2 class="lp-h2">{t.compare.title}</h2>
+  <p class="lead">{t.compare.lead}</p>
+  <div class="tblbox">
+    <table class="cmpt">
+      <thead><tr><th scope="col">{feature}</th><th scope="col" lang="en">{genymotion}</th><th scope="col">{jidr}</th></tr></thead>
+      <tbody>
+        {t.compare.rows.map((row) => (
+          <tr><td>{row}</td><td><span class="paid">{t.compare.paid}</span></td><td><span class="yes"><Icon name="check" class="ic i14" />{t.compare.free}</span></td></tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <p class="fine" style="margin:0">{t.compare.fine}</p>
+</section>

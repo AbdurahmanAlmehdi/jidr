@@ -1,0 +1,69 @@
+---
+// Fonts are self-hosted from @fontsource (OFL-1.1, D41): only the weights and
+// subsets the pages use. These are the faces both pages need (the English page
+// sets جذر and العربية at 600 and 400); pages/ar/index.astro adds the rest of
+// Noto Kufi Arabic. Each locale preloads only its hero's faces.
+import "@fontsource/geist/latin-400.css";
+import "@fontsource/geist/latin-500.css";
+import "@fontsource/geist/latin-600.css";
+import "@fontsource/geist/latin-700.css";
+import "@fontsource/geist-mono/latin-400.css";
+import "@fontsource/geist-mono/latin-500.css";
+import "@fontsource/noto-kufi-arabic/arabic-400.css";
+import "@fontsource/noto-kufi-arabic/arabic-600.css";
+import geist400 from "@fontsource/geist/files/geist-latin-400-normal.woff2?url";
+import geist500 from "@fontsource/geist/files/geist-latin-500-normal.woff2?url";
+import geist700 from "@fontsource/geist/files/geist-latin-700-normal.woff2?url";
+import mono400 from "@fontsource/geist-mono/files/geist-mono-latin-400-normal.woff2?url";
+import kufi400 from "@fontsource/noto-kufi-arabic/files/noto-kufi-arabic-arabic-400-normal.woff2?url";
+import kufi600 from "@fontsource/noto-kufi-arabic/files/noto-kufi-arabic-arabic-600-normal.woff2?url";
+import "../styles/tokens.css";
+import "../styles/workbench.css";
+import "../styles/site.css";
+import { phase } from "../config";
+import { locales, strings } from "../i18n";
+
+const t = strings(Astro.currentLocale);
+const title = t.title;
+const description = t.description[phase];
+const canonical = new URL(Astro.url.pathname, Astro.site);
+const ogImage = new URL("/og-image.png", Astro.site);
+const alternates = locales.map((l) => ({ lang: l, href: new URL(strings(l).home, Astro.site) }));
+// The hero's faces (headline, lede, buttons, metaline), fetched with the HTML
+// instead of after the CSS. More preloads only compete with these.
+const fonts = t.lang === "ar" ? [kufi600, kufi400] : [geist700, geist400, geist500, mono400];
+---
+
+<!doctype html>
+<html lang={t.lang} dir={t.dir} data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    {alternates.map((a) => <link rel="alternate" hreflang={a.lang} href={a.href} />)}
+    <link rel="alternate" hreflang="x-default" href={new URL("/", Astro.site)} />
+    {fonts.map((href) => <link rel="preload" href={href} as="font" type="font/woff2" crossorigin />)}
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:locale" content={t.ogLocale} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={t.ogImageAlt} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">{t.skip}</a>
+    <slot />
+  </body>
+</html>

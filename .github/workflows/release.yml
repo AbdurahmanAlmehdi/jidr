@@ -1,0 +1,58 @@
+name: Release
+
+# A push to the `release` branch builds the arm64 DMG and opens a *draft*
+# GitHub Release with it and SHA256SUMS.txt. A human reviews and publishes
+# the draft; nothing here publishes on its own (Phase 12a, D32).
+on:
+  push:
+    branches: [release]
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  macos-arm64:
+    name: macOS arm64 DMG
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust (from rust-toolchain.toml)
+        run: rustup show active-toolchain || rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+      - uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Phase 12b adds Developer ID signing and notarization. Until those
+      # secrets exist the DMG is ad-hoc signed and this warning shows (D32).
+      - name: Check signing secrets
+        env:
+          APPLE_DEVELOPER_ID_CERT: ${{ secrets.APPLE_DEVELOPER_ID_CERT }}
+        run: |
+          if [ -z "$APPLE_DEVELOPER_ID_CERT" ]; then
+            echo "::warning::Apple Developer ID secrets are missing; this release is unsigned (ad-hoc). Users open it with right-click → Open (D32)."
+          fi
+
+      - name: Build, package and scan
+        run: cargo xtask release --scan --out dist
+
+      - name: Draft GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(cat dist/VERSION)"
+          gh release create "v${version}" \
+            --draft \
+            --target "${GITHUB_SHA}" \
+            --title "Jidr ${version}" \
+            --generate-notes \
+            dist/Jidr-*-arm64.dmg dist/SHA256SUMS.txt

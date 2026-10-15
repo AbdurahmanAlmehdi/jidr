@@ -91,22 +91,76 @@ fn find_search_field(xml: &str) -> Option<(u32, u32)> {
         })
 }
 
-/// Polls ui_dump until `pred` holds.
-async fn wait_ui(mcp: &Mcp, dev: &str, secs: u64, pred: impl Fn(&str) -> bool) -> String {
+/// The "Wait" button of an "… isn't responding" dialog, if one is up. On a
+/// slow first boot the launcher can hang for a while (API 30 CI); an agent
+/// taps Wait and carries on.
+fn anr_wait(xml: &str) -> Option<(u32, u32)> {
+    if xml.contains("isn't responding") {
+        find(xml, "Wait")
+    } else {
+        None
+    }
+}
+
+/// Taps Wait on an "isn't responding" dialog. True if there was one.
+async fn dismiss_anr(mcp: &Mcp, dev: &str, xml: &str) -> bool {
+    let Some((x, y)) = anr_wait(xml) else {
+        return false;
+    };
+    mcp.ok(
+        "tap",
+        json!({ "device": dev, "x": x, "y": y, "coords": "device" }),
+    )
+    .await;
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    true
+}
+
+/// The start of a ui_dump, for a failure message.
+fn excerpt(xml: &str) -> String {
+    xml.chars().take(4000).collect()
+}
+
+/// Polls ui_dump for up to `secs` until `pred` holds, answering any "isn't
+/// responding" dialog on the way. Err carries the last dump.
+async fn poll_ui(
+    mcp: &Mcp,
+    dev: &str,
+    secs: u64,
+    pred: impl Fn(&str) -> bool,
+) -> Result<String, String> {
     let deadline = Instant::now() + Duration::from_secs(secs);
     loop {
         let r = mcp.call("ui_dump", json!({ "device": dev })).await;
         let xml = common::text(&r);
         if r.is_error != Some(true) && pred(&xml) {
-            return xml;
+            return Ok(xml);
         }
         if Instant::now() > deadline {
-            let path = std::env::temp_dir().join("jidr-agent-task-ui.xml");
-            let _ = std::fs::write(&path, &xml);
-            panic!("UI never matched; last dump saved to {}", path.display());
+            return Err(xml);
         }
+        dismiss_anr(mcp, dev, &xml).await;
         tokio::time::sleep(Duration::from_millis(800)).await;
     }
+}
+
+/// Goes home and swipes up until the app drawer shows `label` (one swipe
+/// doesn't always open it). Returns the last dump.
+async fn open_drawer(mcp: &Mcp, dev: &str, (w, h): (f64, f64), label: &str) -> String {
+    mcp.ok("press_key", json!({ "device": dev, "key": "GoHome" }))
+        .await;
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    let mut drawer = String::new();
+    for _ in 0..4 {
+        mcp.ok("swipe", json!({ "device": dev, "x1": w / 2.0, "y1": h * 0.85, "x2": w / 2.0, "y2": h * 0.2, "duration_ms": 400 })).await;
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        drawer = common::text(&mcp.call("ui_dump", json!({ "device": dev })).await);
+        if find(&drawer, label).is_some() {
+            break;
+        }
+        dismiss_anr(mcp, dev, &drawer).await;
+    }
+    drawer
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -186,32 +240,37 @@ async fn five_agent_tasks() {
         t.elapsed().as_secs_f64()
     );
 
-    // Task 2: open Settings from the app drawer, the way an agent would.
+    // Task 2: open Settings from the app drawer, the way an agent would:
+    // tap the icon, check that Settings came up, and try again if it didn't
+    // (API 33 CI: one tap left Settings unopened for 30 s).
     let t = Instant::now();
-    mcp.ok("press_key", json!({ "device": dev, "key": "GoHome" }))
-        .await;
-    tokio::time::sleep(Duration::from_secs(2)).await;
-    let (w, h) = (
+    let size = (
         sc["width"].as_f64().unwrap(),
         sc["height"].as_f64().unwrap(),
     );
-    let mut drawer = String::new();
-    for _ in 0..4 {
-        mcp.ok("swipe", json!({ "device": dev, "x1": w / 2.0, "y1": h * 0.85, "x2": w / 2.0, "y2": h * 0.2, "duration_ms": 400 })).await;
-        tokio::time::sleep(Duration::from_secs(2)).await;
-        drawer = common::text(&mcp.call("ui_dump", json!({ "device": dev })).await);
-        if find(&drawer, "Settings").is_some() {
-            break;
+    let (w, h) = size;
+    let mut settings = None;
+    for attempt in 1..=3 {
+        let drawer = open_drawer(&mcp, dev, size, "Settings").await;
+        let (x, y) = find(&drawer, "Settings")
+            .unwrap_or_else(|| panic!("no Settings icon:\n{}", excerpt(&drawer)));
+        mcp.ok(
+            "tap",
+            json!({ "device": dev, "x": x, "y": y, "coords": "device" }),
+        )
+        .await;
+        match poll_ui(&mcp, dev, 20, |xml| xml.contains("com.android.settings")).await {
+            Ok(xml) => {
+                settings = Some(xml);
+                break;
+            }
+            Err(xml) => println!(
+                "  task 2 attempt {attempt}: Settings didn't open; the screen:\n{}",
+                excerpt(&xml)
+            ),
         }
     }
-    let (x, y) = find(&drawer, "Settings")
-        .unwrap_or_else(|| panic!("no Settings icon:\n{}", &drawer[..drawer.len().min(3000)]));
-    mcp.ok(
-        "tap",
-        json!({ "device": dev, "x": x, "y": y, "coords": "device" }),
-    )
-    .await;
-    let settings = wait_ui(&mcp, dev, 30, |xml| xml.contains("com.android.settings")).await;
+    let settings = settings.expect("Settings never opened (screens above)");
     println!("task 2 (open Settings): {:.1} s", t.elapsed().as_secs_f64());
 
     // Task 3: type into a search field: the launcher's app search. (Settings'
@@ -236,6 +295,7 @@ async fn five_agent_tasks() {
             if field.is_some() {
                 break;
             }
+            dismiss_anr(&mcp, dev, &xml).await;
         }
         if let Some((fx, fy)) = field {
             mcp.ok(
@@ -368,6 +428,18 @@ fn search_field_falls_back_to_the_text_field() {
     assert_eq!(find_search_field(by_id), Some((5, 5)));
     assert_eq!(
         find_search_field(r#"<node text="Clock" bounds="[0,0][2,2]" />"#),
+        None
+    );
+}
+
+/// Regression: on API 30 CI the launcher hung after boot and its "isn't
+/// responding" dialog hid the app drawer, so task 2 found no Settings icon.
+#[test]
+fn anr_dialog_is_answered_with_wait() {
+    let anr = r#"<node text="Pixel Launcher isn't responding" bounds="[0,0][400,60]" /><node text="Close app" bounds="[0,100][400,140]" /><node text="Wait" bounds="[0,160][400,200]" />"#;
+    assert_eq!(anr_wait(anr), Some((200, 180)));
+    assert_eq!(
+        anr_wait(r#"<node text="Wait" bounds="[0,0][2,2]" />"#),
         None
     );
 }

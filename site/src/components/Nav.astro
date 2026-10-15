@@ -1,0 +1,23 @@
+---
+import symbol from "../../public/symbol.svg?raw";
+import Icon from "./Icon.astro";
+import { links, phase } from "../config";
+import { strings } from "../i18n";
+
+const t = strings(Astro.currentLocale);
+// The brand symbol inline, so it takes the text colour (D39).
+const mark = symbol.replace("<svg", '<svg class="mark" aria-hidden="true"');
+---
+
+<header class="lp-nav">
+  <a class="logo" href={t.home}><Fragment set:html={mark} /><bdi lang="en">Jidr</bdi> <span lang="ar">جذر</span></a>
+  <span class="grow"></span>
+  <nav aria-label={t.nav.label}>
+    <a class="hide-sm" href="#features">{t.nav.features}</a>
+    <a class="hide-sm" href="#root">{t.nav.root}</a>
+    {phase === "launch" && <a class="hide-sm" href="#agents">{t.nav.agents}</a>}
+    {phase === "launch" && <a class="hide-sm" href="#docs">{t.nav.docs}</a>}
+    <a class="lang-switch" href={t.other.href} lang={t.other.lang} hreflang={t.other.lang}>{t.other.label}</a>
+  </nav>
+  <a class="star" href={links.repo}><span><Icon name="star" class="ic i14" />{t.nav.star}</span></a>
+</header>
