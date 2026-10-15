@@ -347,6 +347,15 @@ pub async fn call(ctx: &CallCtx, method: &str, params: Value) -> JidrResult<Valu
                 .map_err(grpc_err("LoadSnapshot"))?
                 .into_inner();
             failed("restoring the snapshot", &r)?;
+            // The guest's adbd connection is stale after a restore: "restored"
+            // means usable from the CLI, MCP and GUI.
+            crate::device::wait_for_adb(
+                ctx,
+                &t,
+                std::time::Duration::from_secs(60),
+                "was restored",
+            )
+            .await?;
             Ok(json!({ "name": p.name }))
         }
         "snapshot.delete" => {
