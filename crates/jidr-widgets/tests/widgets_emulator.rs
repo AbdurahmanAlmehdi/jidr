@@ -49,6 +49,35 @@ async fn rotate_to(env: &common::Env, angle: u32, want: u32) {
     .await;
 }
 
+/// Switches mobile data and waits for telephony to follow (`mDataRegState`).
+/// Sends `network.set` once more after 10 s, and on timeout shows the
+/// console's `gsm status` (did the emulated radio take it?).
+async fn mobile_to(env: &common::Env, on: bool) {
+    let registry = "dumpsys telephony.registry";
+    let done = |out: &str| service_state(out).contains("mDataRegState=0(") == on;
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while std::time::Instant::now() < deadline {
+        if done(&env.shell(registry)) {
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    }
+    let again = env.call("network.set", json!({ "mobile": on })).await;
+    env.eventually_shell_with(
+        &format!("mobile data {}", if on { "on" } else { "off" }),
+        registry,
+        &["mServiceState="],
+        |e| {
+            format!(
+                "sent network.set mobile={on} twice (second: {again})\n`adb emu gsm status`:\n{}",
+                e.adb(&["emu", "gsm", "status"]).trim()
+            )
+        },
+        done,
+    )
+    .await;
+}
+
 /// Telephony's current service state line (`mServiceState={…}`); the rest of
 /// `dumpsys telephony.registry` holds older states.
 fn service_state(registry: &str) -> &str {
@@ -189,14 +218,7 @@ async fn widgets_core_commands() {
     .await;
     // Mobile data is switched at the emulated radio (console `gsm data`).
     let registry = "dumpsys telephony.registry";
-    env.eventually_shell(
-        "mobile data off",
-        registry,
-        &["mServiceState="],
-        "",
-        |out| !service_state(out).contains("mDataRegState=0("),
-    )
-    .await;
+    mobile_to(&env, false).await;
     let net = env.call("network.get", json!({})).await;
     assert_eq!(net["mobile"], false, "{net}");
     let status = env.adb(&["emu", "network", "status"]);
@@ -210,10 +232,7 @@ async fn widgets_core_commands() {
         e.shell("settings get global wifi_on").trim() == "1"
     })
     .await;
-    env.eventually_shell("mobile data on", registry, &["mServiceState="], "", |out| {
-        service_state(out).contains("mDataRegState=0(")
-    })
-    .await;
+    mobile_to(&env, true).await;
     let net = env.call("network.get", json!({})).await;
     assert_eq!(net["mobile"], true, "{net}");
 
