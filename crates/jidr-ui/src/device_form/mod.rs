@@ -191,6 +191,7 @@ pub fn edit_form(info: &DeviceInfo, profiles: &[HardwareProfile]) -> DeviceForm 
         density: info.density.to_string().into(),
         start_after: false,
         error: Default::default(),
+        play_store: !info.device.image.allows_adb_root(),
     }
 }
 
@@ -439,5 +440,19 @@ mod tests {
         assert_eq!(rows[0].status, "Installed · 2.0 GB");
         assert_eq!(rows[1].status, "Download · 2.0 GB");
         assert!(rows[1].enabled);
+    }
+
+    /// The edit sheet shows root-mode cards (9e); a Play Store device must
+    /// keep Shell root disabled there, so the form carries the image kind.
+    #[test]
+    fn edit_form_knows_play_store_devices() {
+        let profiles = profiles();
+        let mut info = crate::fixtures::device_infos()[1].clone();
+        assert!(!edit_form(&info, &profiles).play_store);
+        info.device.image.tag = "google_apis_playstore".into();
+        info.device.root.mode = jidr_core::RootMode::Magisk;
+        let form = edit_form(&info, &profiles);
+        assert!(form.play_store && form.edit);
+        assert_eq!(form.root, RootChoice::Full);
     }
 }

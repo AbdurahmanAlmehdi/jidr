@@ -349,11 +349,18 @@ fn submit(c: &Rc<Ctx>, form: DeviceForm) {
             Err(e) => set_form_error(c, e),
             Ok(params) => {
                 c.app.set_sheet_open(false);
-                c.bridge.call(
-                    "device.edit",
-                    params,
-                    report(&w, &format!("Saved {}", form.name)),
-                );
+                // 9e: a changed root mode runs `root.set` (Full root opens
+                // the Root sheet).
+                let mode = crate::root::mode_of(form.root);
+                let changed = mode != info.device.root.mode;
+                let saved = report(&w, &format!("Saved {}", form.name));
+                c.bridge.call("device.edit", params, move |r| {
+                    let ok = r.is_ok();
+                    saved(r);
+                    if ok && changed {
+                        crate::root::start_later(id, mode);
+                    }
+                });
             }
         }
         return;
@@ -375,6 +382,9 @@ fn submit(c: &Rc<Ctx>, form: DeviceForm) {
     let bridge = c.bridge.clone();
     let start = form.start_after;
     let name = form.name.to_string();
+    // 9e: Full root runs `root.set magisk` after create (it boots the
+    // device and opens the Root sheet) instead of a plain start.
+    let full_root = crate::root::mode_of(form.root) == jidr_core::RootMode::Magisk;
     // A missing image is downloaded first (a job, shown in the sidebar).
     let create = move |bridge: std::sync::Arc<crate::bridge::Bridge>,
                        w: slint::Weak<crate::AppWindow>| {
@@ -382,7 +392,14 @@ fn submit(c: &Rc<Ctx>, form: DeviceForm) {
         bridge.call("device.create", params, move |r| match r {
             Ok(dev) => {
                 toast(&w, format!("Created {name}"));
-                if start && let Some(id) = dev.get("id").cloned() {
+                if full_root
+                    && let Some(id) = dev
+                        .get("id")
+                        .and_then(|v| v.as_str())
+                        .and_then(|s| uuid::Uuid::parse_str(s).ok())
+                {
+                    crate::root::start_later(id, jidr_core::RootMode::Magisk);
+                } else if start && let Some(id) = dev.get("id").cloned() {
                     b2.run(
                         "device.start",
                         json!({ "device": id }),

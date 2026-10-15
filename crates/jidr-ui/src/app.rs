@@ -177,6 +177,7 @@ impl Ctx {
     pub fn rerender(self: &Rc<Self>) {
         render(&self.app, &self.state.borrow());
         crate::player::sync(self);
+        crate::root::sync(self);
     }
 
     /// Applies the Appearance pref (System follows macOS).
@@ -274,6 +275,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     crate::player::wire(&ctx);
     crate::widgets::wire(&ctx);
     crate::snapshots::wire(&ctx);
+    crate::root::wire(&ctx);
     auto_open(&ctx);
     bridge.connect(paths, sink(app.as_weak()));
     app.run()?;
