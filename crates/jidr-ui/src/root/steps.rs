@@ -93,7 +93,11 @@ pub fn failure(err: &JidrError, step: usize) -> Failure {
     };
     Failure {
         reason,
-        step: if err.code == ErrorCode::BootTimeout && step < REBOOT { REBOOT } else { step },
+        step: if err.code == ErrorCode::BootTimeout && step < REBOOT {
+            REBOOT
+        } else {
+            step
+        },
         unverified,
         cancelled,
         message: err.message.clone(),
@@ -189,8 +193,11 @@ mod tests {
         assert_eq!((f.reason.as_str(), f.step), ("boot timed out", REBOOT));
         assert!(!f.unverified && !f.cancelled);
 
-        let grant = JidrError::new(ErrorCode::RootFailed, "root grant to Shell was denied or timed out")
-            .with_data(json!({ "state": "awaiting_user_grant" }));
+        let grant = JidrError::new(
+            ErrorCode::RootFailed,
+            "root grant to Shell was denied or timed out",
+        )
+        .with_data(json!({ "state": "awaiting_user_grant" }));
         assert!(failure(&grant, VERIFY).unverified);
 
         let stopped = JidrError::unexpected("cancelled").with_data(json!({ "cancelled": true }));
@@ -198,7 +205,10 @@ mod tests {
         assert!(f.cancelled);
         assert_eq!(f.reason, "stopped");
 
-        let su = JidrError::new(ErrorCode::RootFailed, "dev: `su -c id` reported uid 2000, expected 0 (root)");
+        let su = JidrError::new(
+            ErrorCode::RootFailed,
+            "dev: `su -c id` reported uid 2000, expected 0 (root)",
+        );
         assert_eq!(failure(&su, VERIFY).reason, "su didn't answer as root");
 
         let other = JidrError::new(ErrorCode::Sdk, "connection reset");
@@ -211,7 +221,12 @@ mod tests {
     fn clock_and_tail() {
         assert_eq!(clock(18), "0:18");
         assert_eq!(clock(120), "2:00");
-        let e = |t: &str| LogEntry { time: "14:20:31".into(), source: "jidr", level: "", text: t.into() };
+        let e = |t: &str| LogEntry {
+            time: "14:20:31".into(),
+            source: "jidr",
+            level: "",
+            text: t.into(),
+        };
         let all = vec![e("a"), e("b"), e("c")];
         assert_eq!(log_tail(&all, 2), vec![e("b"), e("c")]);
         assert_eq!(log_tail(&all, 9).len(), 3);

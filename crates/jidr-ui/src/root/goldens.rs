@@ -23,12 +23,22 @@ const PLAY_STORE: usize = 2;
 fn log(lines: &[(&str, &'static str, &str)]) -> Vec<LogEntry> {
     lines
         .iter()
-        .map(|(t, level, text)| LogEntry { time: (*t).into(), source: "jidr", level, text: (*text).into() })
+        .map(|(t, level, text)| LogEntry {
+            time: (*t).into(),
+            source: "jidr",
+            level,
+            text: (*text).into(),
+        })
         .collect()
 }
 
 /// The device window of fixture `device` with the Root sheet on top.
-fn sheet(v: Variant, device: usize, s: Sheet, elapsed: u64) -> Result<slint::SharedPixelBuffer<slint::Rgba8Pixel>, String> {
+fn sheet(
+    v: Variant,
+    device: usize,
+    s: Sheet,
+    elapsed: u64,
+) -> Result<slint::SharedPixelBuffer<slint::Rgba8Pixel>, String> {
     let app = device_tab(v, device)?;
     // The window behind the sheet shows the same root state.
     let mut infos = fixtures::device_infos();
@@ -50,10 +60,16 @@ fn sheet(v: Variant, device: usize, s: Sheet, elapsed: u64) -> Result<slint::Sha
     }
     let clock = fixtures::clock();
     app.set_devices(slint::ModelRc::new(slint::VecModel::from(
-        infos.iter().map(|i| crate::model::device_vm(i, &clock)).collect::<Vec<_>>(),
+        infos
+            .iter()
+            .map(|i| crate::model::device_vm(i, &clock))
+            .collect::<Vec<_>>(),
     )));
     let info = infos.swap_remove(device);
-    let s = Sheet { device: Some(info.device.id), ..s };
+    let s = Sheet {
+        device: Some(info.device.id),
+        ..s
+    };
     let base = s.started.unwrap_or_else(Instant::now);
     let vm = sheet_vm(&s, Some(&info), base + Duration::from_secs(elapsed));
     let ui = app.global::<RootUi>();
@@ -84,7 +100,11 @@ pub fn cases() -> Vec<Case> {
             name: "root-success",
             render: |v| {
                 let s = Sheet {
-                    outcome: Some(Outcome::Rooted { secs: 58, magisk: Some("30.7".into()), uid: Some(0) }),
+                    outcome: Some(Outcome::Rooted {
+                        secs: 58,
+                        magisk: Some("30.7".into()),
+                        uid: Some(0),
+                    }),
                     ..running(steps::VERIFY, 58, 0)
                 };
                 sheet(v, PIXEL, s, 58)
@@ -116,13 +136,26 @@ pub fn cases() -> Vec<Case> {
         },
         Case {
             name: "root-playstore-beta",
-            render: |v| sheet(v, PLAY_STORE, Sheet { pending: true, ..Sheet::default() }, 0),
+            render: |v| {
+                sheet(
+                    v,
+                    PLAY_STORE,
+                    Sheet {
+                        pending: true,
+                        ..Sheet::default()
+                    },
+                    0,
+                )
+            },
         },
         Case {
             name: "root-awaiting-grant",
             render: |v| {
                 let s = running(steps::VERIFY, 98, 18);
-                let s = Sheet { grant_since: s.started.map(|t| t + Duration::from_secs(80)), ..s };
+                let s = Sheet {
+                    grant_since: s.started.map(|t| t + Duration::from_secs(80)),
+                    ..s
+                };
                 sheet(v, PLAY_STORE, s, 98)
             },
         },
@@ -158,7 +191,11 @@ pub fn cases() -> Vec<Case> {
 
 /// The widget panel's "More" tab with the root section, for a rooted device
 /// or one whose setup failed.
-fn devtools(v: Variant, device: usize, failed: bool) -> Result<slint::SharedPixelBuffer<slint::Rgba8Pixel>, String> {
+fn devtools(
+    v: Variant,
+    device: usize,
+    failed: bool,
+) -> Result<slint::SharedPixelBuffer<slint::Rgba8Pixel>, String> {
     let app = device_tab(v, device)?;
     app.set_player_panel_tab(4);
     let mut info = fixtures::device_infos().remove(device);
@@ -171,7 +208,10 @@ fn devtools(v: Variant, device: usize, failed: bool) -> Result<slint::SharedPixe
         infos[device] = info.clone();
         let clock = fixtures::clock();
         app.set_devices(slint::ModelRc::new(slint::VecModel::from(
-            infos.iter().map(|i| crate::model::device_vm(i, &clock)).collect::<Vec<_>>(),
+            infos
+                .iter()
+                .map(|i| crate::model::device_vm(i, &clock))
+                .collect::<Vec<_>>(),
         )));
     }
     let vm = tools_vm(Some(&info), failure.as_ref(), fixtures::now());
