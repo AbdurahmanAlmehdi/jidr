@@ -622,16 +622,17 @@ component ModeCard inherits Rectangle {
     }
     if !compact && note != "": Rectangle {
         x: pad;
-        y: pad + 62px;
+        y: pad + 61px;
         width: parent.width - 2 * pad;
         height: 1px;
         background: Theme.border-subtle;
     }
     if !compact && note != "": T {
         x: pad;
-        y: pad + 68px;
+        y: pad + 66px;
         width: parent.width - 2 * pad;
-        height: 32px;
+        // Up to three lines in the 134 px Play Store card.
+        height: parent.height - pad - 66px - 6px;
         text: root.note;
         font-size: 11px;
         color: Theme.text-tertiary;
