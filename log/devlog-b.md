@@ -185,3 +185,7 @@ On `feat/9e-root-ux`, starting from C's reference diff (`ref/9e-b8-slots`): `pub
 - Play Store root cards are 134 px in the create sheet and Setup. The form offsets follow, and Setup's error line moves below the cards.
 - Updated goldens: create-play-store and edit-device (plus C's updated create-google-apis, settings-general, setup-4-first-device, widgets-more).
 Open for C: `ModeCard`'s note text box is 32 px high, so the third line still clips until C lets it fill the card.
+
+## 2026-10-16: mobile data off flake (API 33)
+
+Twice on API 33 CI (PRs #10 and #11), `dumpsys telephony.registry` still showed `mDataRegState=0(IN_SERVICE)` 30 s after `network.set mobile=false`, with adb fine. Product: `network.set` now reads `gsm status` after `gsm data on|off`, sends it once more if the radio didn't take it, and returns an sdk error showing the status if it still didn't (`radio_took`, unit test `network_set_checks_the_radio_took_the_data_state`). Test: `mobile_to` waits 10 s, sends `network.set` again, then waits with `eventually_shell_with`. That prints `adb emu gsm status` at the timeout, so a failure shows whether the radio or Android's data registration is behind.

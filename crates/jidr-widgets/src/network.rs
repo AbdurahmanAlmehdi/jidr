@@ -88,6 +88,12 @@ fn mobile_data_on(gsm_status: &[String]) -> Option<bool> {
     Some(matches!(state, "home" | "roaming"))
 }
 
+/// Did the radio take `gsm data on|off`? `false` when `gsm status` shows
+/// the other state or no data state at all.
+fn radio_took(want: bool, gsm_status: &[String]) -> bool {
+    mobile_data_on(gsm_status) == Some(want)
+}
+
 pub async fn call(ctx: &CallCtx, method: &str, params: Value) -> JidrResult<Value> {
     match method {
         "network.get" => {
@@ -115,8 +121,23 @@ pub async fn call(ctx: &CallCtx, method: &str, params: Value) -> JidrResult<Valu
             if p.mobile.is_some() || p.profile.is_some() {
                 let mut c = t.console().await?;
                 if let Some(m) = p.mobile {
-                    c.gsm_state(GsmLine::Data, if m { "home" } else { "off" })
-                        .await?;
+                    // Check the radio took it, and send it once more if not
+                    // (API 33 CI once kept data registered after `gsm data off`).
+                    let mut status = Vec::new();
+                    for _ in 0..2 {
+                        c.gsm_state(GsmLine::Data, if m { "home" } else { "off" })
+                            .await?;
+                        status = c.command("gsm status").await?;
+                        if radio_took(m, &status) {
+                            break;
+                        }
+                    }
+                    if !radio_took(m, &status) {
+                        return Err(JidrError::sdk(format!(
+                            "the emulated radio didn't turn mobile data {}: {status:?}",
+                            on_off(m)
+                        )));
+                    }
                 }
                 if let Some(pr) = p.profile {
                     let (speed, delay) = pr.console();
@@ -155,5 +176,19 @@ mod tests {
         assert_eq!(mobile_data_on(&status("off")), Some(false));
         assert_eq!(mobile_data_on(&status("unregistered")), Some(false));
         assert_eq!(mobile_data_on(&["OK".to_string()]), None);
+    }
+
+    /// Regression (API 33 CI, PR #10/#11): data stayed registered after
+    /// `gsm data off`; network.set now checks `gsm status` and resends.
+    #[test]
+    fn network_set_checks_the_radio_took_the_data_state() {
+        let status = |data: &str| vec![format!("gsm data state:  {data}")];
+        assert!(radio_took(false, &status("off")));
+        assert!(radio_took(false, &status("unregistered")));
+        assert!(!radio_took(false, &status("home")));
+        assert!(radio_took(true, &status("roaming")));
+        assert!(!radio_took(true, &status("off")));
+        assert!(!radio_took(true, &["KO: unknown".to_string()]));
+        assert!(!radio_took(false, &[]));
     }
 }

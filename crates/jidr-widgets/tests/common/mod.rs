@@ -183,6 +183,20 @@ impl Env {
         context: &str,
         ok: impl Fn(&str) -> bool,
     ) {
+        self.eventually_shell_with(what, cmd, show, |_| context.to_string(), ok)
+            .await;
+    }
+
+    /// Like `eventually_shell`, with context read from the device at the
+    /// timeout (e.g. the console's `gsm status`).
+    pub async fn eventually_shell_with(
+        &self,
+        what: &str,
+        cmd: &str,
+        show: &[&str],
+        context: impl Fn(&Env) -> String,
+        ok: impl Fn(&str) -> bool,
+    ) {
         let deadline = Instant::now() + Duration::from_secs(30);
         let (mut out, mut err) = (String::new(), String::new());
         while Instant::now() < deadline {
@@ -198,11 +212,12 @@ impl Env {
             .collect();
         let (state, state_err) = self.adb_out(&["get-state"]);
         panic!(
-            "timed out waiting for: {what}\n`{cmd}` showed:\n{}\nstderr: {}\nadb get-state: {} {}\n{context}",
+            "timed out waiting for: {what}\n`{cmd}` showed:\n{}\nstderr: {}\nadb get-state: {} {}\n{}",
             seen.join("\n"),
             err.trim(),
             state.trim(),
-            state_err.trim()
+            state_err.trim(),
+            context(self)
         );
     }
 
