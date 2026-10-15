@@ -69,7 +69,11 @@ pub fn render(app: &AppWindow, state: &State) {
         .filter(|j| {
             j.kind == "image.install" || j.kind == "sdk.install" || j.kind.starts_with("root.")
         })
-        .map(|j| model::job_vm(j, &job_title(j), None, None))
+        .map(|j| {
+            // B5: real bytes while the daemon reports a download.
+            let bytes = j.bytes.map(|b| (b.done, b.total));
+            model::job_vm(j, &job_title(j), bytes, None)
+        })
         .collect();
     app.set_devices(ModelRc::new(VecModel::from(vms)));
     app.set_jobs(ModelRc::new(VecModel::from(jobs)));
@@ -216,6 +220,11 @@ pub fn sink(weak: Weak<AppWindow>) -> impl Fn(Update) + Send + Sync + 'static {
             let Some(app) = weak.upgrade() else { return };
             match u {
                 Update::Conn(conn) => {
+                    if matches!(conn, Conn::Online)
+                        && let Some(c) = ctx()
+                    {
+                        crate::settings::sync_from_daemon(&c);
+                    }
                     let (s, text) = match conn {
                         Conn::Connecting => (
                             ConnState::Connecting,

@@ -148,3 +148,23 @@ fn daemon_stop() {
     let v = e.ok(&["daemon", "stop"]);
     assert_eq!(v["stopped"], false);
 }
+
+/// Gap B4: `jidr settings` changes the daemon's defaults, and `device create`
+/// without `--root` follows them.
+#[test]
+fn settings_set_the_default_root_mode() {
+    let e = Env::new();
+    assert_eq!(e.ok(&["settings", "get"])["default_root_mode"], "adb");
+    let s = e.ok(&[
+        "settings",
+        "set",
+        "--default-root",
+        "none",
+        "--quick-boot",
+        "false",
+    ]);
+    assert_eq!(s["default_root_mode"], "none");
+    assert_eq!(s["quick_boot"], false);
+    let d = e.ok(&["device", "create", "Plain", "--image", "35"]);
+    assert_eq!(d["root"]["mode"], "none");
+}
