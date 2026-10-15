@@ -4,7 +4,8 @@
 import { Theme } from "theme.slint";
 import { Icons } from "icons.slint";
 import { T, Role, Tone, Tones, Icon, Button, ButtonKind, Pill, Bar, TextField, Checkbox, TrafficLights, Hint, FieldLabel } from "components/base.slint";
-import { Select, RootCards, Field } from "forms.slint";
+import { Select, Field } from "forms.slint";
+import { RootModeSelector } from "../src/root/root.slint";
 import { JobVm, JobTone, DetectRow, PlanRow, DeviceForm, OptionVm, RootChoice } from "types.slint";
 
 component Step inherits Rectangle {
@@ -467,7 +468,7 @@ export component SetupWindow inherits Window {
         height: 16px;
         text: @tr("Root mode");
     }
-    if root.step == 4: RootCards {
+    if root.step == 4: RootModeSelector {
         x: bx;
         y: by + 223px;
         width: bw;
@@ -475,11 +476,13 @@ export component SetupWindow inherits Window {
         selected: root.form.root;
         shell-allowed: !root.image-play-store;
         play-store: root.image-play-store;
+        // Three lines of note on Play Store images.
+        height: root.image-play-store ? 134px : 96px;
         changed(c) => { root.form.root = c; }
     }
     if root.step == 4 && root.error != "": T {
         x: bx;
-        y: by + 330px;
+        y: by + (root.image-play-store ? 368px : 330px);
         width: bw;
         height: 18px;
         text: root.error;

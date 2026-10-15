@@ -1,0 +1,816 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Root UX (Phase 9e, Stream C): the Root setup sheet, the root-mode cards and
+// the dev-tools root section. Built to docs/design/screens/Root.dc.html,
+// Create.dc.html and the RootBadge / RootModeSelector component specs.
+// Rust (`src/root/mod.rs`) fills `RootUi`; every string here goes through @tr.
+
+import { Theme } from "../../ui/theme.slint";
+import { Icons } from "../../ui/icons.slint";
+import { T, Role, Tone, Tones, Icon, Spinner, Tag, Button, ButtonKind, Toggle, Kbd } from "../../ui/components/base.slint";
+import { RootBadge } from "../../ui/components/status.slint";
+import { RootKind, RootChoice } from "../../ui/types.slint";
+
+/// Which body the Root sheet shows.
+export enum RootSheetState {
+    /// `root.set` is running (step N of 5).
+    progress,
+    /// Verified: `su -c id` answered uid 0.
+    success,
+    /// The job failed or was stopped; the reason and the failed step show.
+    failed,
+    /// Play Store image still on its first boot; setup starts after it.
+    waiting,
+    /// Play Store guided tap (ADR-0002): Magisk asks to grant root to Shell.
+    grant,
+    /// The guided tap was denied or timed out (ADR-0002): Try again / Revert.
+    unverified,
+}
+
+/// The five steps of Full-root setup (Root.dc.html).
+export enum RootStep { download, patch, reboot, install, verify, first-boot, all }
+
+/// Where a step stands.
+export enum RootStepState { done, now, waiting, failed, skipped }
+
+export struct RootStepVm {
+    step: RootStep,
+    state: RootStepState,
+    /// Elapsed `m:ss` for the running or failed step; empty otherwise.
+    time: string,
+    /// "62%" for the Play Store first boot; empty otherwise.
+    percent: string,
+}
+
+/// One logcat-style line under a failure (`.logtail`): stays LTR.
+export struct RootLogLine {
+    time: string,
+    source: string,
+    /// "" (info), "w" or "e".
+    level: string,
+    text: string,
+}
+
+/// State shared by the sheet, the cards and the dev-tools section.
+export global RootUi {
+    // ---- the Root sheet
+    in-out property <bool> open;
+    in property <RootSheetState> state;
+    in property <string> device-name;
+    in property <string> serial;
+    /// Play Store image: Beta tag, guided tap, no Shell root.
+    in property <bool> play-store;
+    in property <string> magisk-version: "30.7";
+    in property <[RootStepVm]> steps;
+    /// 1-based step the job is on (progress) or stopped at (failed).
+    in property <int> step-index;
+    /// Short failure reason after "Root failed: ", e.g. "boot timed out".
+    in property <string> reason;
+    /// Failure body: what happened, whether data is safe, what to do.
+    in property <string> detail;
+    in property <[RootLogLine]> log;
+    /// Success proof: `uid=0(root) gid=0(root)`, seconds taken.
+    in property <string> su-output: "uid=0(root) gid=0(root)";
+    in property <string> took;
+    /// The guided-tap wait: seconds left (60 s, ADR-0002).
+    in property <string> grant-left;
+    /// "Show steps" on success.
+    in-out property <bool> show-steps;
+    /// Sheet buttons: "background", "done", "stop", "try-again", "revert",
+    /// "copy-log", "save-snapshot", "dont-root", "cancel-grant".
+    callback action(string);
+
+    // ---- the dev-tools root section (active tab)
+    in property <bool> tools-visible;
+    in property <RootKind> tools-kind;
+    in property <string> tools-badge;
+    in property <bool> tools-beta;
+    /// Full root (Magisk): Verify again, Revert and Auto-grant apply.
+    in property <bool> tools-full;
+    in property <bool> tools-running;
+    in property <bool> tools-busy;
+    /// "2 min ago · su -c id → uid=0"; empty when not verified.
+    in property <string> tools-verified;
+    /// The last setup failed: Try again instead of Verify again.
+    in property <bool> tools-failed;
+    in property <bool> tools-auto-grant;
+    /// The daemon can set auto-grant (gap G15).
+    in property <bool> tools-auto-grant-supported;
+    /// "verify", "revert", "set-up" (also Try again), "auto-grant" (value
+    /// "true"/"false").
+    callback tools-action(string, string);
+}
+
+// ============================================================ Root sheet
+
+/// `.seal`: the 72 × 72 tile at the top of the sheet.
+component Seal inherits Rectangle {
+    in property <RootSheetState> state;
+    property <bool> bad: state == RootSheetState.failed;
+    property <bool> ok: state == RootSheetState.success;
+    property <bool> warn: state == RootSheetState.unverified;
+    width: 72px;
+    height: 72px;
+    border-radius: 20px;
+    background: bad ? Theme.status-negative-container
+        : ok ? Theme.status-root-strong-container
+        : Theme.status-root-soft-container;
+    border-width: bad ? 2px : 1.5px;
+    border-color: bad ? Theme.negative
+        : ok ? Theme.status-root-strong-container
+        : Theme.status-root-soft-border;
+    Icon {
+        size: 32px;
+        colorize: bad ? Theme.status-negative-on-container
+            : ok ? Theme.status-root-strong-on-container
+            : Theme.status-root-soft-on-container;
+        source: bad ? Icons.circle-x
+            : ok ? Icons.badge-check
+            : warn ? Icons.circle-help
+            : Icons.key-round;
+    }
+}
+
+/// One `.rstep` row: 24 px glyph · title (+ sub) · right column.
+component StepRow inherits Rectangle {
+    in property <RootStepVm> vm;
+    in property <string> magisk-version;
+    property <Tone> tone: vm.state == RootStepState.done ? Tone.positive
+        : vm.state == RootStepState.now ? Tone.transition
+        : vm.state == RootStepState.failed ? Tone.negative
+        : Tone.neutral;
+    property <string> title: vm.step == RootStep.download ? @tr("Download Magisk {}", magisk-version)
+        : vm.step == RootStep.patch ? @tr("Patch boot image")
+        : vm.step == RootStep.reboot ? (vm.state == RootStepState.now ? @tr("Rebooting") : @tr("Reboot"))
+        : vm.step == RootStep.install ? (vm.state == RootStepState.skipped ? @tr("Install Magisk app · Verify") : @tr("Install Magisk app"))
+        : vm.step == RootStep.verify ? @tr("Verify")
+        : vm.step == RootStep.all ? @tr("Download Magisk {} › Patch › Reboot › Install › Verify", magisk-version)
+        : @tr("Booting Android… {}", vm.percent);
+    property <string> sub: vm.step == RootStep.patch ? @tr("Original kept for revert")
+        : vm.step == RootStep.reboot && vm.state == RootStepState.now ? @tr("Waiting for Android to report boot complete")
+        : vm.step == RootStep.reboot && vm.state == RootStepState.failed ? @tr("Boot complete never reported")
+        : vm.step == RootStep.verify ? "su -c id"
+        : vm.step == RootStep.first-boot ? @tr("First boot of a Play Store image")
+        : "";
+    property <string> trail: vm.state == RootStepState.done ? @tr("Done")
+        : vm.state == RootStepState.now ? (vm.step == RootStep.first-boot ? vm.percent : vm.time)
+        : vm.state == RootStepState.failed ? @tr("Failed · {}", vm.time)
+        : vm.state == RootStepState.skipped ? @tr("Not run")
+        : @tr("Queued");
+    height: sub != "" ? 50px : 40px;
+    background: vm.state == RootStepState.now ? Theme.status-transition-container
+        : vm.state == RootStepState.failed ? Theme.status-negative-container
+        : transparent;
+    // `.g`: 24 px glyph on the start edge.
+    Rectangle {
+        x: Theme.rtl ? parent.width - 14px - 24px : 14px;
+        y: (parent.height - 24px) / 2;
+        width: 24px;
+        height: 24px;
+        border-radius: 12px;
+        background: Tones.container(tone);
+        if vm.state == RootStepState.now: Spinner {
+            size: 14px;
+            tint: Tones.on(tone);
+        }
+        if vm.state != RootStepState.now: Icon {
+            size: 14px;
+            colorize: Tones.on(tone);
+            source: vm.state == RootStepState.done ? Icons.check
+                : vm.state == RootStepState.failed ? Icons.x
+                : vm.state == RootStepState.skipped ? Icons.minus
+                : Icons.clock;
+        }
+    }
+    // `.r`: status or clock on the end edge (mono, never mirrored).
+    trail-t := T {
+        x: Theme.rtl ? 14px : parent.width - 14px - self.width;
+        width: self.preferred-width;
+        mono: true;
+        ltr: true;
+        font-size: 12px;
+        color: vm.state == RootStepState.failed ? Theme.status-negative-on-container : Theme.text-secondary;
+        text: root.trail;
+    }
+    property <length> text-x: Theme.rtl ? 14px + trail-t.width + 12px : 14px + 24px + 12px;
+    property <length> text-w: root.width - 2 * 14px - 24px - 2 * 12px - trail-t.width;
+    T {
+        x: root.text-x;
+        y: root.sub != "" ? 7px : 0px;
+        width: root.text-w;
+        height: root.sub != "" ? 18px : parent.height;
+        text: root.title;
+        font-size: 13px;
+        font-weight: vm.state == RootStepState.now || vm.state == RootStepState.failed ? 600 : 400;
+        color: vm.state == RootStepState.waiting || vm.state == RootStepState.skipped ? Theme.text-secondary : Theme.text-primary;
+    }
+    if root.sub != "": T {
+        x: root.text-x;
+        y: 26px;
+        width: root.text-w;
+        height: 17px;
+        text: root.sub;
+        mono: vm.step == RootStep.verify;
+        font-size: 12px;
+        color: Theme.text-secondary;
+    }
+}
+
+/// `.rsteps`: rounded list of step rows with hairlines.
+component Steps inherits Rectangle {
+    in property <[RootStepVm]> steps;
+    in property <string> magisk-version;
+    border-radius: Theme.radius-lg;
+    border-width: 1px;
+    border-color: Theme.border-default;
+    background: Theme.surface-raised;
+    clip: true;
+    VerticalLayout {
+        for s[i] in root.steps: VerticalLayout {
+            if i > 0: Rectangle { height: 1px; background: Theme.border-subtle; }
+            StepRow { vm: s; magisk-version: root.magisk-version; }
+        }
+    }
+}
+
+/// `.banner.p-warning`: Play Integrity notice.
+component IntegrityBanner inherits Rectangle {
+    in property <string> device-name;
+    in property <bool> play-store;
+    border-radius: Theme.radius-md;
+    background: Theme.status-warning-container;
+    border-width: 1px;
+    border-color: Theme.status-warning-border;
+    height: max(40px, msg.preferred-height + 20px);
+    Icon {
+        x: Theme.rtl ? parent.width - 12px - 16px : 12px;
+        y: 11px;
+        size: 16px;
+        colorize: Theme.status-warning-on-container;
+        source: Icons.shield-alert;
+    }
+    msg := T {
+        x: Theme.rtl ? 12px : 12px + 16px + 10px;
+        y: 10px;
+        width: parent.width - 2 * 12px - 16px - 10px;
+        height: self.preferred-height;
+        font-size: 12px;
+        color: Theme.status-warning-on-container;
+        wrap: word-wrap;
+        vertical-alignment: top;
+        text: root.play-store
+            ? @tr("Rooted emulators can't pass Play Integrity. Banking apps and some games from the Play Store will refuse to run on {} once it is rooted.", root.device-name)
+            : @tr("Rooted emulators can't pass Play Integrity. Apps that check it will refuse to run.");
+    }
+}
+
+/// `dl.proof`: what Jidr checked before saying "Rooted".
+component Proof inherits Rectangle {
+    in property <string> su-output;
+    in property <string> magisk-version;
+    in property <string> took;
+    border-radius: Theme.radius-md;
+    background: Theme.surface-sunken;
+    VerticalLayout {
+        padding: 12px;
+        padding-left: 14px;
+        padding-right: 14px;
+        spacing: 6px;
+        for row[i] in [
+            { k: @tr("Check"), v: "su -c id → " + root.su-output },
+            { k: @tr("Magisk"), v: @tr("{} · app installed", root.magisk-version) },
+            { k: @tr("Boot image"), v: @tr("patched · original kept") },
+            { k: @tr("Took"), v: @tr("{} · 5 of 5 steps", root.took) },
+        ]: Rectangle {
+            height: 18px;
+            T { x: Theme.rtl ? parent.width - self.width : 0px; width: 92px; font-size: 12px; color: Theme.text-secondary; text: row.k; }
+            T { x: Theme.rtl ? 0px : 104px; width: parent.width - 104px; mono: true; ltr: i == 0; font-size: 12px; text: row.v;
+                horizontal-alignment: Theme.rtl ? TextHorizontalAlignment.right : TextHorizontalAlignment.left; }
+        }
+    }
+}
+
+/// `.logtail`: the last lines before the failure. Always LTR.
+component LogTail inherits Rectangle {
+    in property <[RootLogLine]> lines;
+    border-radius: Theme.radius-md;
+    background: Theme.logcat-background;
+    border-width: 1px;
+    border-color: Theme.border-subtle;
+    clip: true;
+    VerticalLayout {
+        padding: 10px;
+        padding-left: 12px;
+        padding-right: 12px;
+        for l in root.lines: T {
+            ltr: true;
+            mono: true;
+            font-size: 11.5px;
+            height: 18px;
+            overflow: elide;
+            color: l.level == "e" ? Theme.logcat-error : l.level == "w" ? Theme.logcat-warn : Theme.logcat-tag;
+            text: l.time + "  " + l.source + (l.level == "e" ? " E " : l.level == "w" ? " W " : "   ") + l.text;
+        }
+    }
+}
+
+/// The Root setup sheet (`.sheet.w-root`, 620 px), dropped from the title
+/// bar over a scrim. Place it under the title bar and give it the rest of
+/// the window.
+export component RootLayer inherits Rectangle {
+    property <RootSheetState> st: RootUi.state;
+    property <bool> busy: st == RootSheetState.progress || st == RootSheetState.waiting || st == RootSheetState.grant;
+    background: Theme.scrim;
+    TouchArea {}
+    sheet := Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: 0px;
+        width: 620px;
+        height: min(body.preferred-height + 52px + 56px, parent.height - 24px);
+        background: Theme.elevation-3-surface;
+        border-width: 1px;
+        border-color: Theme.border-default;
+        border-radius: Theme.radius-xl;
+        drop-shadow-offset-y: Theme.elevation-3-shadow-y;
+        drop-shadow-blur: Theme.elevation-3-shadow-blur;
+        drop-shadow-color: Theme.elevation-3-shadow-color;
+        clip: true;
+        accessible-role: groupbox;
+        accessible-label: @tr("Root setup");
+        TouchArea {}
+        // Header: "Full root · {device}" on the start edge; Beta tag and
+        // serial on the end edge.
+        Rectangle {
+            y: 0px;
+            height: 52px;
+            T {
+                x: Theme.rtl ? parent.width - 20px - self.width : 20px;
+                width: min(self.preferred-width, parent.width - 240px);
+                font-size: 15px;
+                font-weight: 600;
+                text: @tr("Full root · {}", RootUi.device-name);
+            }
+            HorizontalLayout {
+                x: Theme.rtl ? 20px : parent.width - 20px - self.preferred-width;
+                width: self.preferred-width;
+                spacing: 10px;
+                for slot[j] in 2: Rectangle {
+                    property <int> i: Theme.rtl ? 1 - j : j;
+                    width: i == 0 ? (RootUi.play-store ? tag.width : 0px) : serial.width;
+                    tag := Tag {
+                        visible: i == 0 && RootUi.play-store;
+                        y: (parent.height - self.height) / 2;
+                        text: @tr("Beta · Play Store image");
+                        tone: Tone.warning;
+                    }
+                    serial := T {
+                        visible: i == 1;
+                        width: self.preferred-width;
+                        mono: true;
+                        ltr: true;
+                        font-size: 12px;
+                        color: Theme.text-secondary;
+                        text: RootUi.serial;
+                    }
+                }
+            }
+            Rectangle { y: parent.height - 1px; height: 1px; background: Theme.border-subtle; }
+        }
+        body := VerticalLayout {
+            y: 52px;
+            height: sheet.height - 52px - 56px;
+            padding: 20px;
+            padding-top: 4px;
+            spacing: 16px;
+            alignment: start;
+            // `.rhero`: seal, headline, badge, explanation.
+            VerticalLayout {
+                padding-top: 16px;
+                spacing: 12px;
+                alignment: start;
+                HorizontalLayout { alignment: center; Seal { state: st; } }
+                T {
+                    role: Role.hero;
+                    horizontal-alignment: center;
+                    text: st == RootSheetState.progress ? @tr("Setting up root…")
+                        : st == RootSheetState.success ? @tr("Rooted")
+                        : st == RootSheetState.failed ? @tr("Root failed")
+                        : st == RootSheetState.waiting ? @tr("Waiting to set up root")
+                        : st == RootSheetState.grant ? @tr("Tap Grant on the device")
+                        : @tr("Root unverified");
+                }
+                HorizontalLayout {
+                    alignment: center;
+                    spacing: 6px;
+                    RootBadge {
+                        kind: st == RootSheetState.progress || st == RootSheetState.grant ? RootKind.setting-up
+                            : st == RootSheetState.success ? RootKind.verified
+                            : st == RootSheetState.failed ? RootKind.failed
+                            : st == RootSheetState.waiting ? RootKind.full
+                            : RootKind.unverified;
+                        beta: RootUi.play-store && (st == RootSheetState.waiting || st == RootSheetState.success);
+                        text: st == RootSheetState.progress ? @tr("Setting up root… · step {} of 5", RootUi.step-index)
+                            : st == RootSheetState.grant ? @tr("Setting up root… · step 5 of 5")
+                            : st == RootSheetState.success ? @tr("Rooted · Magisk {} · verified just now", RootUi.magisk-version)
+                            : st == RootSheetState.failed ? @tr("Root failed: {}", RootUi.reason)
+                            : st == RootSheetState.waiting ? @tr("Full root")
+                            : @tr("Root unverified");
+                    }
+                }
+                HorizontalLayout {
+                    alignment: center;
+                    T {
+                        max-width: 440px;
+                        font-size: 13px;
+                        color: Theme.text-secondary;
+                        wrap: word-wrap;
+                        horizontal-alignment: center;
+                        text: st == RootSheetState.progress ? @tr("Reboots the device to finish root setup (about 40 s). Leave it running; you can close this sheet.")
+                            : st == RootSheetState.success ? @tr("Jidr checked that su really answers as root before saying so.")
+                            : st == RootSheetState.failed && RootUi.detail != "" ? RootUi.detail
+                            : st == RootSheetState.failed && RootUi.step-index == 1 ? @tr("Couldn't download Magisk {}. Nothing on {} changed; check the connection and try again.", RootUi.magisk-version, RootUi.device-name)
+                            : st == RootSheetState.failed && RootUi.step-index == 2 ? @tr("Couldn't patch the boot image. {} is unchanged.", RootUi.device-name)
+                            : st == RootSheetState.failed && RootUi.step-index == 3 ? @tr("{} didn't finish booting after the reboot. Your data is intact and the original boot image is kept, so you can revert.", RootUi.device-name)
+                            : st == RootSheetState.failed && RootUi.step-index == 4 ? @tr("Couldn't install the Magisk app on {}. Your data is intact and the original boot image is kept, so you can revert.", RootUi.device-name)
+                            : st == RootSheetState.failed ? @tr("su -c id didn't answer as root on {}. Your data is intact and the original boot image is kept, so you can revert.", RootUi.device-name)
+                            : st == RootSheetState.waiting ? @tr("Root setup starts when Android finishes its first boot. Play Store images are signed by Google, so this path is less tested.")
+                            : st == RootSheetState.grant ? @tr("Magisk will ask to grant root to Shell. Tap Grant in the device window. Jidr waits {} more; \"Forever\" is up to you.", RootUi.grant-left)
+                            : @tr("Shell wasn't granted root, so Jidr can't say {} is rooted. Try again and tap Grant, or revert to unrooted. Your data is intact.", RootUi.device-name);
+                    }
+                }
+            }
+            if st == RootSheetState.success: Proof {
+                su-output: RootUi.su-output;
+                magisk-version: RootUi.magisk-version;
+                took: RootUi.took;
+            }
+            if st != RootSheetState.success || RootUi.show-steps: Steps {
+                steps: RootUi.steps;
+                magisk-version: RootUi.magisk-version;
+            }
+            if st == RootSheetState.failed && RootUi.log.length > 0: LogTail { lines: RootUi.log; }
+            if st == RootSheetState.success || st == RootSheetState.waiting: IntegrityBanner {
+                device-name: RootUi.device-name;
+                play-store: st == RootSheetState.waiting;
+            }
+        }
+        // Footer (`.sf`): a tertiary action on the start edge, the rest on
+        // the end edge with the primary last (first in RTL).
+        footer := Rectangle {
+            y: sheet.height - 56px;
+            height: 56px;
+            background: Theme.surface-chrome;
+            Rectangle { y: 0px; height: 1px; background: Theme.border-default; }
+            property <string> start-text: st == RootSheetState.progress ? @tr("Stop and revert")
+                : st == RootSheetState.success ? (RootUi.show-steps ? @tr("Hide steps") : @tr("Show steps"))
+                : st == RootSheetState.failed ? @tr("Copy log")
+                : st == RootSheetState.waiting ? @tr("Don't root this device")
+                : st == RootSheetState.grant ? @tr("Cancel")
+                : "";
+            if footer.start-text != "": Button {
+                x: Theme.rtl ? parent.width - 16px - self.width : 16px;
+                y: (parent.height - self.height) / 2;
+                kind: ButtonKind.tertiary;
+                has-icon: st == RootSheetState.failed;
+                icon: Icons.copy;
+                text: footer.start-text;
+                clicked => {
+                    if (st == RootSheetState.success) {
+                        RootUi.show-steps = !RootUi.show-steps;
+                    } else {
+                        RootUi.action(st == RootSheetState.progress ? "stop"
+                            : st == RootSheetState.failed ? "copy-log"
+                            : st == RootSheetState.waiting ? "dont-root"
+                            : "cancel-grant");
+                    }
+                }
+            }
+            // [secondary, primary]: Continue in background | Save snapshot…
+            // + Done | Revert to unrooted + Try again.
+            property <bool> has-primary: st == RootSheetState.success || st == RootSheetState.failed || st == RootSheetState.unverified;
+            end := HorizontalLayout {
+                x: Theme.rtl ? 16px : parent.width - 16px - self.preferred-width;
+                y: (parent.height - 30px) / 2;
+                width: self.preferred-width;
+                height: 30px;
+                spacing: 8px;
+                for slot[j] in 2: Rectangle {
+                    property <int> i: Theme.rtl ? 1 - j : j;
+                    width: i == 0 ? second.width : (footer.has-primary ? primary.width : 0px);
+                    second := Button {
+                        visible: i == 0;
+                        has-icon: st == RootSheetState.failed || st == RootSheetState.unverified;
+                        icon: Icons.undo-2;
+                        text: busy ? @tr("Continue in background")
+                            : st == RootSheetState.success ? @tr("Save snapshot…")
+                            : @tr("Revert to unrooted");
+                        clicked => {
+                            RootUi.action(busy ? "background" : st == RootSheetState.success ? "save-snapshot" : "revert");
+                        }
+                    }
+                    primary := Button {
+                        visible: i == 1 && footer.has-primary;
+                        kind: ButtonKind.primary;
+                        has-icon: st != RootSheetState.success;
+                        icon: Icons.rotate-ccw;
+                        kbd: st == RootSheetState.success ? "↵" : "";
+                        text: st == RootSheetState.success ? @tr("Done") : @tr("Try again");
+                        clicked => { RootUi.action(st == RootSheetState.success ? "done" : "try-again"); }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ============================================================ RootModeSelector
+
+/// One root-mode card (`.rcard`): icon + title, body, optional note, a round
+/// radio on the end edge. Hover and focus states per the component spec.
+component ModeCard inherits Rectangle {
+    in property <string> title;
+    in property <string> body;
+    in property <string> note;
+    in property <image> icon;
+    in property <bool> on;
+    in property <bool> featured;
+    in property <bool> disabled;
+    in property <bool> beta;
+    in property <bool> compact;
+    in property <bool> focused;
+    callback clicked();
+    property <length> pad: compact ? 10px : 14px;
+    border-radius: Theme.radius-lg;
+    border-width: on ? 1px : 1px;
+    border-color: on ? Theme.accent-fill
+        : featured && !disabled ? Theme.status-root-soft-border
+        : touch.has-hover && !disabled ? Theme.border-strong
+        : Theme.border-default;
+    background: disabled ? transparent
+        : on ? Theme.accent-container
+        : featured ? Theme.status-root-soft-container
+        : Theme.surface-raised;
+    // Selected: a 1 px accent ring outside the border.
+    if on: Rectangle {
+        x: -1px;
+        y: -1px;
+        width: parent.width + 2px;
+        height: parent.height + 2px;
+        border-radius: Theme.radius-lg + 1px;
+        border-width: 1px;
+        border-color: Theme.accent-fill;
+    }
+    // Keyboard focus: 2 px ring, 2 px offset.
+    if focused: Rectangle {
+        x: -4px;
+        y: -4px;
+        width: parent.width + 8px;
+        height: parent.height + 8px;
+        border-radius: Theme.radius-lg + 4px;
+        border-width: 2px;
+        border-color: Theme.focus-ring;
+    }
+    property <color> ink: disabled ? Theme.text-disabled
+        : on ? Theme.accent-text
+        : featured ? Theme.root
+        : Theme.text-secondary;
+    // Radio (`.box.round`) on the end edge.
+    Rectangle {
+        x: Theme.rtl ? pad : parent.width - pad - 16px;
+        y: compact ? (parent.height - 16px) / 2 : pad;
+        width: 16px;
+        height: 16px;
+        border-radius: 8px;
+        border-width: on ? 5px : 1px;
+        border-color: on ? Theme.accent-fill : Theme.border-strong;
+        background: on ? Theme.text-on-accent : Theme.surface-control;
+    }
+    ico := Icon {
+        x: Theme.rtl ? parent.width - pad - 16px : pad;
+        y: compact ? (parent.height - 16px) / 2 : pad + 1px;
+        size: 16px;
+        colorize: root.ink;
+        source: root.icon;
+    }
+    title-t := T {
+        x: Theme.rtl ? ico.x - 7px - self.width : ico.x + 16px + 7px;
+        y: compact ? (parent.height - self.height) / 2 : pad;
+        width: self.preferred-width;
+        height: 18px;
+        text: root.title;
+        font-size: 13px;
+        font-weight: 600;
+        color: disabled ? Theme.text-disabled : Theme.text-primary;
+    }
+    if beta: Tag {
+        x: Theme.rtl ? title-t.x - 8px - self.width : title-t.x + title-t.width + 8px;
+        y: pad;
+        text: @tr("Beta");
+    }
+    if !compact: T {
+        x: pad;
+        y: pad + 24px;
+        width: parent.width - 2 * pad;
+        height: 34px;
+        text: root.body;
+        font-size: 12px;
+        color: disabled ? Theme.text-disabled
+            : featured && !on ? Theme.status-root-soft-on-container
+            : Theme.text-secondary;
+        wrap: word-wrap;
+        overflow: clip;
+        vertical-alignment: top;
+    }
+    if !compact && note != "": Rectangle {
+        x: pad;
+        y: pad + 61px;
+        width: parent.width - 2 * pad;
+        height: 1px;
+        background: Theme.border-subtle;
+    }
+    if !compact && note != "": T {
+        x: pad;
+        y: pad + 66px;
+        width: parent.width - 2 * pad;
+        // Up to three lines in the 134 px Play Store card.
+        height: parent.height - pad - 66px - 6px;
+        text: root.note;
+        font-size: 11px;
+        color: Theme.text-tertiary;
+        wrap: word-wrap;
+        overflow: clip;
+        vertical-alignment: top;
+    }
+    touch := TouchArea {
+        enabled: !root.disabled;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+/// None · Shell root (adb) · Full root as a radio group (RootModeSelector
+/// spec). D7: Shell is the default where allowed and Full is highlighted;
+/// Play Store images disable Shell and mark Full as Beta. ↑/↓ (←/→) or
+/// 1/2/3 choose. Same interface as the basic `RootCards`.
+export component RootModeSelector inherits Rectangle {
+    in-out property <RootChoice> selected: RootChoice.shell;
+    in property <bool> shell-allowed: true;
+    in property <bool> play-store: false;
+    in property <string> magisk-version: "30.7";
+    in property <bool> compact: false;
+    in property <bool> long-copy: true;
+    callback changed(RootChoice);
+    height: compact ? 40px : (play-store ? 120px : 96px);
+    accessible-role: list;
+    accessible-label: @tr("Root mode");
+    property <length> w: (self.width - 20px) / 3;
+    property <int> index: selected == RootChoice.none ? 0 : selected == RootChoice.shell ? 1 : 2;
+    function pick(i: int) {
+        if (i == 1 && !root.shell-allowed) { return; }
+        root.selected = i == 0 ? RootChoice.none : i == 1 ? RootChoice.shell : RootChoice.full;
+        root.changed(root.selected);
+    }
+    function step(d: int) {
+        // Skip a disabled Shell card.
+        if (d > 0) {
+            root.pick(root.index == 0 ? (root.shell-allowed ? 1 : 2) : 2);
+        } else {
+            root.pick(root.index == 2 ? (root.shell-allowed ? 1 : 0) : 0);
+        }
+    }
+    keys := FocusScope {
+        key-pressed(ev) => {
+            if (ev.text == "1") { root.pick(0); return accept; }
+            if (ev.text == "2") { root.pick(1); return accept; }
+            if (ev.text == "3") { root.pick(2); return accept; }
+            if (ev.text == Key.DownArrow || ev.text == (Theme.rtl ? Key.LeftArrow : Key.RightArrow)) { root.step(1); return accept; }
+            if (ev.text == Key.UpArrow || ev.text == (Theme.rtl ? Key.RightArrow : Key.LeftArrow)) { root.step(-1); return accept; }
+            reject
+        }
+    }
+    for slot[j] in 3: ModeCard {
+        property <int> i: Theme.rtl ? 2 - j : j;
+        x: j * (w + 10px);
+        width: w;
+        height: parent.height;
+        compact: root.compact;
+        focused: keys.has-focus && i == root.index;
+        icon: i == 0 ? Icons.minus : i == 1 ? Icons.terminal : Icons.key-round;
+        title: i == 0 ? @tr("None") : i == 1 ? (root.long-copy ? @tr("Shell root (adb)") : @tr("Shell root")) : @tr("Full root");
+        body: i == 0 ? (root.long-copy ? @tr("A stock device. Test apps as users see them.") : @tr("A stock device."))
+            : i == 1 ? (root.long-copy ? @tr("adb root works. Nothing on the system changes.") : @tr("adb root works. Nothing changes."))
+            : (root.long-copy ? @tr("Installs and verifies Magisk {}. Reboots once (about 40 s).", root.magisk-version) : @tr("Magisk, verified. One reboot."));
+        note: i == 1 && !root.shell-allowed ? @tr("Play Store images don't allow adb root.")
+            : i == 2 && root.play-store ? @tr("Rooted emulators can't pass Play Integrity. Apps that check it will refuse to run.")
+            : "";
+        on: i == root.index;
+        featured: i == 2;
+        disabled: i == 1 && !root.shell-allowed;
+        beta: i == 2 && root.play-store;
+        clicked => {
+            keys.focus();
+            root.pick(i);
+        }
+    }
+}
+
+// ============================================================ dev-tools section
+
+/// The root rows at the top of the widget panel's Developer tools: mode
+/// badge, last verification, Verify again / Revert (or Set up Full root),
+/// and the opt-in "auto-grant all" toggle (D22, Full root only, off by
+/// default). Hidden when no device tab is active.
+export component RootDevTools inherits VerticalLayout {
+    spacing: 10px;
+    visible: RootUi.tools-visible;
+    height: RootUi.tools-visible ? self.preferred-height : 0px;
+    // "Root" + badge, mirrored in RTL.
+    Rectangle {
+        height: 20px;
+        label := T {
+            x: Theme.rtl ? parent.width - self.width : 0px;
+            width: self.preferred-width;
+            font-size: 12px;
+            color: Theme.text-secondary;
+            text: @tr("Root");
+        }
+        RootBadge {
+            x: Theme.rtl ? parent.width - label.width - 8px - self.width : label.width + 8px;
+            small: true;
+            kind: RootUi.tools-kind;
+            text: RootUi.tools-badge;
+            beta: RootUi.tools-beta;
+        }
+    }
+    if RootUi.tools-full: T {
+        height: 16px;
+        font-size: 12px;
+        color: Theme.text-tertiary;
+        text: RootUi.tools-verified != "" ? @tr("Verified {}", RootUi.tools-verified) : @tr("Not verified yet");
+    }
+    // [Verify again | Try again | Set up Full root…] [Revert to unrooted…]
+    Rectangle {
+        height: 26px;
+        HorizontalLayout {
+            x: Theme.rtl ? parent.width - self.preferred-width : 0px;
+            width: self.preferred-width;
+            spacing: 8px;
+            for slot[j] in 2: Rectangle {
+                property <int> i: Theme.rtl ? 1 - j : j;
+                width: i == 0 ? first.width : (RootUi.tools-full ? revert.width : 0px);
+                first := Button {
+                    visible: i == 0;
+                    small: true;
+                    has-icon: true;
+                    icon: !RootUi.tools-full ? Icons.key-round : RootUi.tools-failed ? Icons.rotate-ccw : Icons.badge-check;
+                    enabled: !RootUi.tools-busy && (!RootUi.tools-full || RootUi.tools-failed || RootUi.tools-running);
+                    text: !RootUi.tools-full ? @tr("Set up Full root…") : RootUi.tools-failed ? @tr("Try again") : @tr("Verify again");
+                    clicked => { RootUi.tools-action(RootUi.tools-full && !RootUi.tools-failed ? "verify" : "set-up", ""); }
+                }
+                revert := Button {
+                    visible: i == 1 && RootUi.tools-full;
+                    small: true;
+                    kind: ButtonKind.tertiary;
+                    has-icon: true;
+                    icon: Icons.undo-2;
+                    enabled: !RootUi.tools-busy;
+                    text: @tr("Revert to unrooted…");
+                    clicked => { RootUi.tools-action("revert", ""); }
+                }
+            }
+        }
+    }
+    // Like the panel's ToggleRow, with room for a two-line hint.
+    if RootUi.tools-full: Rectangle {
+        height: 56px;
+        T {
+            x: Theme.rtl ? 44px : 0px;
+            y: 0px;
+            width: parent.width - 44px;
+            height: 20px;
+            text: @tr("Auto-grant root to all apps");
+        }
+        Toggle {
+            x: Theme.rtl ? 0px : parent.width - self.width;
+            y: 1px;
+            checked: RootUi.tools-auto-grant;
+            enabled: RootUi.tools-auto-grant-supported && !RootUi.tools-busy;
+            // Toggle has no disabled look of its own.
+            opacity: self.enabled ? 1.0 : 0.4;
+            toggled(v) => { RootUi.tools-action("auto-grant", v ? "true" : "false"); }
+        }
+        T {
+            x: 0px;
+            y: 22px;
+            width: parent.width - 44px;
+            height: 32px;
+            font-size: 11px;
+            color: Theme.text-tertiary;
+            wrap: word-wrap;
+            overflow: clip;
+            vertical-alignment: top;
+            text: !RootUi.tools-auto-grant-supported ? @tr("Needs a newer Jidr daemon.")
+                : RootUi.tools-auto-grant ? @tr("On: every app that asks gets root without a prompt.")
+                : @tr("Off: apps ask and you tap Grant. adb shell is always granted.");
+        }
+    }
+}
