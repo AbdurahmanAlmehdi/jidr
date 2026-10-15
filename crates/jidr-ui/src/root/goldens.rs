@@ -180,11 +180,17 @@ pub fn cases() -> Vec<Case> {
         },
         Case {
             name: "root-devtools",
-            render: |v| devtools(v, PIXEL, false),
+            render: |v| devtools(v, PIXEL, false, true),
         },
         Case {
             name: "root-devtools-failed",
-            render: |v| devtools(v, PIXEL, true),
+            render: |v| devtools(v, PIXEL, true, true),
+        },
+        Case {
+            // A daemon without `root.auto_grant` (gap G15): the toggle is
+            // disabled and says why.
+            name: "root-devtools-no-auto-grant",
+            render: |v| devtools(v, PIXEL, false, false),
         },
     ]
 }
@@ -195,6 +201,7 @@ fn devtools(
     v: Variant,
     device: usize,
     failed: bool,
+    auto_grant: bool,
 ) -> Result<slint::SharedPixelBuffer<slint::Rgba8Pixel>, String> {
     let app = device_tab(v, device)?;
     app.set_player_panel_tab(4);
@@ -226,6 +233,6 @@ fn devtools(
     ui.set_tools_verified(vm.verified);
     ui.set_tools_failed(vm.failed);
     ui.set_tools_auto_grant(vm.auto_grant);
-    ui.set_tools_auto_grant_supported(true);
+    ui.set_tools_auto_grant_supported(auto_grant);
     shot(&app, 1440, 900)
 }
