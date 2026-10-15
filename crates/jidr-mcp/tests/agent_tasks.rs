@@ -91,6 +91,14 @@ fn find_search_field(xml: &str) -> Option<(u32, u32)> {
         })
 }
 
+/// Whether a text field has keyboard focus (the tap on the search field took).
+fn text_field_focused(xml: &str) -> bool {
+    xml.split("<node ").skip(1).any(|node| {
+        attr(node, "class").is_some_and(|c| c.ends_with("EditText"))
+            && attr(node, "focused").as_deref() == Some("true")
+    })
+}
+
 /// The "Wait" button of an "… isn't responding" dialog, if one is up. On a
 /// slow first boot the launcher can hang for a while (API 30 CI); an agent
 /// taps Wait and carries on.
@@ -287,6 +295,7 @@ async fn five_agent_tasks() {
         // As in task 2, one swipe doesn't always open the drawer.
         let mut xml = String::new();
         let mut field = None;
+        let mut last = String::new();
         for _ in 0..3 {
             mcp.ok("swipe", json!({ "device": dev, "x1": w / 2.0, "y1": h * 0.85, "x2": w / 2.0, "y2": h * 0.2, "duration_ms": 400 })).await;
             tokio::time::sleep(Duration::from_millis(1500)).await;
@@ -298,16 +307,27 @@ async fn five_agent_tasks() {
             dismiss_anr(&mcp, dev, &xml).await;
         }
         if let Some((fx, fy)) = field {
-            mcp.ok(
-                "tap",
-                json!({ "device": dev, "x": fx, "y": fy, "coords": "device" }),
-            )
-            .await;
-            tokio::time::sleep(Duration::from_millis(1500)).await;
+            // Tap the field and wait for it to take focus before typing; a
+            // tap on a busy first-boot launcher can be dropped (API 33 CI),
+            // so an agent taps again.
+            for _ in 0..2 {
+                mcp.ok(
+                    "tap",
+                    json!({ "device": dev, "x": fx, "y": fy, "coords": "device" }),
+                )
+                .await;
+                let focused = poll_ui(&mcp, dev, 6, text_field_focused).await;
+                if let Err(x) = &focused {
+                    last = x.clone();
+                } else {
+                    break;
+                }
+            }
             mcp.ok("type_text", json!({ "device": dev, "text": "clock" }))
                 .await;
             for _ in 0..10 {
                 let xml = common::text(&mcp.call("ui_dump", json!({ "device": dev })).await);
+                last = xml.clone();
                 // The field now holds the typed text (lowercase, unlike the "Clock" app label).
                 if xml.contains("text=\"clock\"") {
                     typed = Some(xml);
@@ -338,7 +358,9 @@ async fn five_agent_tasks() {
             field.is_some()
         );
         if field.is_none() {
-            println!("  drawer dump:\n{}", &xml[..xml.len().min(4000)]);
+            println!("  drawer dump:\n{}", excerpt(&xml));
+        } else {
+            println!("  screen after typing:\n{}", excerpt(&last));
         }
     }
     let results = typed.expect("typing into the launcher search never showed the text");
@@ -442,4 +464,18 @@ fn anr_dialog_is_answered_with_wait() {
         anr_wait(r#"<node text="Wait" bounds="[0,0][2,2]" />"#),
         None
     );
+}
+
+/// Regression: on API 33 CI task 3 found the search field but the typed
+/// text never showed; it now waits for the field to take focus.
+#[test]
+fn a_focused_text_field_is_seen() {
+    let focused = r#"<node class="android.widget.EditText" focused="true" bounds="[0,0][2,2]" />"#;
+    assert!(text_field_focused(focused));
+    assert!(!text_field_focused(
+        &focused.replace("\"true\"", "\"false\"")
+    ));
+    assert!(!text_field_focused(
+        r#"<node class="android.widget.TextView" focused="true" />"#
+    ));
 }
