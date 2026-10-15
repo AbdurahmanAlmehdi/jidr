@@ -10,6 +10,7 @@
 //! [`CommandProvider::on_booted`]; Magisk devices get a re-patch check.
 
 mod adb_mode;
+mod adb_ready;
 mod magisk;
 mod verify;
 
