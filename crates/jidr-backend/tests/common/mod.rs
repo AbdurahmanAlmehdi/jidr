@@ -67,6 +67,7 @@ pub fn fixture(base: &str) -> Fixture {
         avd: name.into(),
         avd_home: paths.avd_home(),
         sdk_root: image_sdk.root.clone(),
+        sysdir: image_sdk.image_dir(&test_image()),
         emulator: tools.emulator(),
         adb: tools.adb(),
         log_dir: paths.device_logs(name),

@@ -21,6 +21,7 @@ struct FakeState {
     running: HashMap<u32, String>,
     crashes: HashMap<u32, Arc<Notify>>,
     launches: Vec<(String, LaunchOptions)>,
+    specs: Vec<LaunchSpec>,
     fail_next: Option<JidrError>,
 }
 
@@ -65,6 +66,11 @@ impl FakeBackend {
         self.lock().launches.clone()
     }
 
+    /// Every start so far: what the daemon asked to launch.
+    pub fn specs(&self) -> Vec<LaunchSpec> {
+        self.lock().specs.clone()
+    }
+
     pub fn running(&self) -> Vec<u32> {
         self.lock().running.keys().copied().collect()
     }
@@ -85,6 +91,7 @@ impl Backend for FakeBackend {
                 return Err(JidrError::busy(format!("{} is already running", spec.avd)));
             }
             s.launches.push((spec.avd.clone(), opts.clone()));
+            s.specs.push(spec.clone());
             if let Some(err) = s.fail_next.take() {
                 return Err(err);
             }
