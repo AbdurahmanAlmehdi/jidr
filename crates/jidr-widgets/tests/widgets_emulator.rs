@@ -137,19 +137,29 @@ async fn widgets_core_commands() {
     // Rotation: the window manager follows the physical model. Auto-rotate
     // on, and Settings in front (the launcher is portrait-only).
     env.shell("settings put system accelerometer_rotation 1");
-    env.call("app.launch", json!({ "package": "com.android.settings" }))
+    let settings_focused = |out: &str| {
+        out.lines().any(|l| {
+            (l.contains("mCurrentFocus") || l.contains("mFocusedApp"))
+                && l.contains("com.android.settings")
+        })
+    };
+    let launched = env
+        .call("app.launch", json!({ "package": "com.android.settings" }))
         .await;
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while std::time::Instant::now() < deadline && !settings_focused(&env.shell("dumpsys window")) {
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    }
+    if !settings_focused(&env.shell("dumpsys window")) {
+        env.call("app.launch", json!({ "package": "com.android.settings" }))
+            .await;
+    }
     env.eventually_shell(
         "Settings focused",
         ROTATION_STATE,
         ROTATION_LINES,
-        "after app.launch com.android.settings",
-        |out| {
-            out.lines().any(|l| {
-                (l.contains("mCurrentFocus") || l.contains("mFocusedApp"))
-                    && l.contains("com.android.settings")
-            })
-        },
+        &format!("app.launch com.android.settings (twice if needed) returned {launched}"),
+        settings_focused,
     )
     .await;
     rotate_to(&env, 90, 1).await;

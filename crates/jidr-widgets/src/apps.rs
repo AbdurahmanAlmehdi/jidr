@@ -10,7 +10,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::apk;
-use crate::device::target;
+use crate::device::{Target, target};
 
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -65,6 +65,91 @@ pub fn check_package(p: &str) -> JidrResult<&str> {
     }
 }
 
+/// The component `cmd package resolve-activity --brief` printed (its last
+/// line), or `None` when nothing resolves.
+pub fn parse_resolved(out: &str) -> Option<&str> {
+    let last = out.lines().map(str::trim).rfind(|l| !l.is_empty())?;
+    let ok = last.contains('/')
+        && last
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '/' | '$'));
+    ok.then_some(last)
+}
+
+/// `am start -W` succeeded: `Status: ok` (or `Complete` on images that
+/// don't print a status). `Err` carries adb's error line.
+pub fn parse_am_start(out: &str) -> Result<(), String> {
+    let lines: Vec<&str> = out.lines().map(str::trim).collect();
+    if let Some(e) = lines.iter().find(|l| l.starts_with("Error")) {
+        return Err((*e).to_string());
+    }
+    if lines.iter().any(|l| *l == "Status: ok" || *l == "Complete") {
+        return Ok(());
+    }
+    Err(lines
+        .iter()
+        .rfind(|l| !l.is_empty())
+        .map_or("am start printed nothing".into(), |l| (*l).to_string()))
+}
+
+/// Does `dumpsys window` show `package` in front?
+pub fn focused_on(dumpsys: &str, package: &str) -> bool {
+    let needle = format!("{package}/");
+    dumpsys
+        .lines()
+        .any(|l| (l.contains("mCurrentFocus") || l.contains("mFocusedApp")) && l.contains(&needle))
+}
+
+/// Starts `package`'s launcher activity with `am start -W` and waits up to
+/// 5 s for it to come to the front, starting it once more if it doesn't.
+/// Falls back to `monkey` when no launcher activity resolves. Returns
+/// whether the app was seen in front.
+async fn launch(t: &Target, package: &str) -> JidrResult<bool> {
+    let adb = t.adb();
+    let resolved = adb
+        .shell_status(&format!(
+            "cmd package resolve-activity --brief -c android.intent.category.LAUNCHER {package}"
+        ))
+        .await?
+        .1;
+    let Some(component) = parse_resolved(&resolved).map(str::to_string) else {
+        let (code, out) = adb
+            .shell_status(&format!(
+                "monkey -p {package} -c android.intent.category.LAUNCHER 1"
+            ))
+            .await?;
+        if code != 0 || out.contains("No activities found") || out.contains("monkey aborted") {
+            return Err(JidrError::not_found(format!(
+                "{package} has no launcher activity on {}",
+                t.device.name
+            )));
+        }
+        return Ok(false);
+    };
+    for _ in 0..2 {
+        let out = adb
+            .shell_status(&format!("am start -W -n {component}"))
+            .await?
+            .1;
+        parse_am_start(&out).map_err(|e| {
+            JidrError::sdk(format!(
+                "couldn't start {component} on {}: {e}",
+                t.device.name
+            ))
+        })?;
+        for _ in 0..10 {
+            if focused_on(
+                &adb.shell("dumpsys window").await.unwrap_or_default(),
+                package,
+            ) {
+                return Ok(true);
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        }
+    }
+    Ok(false)
+}
+
 pub async fn call(ctx: &CallCtx, method: &str, params: Value) -> JidrResult<Value> {
     match method {
         "app.inspect" => {
@@ -80,19 +165,8 @@ pub async fn call(ctx: &CallCtx, method: &str, params: Value) -> JidrResult<Valu
             };
             check_package(&package)?;
             let t = target(ctx, &p.device).await?;
-            let (code, out) = t
-                .adb()
-                .shell_status(&format!(
-                    "monkey -p {package} -c android.intent.category.LAUNCHER 1"
-                ))
-                .await?;
-            if code != 0 || out.contains("No activities found") || out.contains("monkey aborted") {
-                return Err(JidrError::not_found(format!(
-                    "{package} has no launcher activity on {}",
-                    t.device.name
-                )));
-            }
-            Ok(json!({ "launched": package }))
+            let focused = launch(&t, &package).await?;
+            Ok(json!({ "launched": package, "focused": focused }))
         }
         "app.uninstall" => {
             let p: PackageParams = parse_params(params)?;
@@ -108,6 +182,42 @@ pub async fn call(ctx: &CallCtx, method: &str, params: Value) -> JidrResult<Valu
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Regression (PR #7 CI, API 35): `monkey` only injected an event, so
+    /// app.launch said "ok" while Settings never came to the front.
+    #[test]
+    fn launch_output_is_parsed() {
+        let resolved = "priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=false\n\
+                        com.android.settings/.Settings\n";
+        assert_eq!(
+            parse_resolved(resolved),
+            Some("com.android.settings/.Settings")
+        );
+        assert_eq!(parse_resolved("No activity found\n"), None);
+        assert_eq!(parse_resolved(""), None);
+        assert_eq!(parse_resolved("a/b; reboot"), None);
+
+        let ok = "Starting: Intent { cmp=com.android.settings/.Settings }\n\
+                  Status: ok\nLaunchState: COLD\nActivity: com.android.settings/.Settings\n\
+                  TotalTime: 523\nWaitTime: 526\nComplete\n";
+        assert_eq!(parse_am_start(ok), Ok(()));
+        let delivered = "Starting: Intent { cmp=com.android.settings/.Settings }\n\
+                         Warning: Activity not started, intent has been delivered to currently running top-most instance.\n\
+                         Status: ok\nLaunchState: UNKNOWN (0)\nComplete\n";
+        assert_eq!(parse_am_start(delivered), Ok(()));
+        assert_eq!(parse_am_start("Starting: Intent {}\nComplete\n"), Ok(()));
+        let missing = "Starting: Intent { cmp=x.y/.Z }\n\
+                       Error type 3\nError: Activity class {x.y/x.y.Z} does not exist.\n";
+        assert_eq!(parse_am_start(missing), Err("Error type 3".into()));
+        assert!(parse_am_start("").is_err());
+
+        let front = "  mCurrentFocus=Window{1 u0 com.android.settings/com.android.settings.Settings}\n\
+                       mFocusedApp=ActivityRecord{2 u0 com.android.settings/.Settings t9}\n";
+        assert!(focused_on(front, "com.android.settings"));
+        let launcher = "  mCurrentFocus=Window{1 u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity}\n";
+        assert!(!focused_on(launcher, "com.android.settings"));
+        assert!(!focused_on(front, "com.android.set"));
+    }
 
     #[test]
     fn package_names_are_checked() {
