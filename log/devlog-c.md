@@ -346,3 +346,11 @@ Build (C writes only `crates/jidr-ui/src/root/**`; B adds the slots in gap B8):
 - `src/root/goldens.rs`: `root-progress`, `root-success`, `root-failed`, `root-playstore-beta`, `root-awaiting-grant`, `root-unverified`, `root-badges`, `root-devtools` (× dark/light/rtl), plus updated `create-*` once B swaps the selector.
 
 Validation: `cargo run -p jidr-ui --example snapshot -- --check`, `cargo xtask ci`, and the manual one-click Magisk flow on the dev Mac (API 31 arm64).
+
+## Phase 9e: Root UX — built (2026-10-15)
+
+- Built as planned above, in `crates/jidr-ui/src/root/**` (`root.slint`, `mod.rs`, `steps.rs`, `goldens.rs`). Stream B wired it in through gap B8 (736dad2): wiring, overlay, dev-tools slot, the selector in create, edit, Settings and Setup (with `DeviceForm.play_store` for edit), 134 px Play Store cards, `shield-alert`.
+- Create and edit with Full root now run `root.set magisk` and open the Root sheet. A Play Store image first boots, then roots (the beta frame).
+- Goldens: `root-progress`, `-success`, `-failed`, `-playstore-beta`, `-awaiting-grant`, `-unverified`, `-devtools`, `-devtools-failed` × dark/light/rtl, all RTL-mirrored by hand like B's components. Unit tests cover the message → step mapping, failure classification, sheet states and the dev-tools view model.
+- Skipped: G15 (`root.auto_grant`). Stream C's session couldn't take it; Abdurahman chose to land 9e with the toggle disabled until the daemon lists the command.
+- Open: the manual one-click Magisk flow on the dev Mac. The badge's success animation isn't in (goldens run with Reduce Motion).

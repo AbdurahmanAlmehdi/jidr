@@ -349,7 +349,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `cargo nextest run -p jidr-root --features emulator -- props`
 
 ### Phase 9e (C): Root UX
-- **Status:** Not started
+- **Status:** Built (PR #9): goldens for every root state pass (`snapshot --check`, 129 renders) and `cargo xtask ci` passes. Open: the manual one-click Magisk flow on the dev Mac (Abdurahman), and the auto-grant toggle's daemon command (gap G15; until it lands the toggle shows "Needs a newer Jidr daemon").
 - **Scope:** per `docs/design/screens/Root.dc.html` and `Create.dc.html`, plus the `RootBadge`/`RootModeSelector` component specs: root-mode cards in the create/edit dialog and a root section in the dev-tools widget, the "Rooted ✓ / unverified / failed" badge, the progress sequence and the failure/revert UI, the opt-in "auto-grant all" toggle (D22). Coordinate with stream B through gaps for slots in `jidr-ui` (C writes only `crates/jidr-ui/src/root/**`).
 - **Files touched:** `crates/jidr-ui/src/root/**`
 - **Acceptance criteria:** golden snapshots for each root state; a manual one-click Magisk flow on the dev Mac.
