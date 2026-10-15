@@ -253,3 +253,30 @@ async fn socket_is_private_and_single_instance() {
     h.stop().await;
     assert!(!socket.exists(), "socket removed on shutdown");
 }
+
+/// Regression (9e manual check, 2026-10-16): with the emulator from Android
+/// Studio's SDK and the image only in Jidr's private SDK, the emulator
+/// rejected the private SDK as `ANDROID_SDK_ROOT` ("Broken AVD system path")
+/// and exited. The launch names the image directory as `-sysdir`.
+#[tokio::test]
+async fn a_private_sdk_image_launches_with_its_sysdir() {
+    let h = Harness::start().await;
+    let image = jidr_core::ImageRef {
+        api: 34,
+        tag: "google_apis".into(),
+        abi: jidr_sdk::host::host_abi().into(),
+    };
+    let dir = h.paths.sdk().join(image.sysdir());
+    std::fs::create_dir_all(&dir).unwrap();
+    for f in ["source.properties", "system.img", "ramdisk.img"] {
+        std::fs::write(dir.join(f), b"x").unwrap();
+    }
+    let mut c = h.client().await;
+    c.ok("device.create", json!({ "name": "Private", "image": "34" }))
+        .await;
+    c.run("device.start", json!({ "device": "Private" })).await;
+    let spec = h.backend.specs().pop().unwrap();
+    assert_eq!(spec.sdk_root, h.paths.sdk());
+    assert_eq!(spec.sysdir, dir);
+    h.stop().await;
+}

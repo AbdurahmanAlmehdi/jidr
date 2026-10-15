@@ -33,6 +33,11 @@ pub struct LaunchSpec {
     pub avd_home: PathBuf,
     /// `ANDROID_SDK_ROOT`: the SDK holding the system image.
     pub sdk_root: PathBuf,
+    /// The system image directory, passed as `-sysdir`. The emulator from
+    /// Android Studio's SDK rejects Jidr's private SDK as `ANDROID_SDK_ROOT`
+    /// ("Broken AVD system path") when it holds only system images, so the
+    /// image is always named explicitly.
+    pub sysdir: PathBuf,
     /// The `emulator` binary.
     pub emulator: PathBuf,
     /// The `adb` binary.
