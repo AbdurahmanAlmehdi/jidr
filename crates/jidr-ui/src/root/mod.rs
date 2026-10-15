@@ -44,8 +44,16 @@ struct Sheet {
 
 #[derive(Debug, Clone)]
 enum Outcome {
-    Rooted { secs: u64, magisk: Option<String>, uid: Option<i64> },
-    Failed { failure: Failure, secs: u64, detail: String },
+    Rooted {
+        secs: u64,
+        magisk: Option<String>,
+        uid: Option<i64>,
+    },
+    Failed {
+        failure: Failure,
+        secs: u64,
+        detail: String,
+    },
 }
 
 thread_local! {
@@ -85,8 +93,10 @@ pub fn wire(ctx: &Rc<Ctx>) {
 /// Whether a `commands.list` result has `id`.
 fn lists_command(v: &Value, id: &str) -> bool {
     let list = v.get("commands").unwrap_or(v);
-    list.as_array()
-        .is_some_and(|a| a.iter().any(|c| c.get("id").and_then(Value::as_str) == Some(id)))
+    list.as_array().is_some_and(|a| {
+        a.iter()
+            .any(|c| c.get("id").and_then(Value::as_str) == Some(id))
+    })
 }
 
 /// Sets `device` to `mode`. Full root opens the Root sheet and follows the
@@ -101,7 +111,11 @@ pub fn start(ctx: &Rc<Ctx>, device: Uuid, mode: RootMode) {
         RootMode::Magisk => full_root(ctx, device),
         RootMode::None | RootMode::Adb => {
             let name = name_of(ctx, device);
-            let label = if mode == RootMode::Adb { "Shell root (adb)" } else { "unrooted" };
+            let label = if mode == RootMode::Adb {
+                "Shell root (adb)"
+            } else {
+                "unrooted"
+            };
             ctx.bridge.run(
                 "root.set",
                 json!({ "device": device, "mode": mode_name(mode) }),
@@ -241,7 +255,10 @@ fn finished(device: Uuid, r: JidrResult<Value>) {
         let outcome = match r {
             Ok(v) => Outcome::Rooted {
                 secs,
-                magisk: v.get("magisk_version").and_then(Value::as_str).map(str::to_string),
+                magisk: v
+                    .get("magisk_version")
+                    .and_then(Value::as_str)
+                    .map(str::to_string),
                 uid: v.pointer("/verification/uid").and_then(Value::as_i64),
             },
             Err(e) => {
@@ -257,7 +274,11 @@ fn finished(device: Uuid, r: JidrResult<Value>) {
                     &format!("root setup stopped at step {} of {STEPS}", failure.step + 1),
                 ));
                 let detail = detail(&name, &e);
-                Outcome::Failed { failure, secs, detail }
+                Outcome::Failed {
+                    failure,
+                    secs,
+                    detail,
+                }
             }
         };
         if s.device == Some(device) {
@@ -283,7 +304,13 @@ fn finished(device: Uuid, r: JidrResult<Value>) {
                 ctx.app.global::<RootUi>().set_open(false);
                 start(&ctx, device, RootMode::None);
             } else if !open {
-                toast(&ctx.app.as_weak(), format!("Root failed: {}. Open {name} to revert or try again.", failure.reason));
+                toast(
+                    &ctx.app.as_weak(),
+                    format!(
+                        "Root failed: {}. Open {name} to revert or try again.",
+                        failure.reason
+                    ),
+                );
             }
         }
     }
@@ -298,7 +325,11 @@ fn short_error(e: &JidrError) -> String {
         .and_then(|v| v.as_str().map(str::to_string))
         .unwrap_or_default();
     let first = e.message.lines().next().unwrap_or_default();
-    if code.is_empty() { first.to_string() } else { format!("{code}: {first}") }
+    if code.is_empty() {
+        first.to_string()
+    } else {
+        format!("{code}: {first}")
+    }
 }
 
 /// The failure explanation when the error says more than the step does:
@@ -312,7 +343,9 @@ fn detail(name: &str, e: &JidrError) -> String {
             .and_then(|r| r.split(" s").next())
             .and_then(|n| n.trim().parse::<u64>().ok());
         return match waited {
-            Some(n) => format!("{name} didn't finish booting after the reboot (waited {n} s). Your data is intact and the original boot image is kept, so you can revert."),
+            Some(n) => format!(
+                "{name} didn't finish booting after the reboot (waited {n} s). Your data is intact and the original boot image is kept, so you can revert."
+            ),
             None => String::new(),
         };
     }
@@ -392,14 +425,30 @@ fn sheet_vm(s: &Sheet, info: Option<&DeviceInfo>, now: Instant) -> SheetVm {
     match &s.outcome {
         None if s.pending => {
             vm.state = RootSheetState::Waiting;
-            let pct = info.and_then(|i| i.boot_progress).map_or(0.0, |p| p * 100.0);
+            let pct = info
+                .and_then(|i| i.boot_progress)
+                .map_or(0.0, |p| p * 100.0);
             vm.steps = vec![
-                step(RootStep::FirstBoot, RootStepState::Now, String::new(), format!("{pct:.0}%")),
-                step(RootStep::All, RootStepState::Waiting, String::new(), String::new()),
+                step(
+                    RootStep::FirstBoot,
+                    RootStepState::Now,
+                    String::new(),
+                    format!("{pct:.0}%"),
+                ),
+                step(
+                    RootStep::All,
+                    RootStepState::Waiting,
+                    String::new(),
+                    String::new(),
+                ),
             ];
         }
         None => {
-            vm.state = if s.grant_since.is_some() { RootSheetState::Grant } else { RootSheetState::Progress };
+            vm.state = if s.grant_since.is_some() {
+                RootSheetState::Grant
+            } else {
+                RootSheetState::Progress
+            };
             vm.grant_left = format!("{} s", 60u64.saturating_sub(since(s.grant_since)));
             vm.steps = rows(s.step, None, &steps::clock(since(s.step_started)));
         }
@@ -414,21 +463,37 @@ fn sheet_vm(s: &Sheet, info: Option<&DeviceInfo>, now: Instant) -> SheetVm {
             vm.took = format!("{secs} s");
             vm.steps = rows(STEPS, None, "");
         }
-        Some(Outcome::Failed { failure, secs, detail }) => {
-            vm.state = if failure.unverified { RootSheetState::Unverified } else { RootSheetState::Failed };
+        Some(Outcome::Failed {
+            failure,
+            secs,
+            detail,
+        }) => {
+            vm.state = if failure.unverified {
+                RootSheetState::Unverified
+            } else {
+                RootSheetState::Failed
+            };
             vm.reason = failure.reason.clone();
             vm.detail = detail.clone();
             vm.step_index = i32::try_from(failure.step + 1).unwrap_or(1);
             let step_secs = since(s.step_started).min(*secs);
             vm.steps = rows(failure.step, Some(failure), &steps::clock(step_secs));
-            vm.log = steps::log_tail(&s.log, 4).into_iter().map(log_line).collect();
+            vm.log = steps::log_tail(&s.log, 4)
+                .into_iter()
+                .map(log_line)
+                .collect();
         }
     }
     vm
 }
 
 fn step(step: RootStep, state: RootStepState, time: String, percent: String) -> RootStepVm {
-    RootStepVm { step, state, time: time.into(), percent: percent.into() }
+    RootStepVm {
+        step,
+        state,
+        time: time.into(),
+        percent: percent.into(),
+    }
 }
 
 const ORDER: [RootStep; STEPS] = [
@@ -447,7 +512,11 @@ fn rows(at: usize, failure: Option<&Failure>, time: &str) -> Vec<RootStepVm> {
         let state = if i < at {
             RootStepState::Done
         } else if i == at {
-            if failure.is_some() { RootStepState::Failed } else { RootStepState::Now }
+            if failure.is_some() {
+                RootStepState::Failed
+            } else {
+                RootStepState::Now
+            }
         } else if failure.is_some() {
             RootStepState::Skipped
         } else {
@@ -456,7 +525,11 @@ fn rows(at: usize, failure: Option<&Failure>, time: &str) -> Vec<RootStepVm> {
         if failure.is_some() && at == steps::REBOOT && i == steps::VERIFY {
             continue;
         }
-        let t = if i == at { time.to_string() } else { String::new() };
+        let t = if i == at {
+            time.to_string()
+        } else {
+            String::new()
+        };
         out.push(step(*s, state, t, String::new()));
     }
     out
@@ -517,7 +590,11 @@ fn sheet_action(ctx: &Rc<Ctx>, action: &str) {
                 SHEET.with(|s| s.borrow_mut().revert_after_cancel = true);
             }
             if let Some(job) = job {
-                ctx.bridge.call("jobs.cancel", json!({ "job": job }), report(&ctx.app.as_weak(), ""));
+                ctx.bridge.call(
+                    "jobs.cancel",
+                    json!({ "job": job }),
+                    report(&ctx.app.as_weak(), ""),
+                );
             }
         }
         "try-again" => full_root(ctx, device),
@@ -535,7 +612,15 @@ fn sheet_action(ctx: &Rc<Ctx>, action: &str) {
                 s.borrow()
                     .log
                     .iter()
-                    .map(|l| format!("{}  {} {} {}", l.time, l.source, if l.level.is_empty() { " " } else { l.level }, l.text))
+                    .map(|l| {
+                        format!(
+                            "{}  {} {} {}",
+                            l.time,
+                            l.source,
+                            if l.level.is_empty() { " " } else { l.level },
+                            l.text
+                        )
+                    })
                     .collect::<Vec<_>>()
                     .join("\n")
             });
@@ -554,7 +639,9 @@ fn sheet_action(ctx: &Rc<Ctx>, action: &str) {
 }
 
 fn tools_action(ctx: &Rc<Ctx>, action: &str, value: &str) {
-    let Some(device) = crate::player::active_id(ctx) else { return };
+    let Some(device) = crate::player::active_id(ctx) else {
+        return;
+    };
     match action {
         "verify" => {
             if let Some(i) = device_index(ctx, device) {
@@ -631,12 +718,12 @@ pub fn sync(ctx: &Rc<Ctx>) {
     let vm = tools_vm(info.as_ref(), failure.as_ref(), chrono::Utc::now());
     ui.set_tools_visible(vm.visible);
     ui.set_tools_kind(vm.kind);
-    ui.set_tools_badge(vm.badge.into());
+    ui.set_tools_badge(vm.badge);
     ui.set_tools_beta(vm.beta);
     ui.set_tools_full(vm.full);
     ui.set_tools_running(vm.running);
     ui.set_tools_busy(vm.busy);
-    ui.set_tools_verified(vm.verified.into());
+    ui.set_tools_verified(vm.verified);
     ui.set_tools_failed(vm.failed);
     ui.set_tools_auto_grant(vm.auto_grant);
     ui.set_tools_auto_grant_supported(AUTO_GRANT.with(Cell::get));
@@ -728,11 +815,17 @@ mod tests {
 
     #[test]
     fn a_failed_reboot_folds_the_rest_into_one_row() {
-        let f = steps::failure(&JidrError::new(ErrorCode::BootTimeout, "x did not boot within 120 s"), steps::REBOOT);
+        let f = steps::failure(
+            &JidrError::new(ErrorCode::BootTimeout, "x did not boot within 120 s"),
+            steps::REBOOT,
+        );
         let r = rows(steps::REBOOT, Some(&f), "2:00");
         assert_eq!(r.len(), 4);
         assert_eq!(r[2].state, RootStepState::Failed);
-        assert_eq!((r[3].step, r[3].state), (RootStep::Install, RootStepState::Skipped));
+        assert_eq!(
+            (r[3].step, r[3].state),
+            (RootStep::Install, RootStepState::Skipped)
+        );
     }
 
     #[test]
@@ -755,14 +848,27 @@ mod tests {
 
         s.grant_since = Some(t0);
         let vm = sheet_vm(&s, Some(&info), now);
-        assert_eq!((vm.state, vm.grant_left.as_str()), (RootSheetState::Grant, "42 s"));
+        assert_eq!(
+            (vm.state, vm.grant_left.as_str()),
+            (RootSheetState::Grant, "42 s")
+        );
 
-        s.outcome = Some(Outcome::Rooted { secs: 58, magisk: Some("30.7".into()), uid: Some(0) });
+        s.outcome = Some(Outcome::Rooted {
+            secs: 58,
+            magisk: Some("30.7".into()),
+            uid: Some(0),
+        });
         let vm = sheet_vm(&s, Some(&info), now);
-        assert_eq!((vm.state, vm.took.as_str()), (RootSheetState::Success, "58 s"));
+        assert_eq!(
+            (vm.state, vm.took.as_str()),
+            (RootSheetState::Success, "58 s")
+        );
         assert!(vm.steps.iter().all(|r| r.state == RootStepState::Done));
 
-        let e = JidrError::new(ErrorCode::BootTimeout, "Pixel did not boot within 120 s (boot); see log");
+        let e = JidrError::new(
+            ErrorCode::BootTimeout,
+            "Pixel did not boot within 120 s (boot); see log",
+        );
         s.outcome = Some(Outcome::Failed {
             failure: steps::failure(&e, steps::REBOOT),
             secs: 140,
@@ -773,16 +879,28 @@ mod tests {
         assert_eq!(vm.reason, "boot timed out");
         assert!(vm.detail.contains("waited 120 s"), "{}", vm.detail);
 
-        let grant = JidrError::new(ErrorCode::RootFailed, "denied").with_data(json!({ "state": "awaiting_user_grant" }));
-        s.outcome = Some(Outcome::Failed { failure: steps::failure(&grant, steps::VERIFY), secs: 90, detail: String::new() });
-        assert_eq!(sheet_vm(&s, Some(&info), now).state, RootSheetState::Unverified);
+        let grant = JidrError::new(ErrorCode::RootFailed, "denied")
+            .with_data(json!({ "state": "awaiting_user_grant" }));
+        s.outcome = Some(Outcome::Failed {
+            failure: steps::failure(&grant, steps::VERIFY),
+            secs: 90,
+            detail: String::new(),
+        });
+        assert_eq!(
+            sheet_vm(&s, Some(&info), now).state,
+            RootSheetState::Unverified
+        );
     }
 
     #[test]
     fn a_play_store_first_boot_waits() {
         let info = fixtures::device_infos().remove(2);
         assert!(play_store(&info));
-        let s = Sheet { device: Some(info.device.id), pending: true, ..Sheet::default() };
+        let s = Sheet {
+            device: Some(info.device.id),
+            pending: true,
+            ..Sheet::default()
+        };
         let vm = sheet_vm(&s, Some(&info), Instant::now());
         assert_eq!(vm.state, RootSheetState::Waiting);
         assert_eq!(vm.steps[0].percent, "62%");
@@ -806,6 +924,9 @@ mod tests {
     fn commands_list_shapes() {
         let v = json!([{ "id": "root.set" }, { "id": "root.auto_grant" }]);
         assert!(lists_command(&v, "root.auto_grant"));
-        assert!(!lists_command(&json!({ "commands": [{ "id": "root.set" }] }), "root.auto_grant"));
+        assert!(!lists_command(
+            &json!({ "commands": [{ "id": "root.set" }] }),
+            "root.auto_grant"
+        ));
     }
 }
