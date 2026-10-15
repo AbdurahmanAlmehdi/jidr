@@ -1,0 +1,20 @@
+---
+// From docs/design/screens/Landing.dc.html (D41). The sponsor logo slots are
+// left out until there are sponsors to show.
+import Icon from "./Icon.astro";
+import { links, phase } from "../config";
+import { strings } from "../i18n";
+
+const t = strings(Astro.currentLocale);
+---
+
+<section class="lp-sec">
+  <div class="sponsorband">
+    <h2 class="lp-h2" style="font-size:28px;line-height:34px">{t.sponsors.title}</h2>
+    <p class="lead">{t.sponsors.lead}</p>
+    <div class="j-row" style="flex-wrap:wrap">
+      <a class="btn" href={links.sponsors}><Icon name="heart" class="ic i16" />{t.sponsors.sponsor}</a>
+      {phase === "soon" && <a class="btn btn-primary" href={links.repo}>{t.sponsors.star}</a>}
+    </div>
+  </div>
+</section>

@@ -1,0 +1,85 @@
+/* Page-level rules the design canvas gets from its host page. Tokens only. */
+body {
+  margin: 0;
+  background: var(--jidr-color-surface-base);
+  color: var(--jidr-color-text-primary);
+  font-family: var(--jidr-font-family-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+.skip-link {
+  position: absolute;
+  inset-inline-start: var(--jidr-space-lg);
+  top: -100px;
+  padding: var(--jidr-space-sm) var(--jidr-space-lg);
+  background: var(--jidr-color-surface-raised);
+  border-radius: var(--jidr-radius-md);
+  z-index: 10;
+}
+
+.skip-link:focus {
+  top: var(--jidr-space-lg);
+}
+
+/* The brand symbol in the header wordmark (D39), tinted like the text. */
+.lp-nav .logo .mark {
+  width: 22px;
+  height: 22px;
+  align-self: center;
+}
+
+/* Mixed scripts. Arabic runs on the English page and Latin runs on the Arabic
+   page take their own family; :where() keeps these below every component rule,
+   so code and mono text keep Geist Mono. */
+:where(.site) [lang="ar"] {
+  font-family: var(--jidr-font-family-arabic);
+}
+
+:where(.site[dir="rtl"]) [lang="en"] {
+  font-family: var(--jidr-font-family-ui);
+}
+
+/* Component rules that name the UI or mono family, for the Arabic text they
+   hold on the RTL page. */
+.site[dir="rtl"] :is(.btn, .lp-sec .eyebrow, .rseq2 .r, .cmpt th, .cli .ch, .doc, .dl a.sum) {
+  font-family: var(--jidr-font-family-arabic);
+}
+
+/* Directional icons point the reading way (Lucide's RTL guidance). */
+.site[dir="rtl"] .doc .ic {
+  transform: scaleX(-1);
+}
+
+/* The download block: a 64-character checksum wraps instead of overflowing at
+   390 px, and the releases link reads as a link. */
+.dl .sha {
+  font: inherit;
+  overflow-wrap: anywhere;
+}
+
+.dl a.sum {
+  color: var(--jidr-color-accent-text);
+}
+
+/* Inline code in running text (`--json`) stays in one piece and in its own
+   direction. */
+:where(.lp-sec) :is(.lead, .feat p) code {
+  font-family: var(--jidr-font-family-mono);
+  font-size: 0.9em;
+  white-space: nowrap;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* جذر in the footer heading uses the wordmark's weight, so the English page
+   needs no bold Kufi face. */
+.lfoot h5 [lang="ar"] {
+  font-weight: 600;
+}
+
+/* Arabic headings use the Arabic type group's weight (type-hero-ar and
+   type-display-ar are 600 in tokens.json): Kufi reads heavier than Geist at
+   the same number, and the page then needs no bold Kufi face. */
+.site[dir="rtl"] :is(.lp-hero h1, .lfoot h5, .doc b, b, strong) {
+  font-weight: var(--jidr-font-weight-semibold);
+}

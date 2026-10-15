@@ -1,0 +1,32 @@
+---
+// From docs/design/screens/Landing.dc.html (D41, concept 8A).
+import Icon from "./Icon.astro";
+import { links, phase, release } from "../config";
+import { strings } from "../i18n";
+
+const t = strings(Astro.currentLocale);
+const meta =
+  phase === "launch"
+    ? [...t.hero.meta.launch, t.hero.version(release.version), ...(release.homebrew ? [t.hero.brew] : [])]
+    : t.hero.meta.soon;
+---
+
+<section class="lp-hero">
+  <span class="pillnote"><Icon name="dot" class="ic fill i8" style="color:var(--jidr-color-positive)" />{t.hero.pill[phase]}</span>
+  <h1 set:html={t.hero.titleHtml} />
+  <p>{t.hero.lede}</p>
+  {
+    phase === "launch" ? (
+      <div class="cta">
+        <a class="btn btn-primary btn-lg" href={links.dmg}><Icon name="download" class="ic i16" />{t.hero.download}</a>
+        <a class="btn btn-lg" href={links.repo}>{t.hero.github}</a>
+      </div>
+    ) : (
+      <div class="cta">
+        <a class="btn btn-primary btn-lg" href={links.repo}><Icon name="star" class="ic i16" />{t.hero.star}</a>
+        <a class="btn btn-lg" href={links.sponsors}><Icon name="heart" class="ic i16" />{t.hero.sponsor}</a>
+      </div>
+    )
+  }
+  <span class="metaline">{meta.map((m, i) => <>{i > 0 && " · "}<bdi>{m}</bdi></>)}</span>
+</section>

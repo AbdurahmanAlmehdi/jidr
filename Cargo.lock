@@ -1581,6 +1581,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6e634e2e0ebac1ee034020da1ca582e17ffe4e0f5e985823721e168928136dcb"
 dependencies = [
  "crc32fast",
+ "libz-sys",
  "miniz_oxide 0.9.1",
  "zlib-rs",
 ]
@@ -2900,6 +2901,7 @@ dependencies = [
  "jidr-core",
  "jidr-daemon",
  "jidr-mcp",
+ "jidr-root",
  "jidr-widgets",
  "predicates",
  "serde",
@@ -2974,6 +2976,13 @@ dependencies = [
 [[package]]
 name = "jidr-cpio"
 version = "0.1.0"
+dependencies = [
+ "flate2",
+ "liblzma",
+ "lz4",
+ "proptest",
+ "thiserror 2.0.21",
+]
 
 [[package]]
 name = "jidr-daemon"
@@ -3039,6 +3048,24 @@ dependencies = [
 [[package]]
 name = "jidr-root"
 version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "jidr-adb",
+ "jidr-backend",
+ "jidr-core",
+ "jidr-cpio",
+ "jidr-daemon",
+ "jidr-sdk",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "toml 0.9.12+spec-1.1.0",
+ "uuid",
+ "zip",
+]
 
 [[package]]
 name = "jidr-sdk"
@@ -3274,6 +3301,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "liblzma"
+version = "0.4.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2fe0a34ca854fd4f20c07f696fc8675aec78f87d88d29f5e10257a7490a1b2e1"
+dependencies = [
+ "liblzma-sys",
+]
+
+[[package]]
+name = "liblzma-sys"
+version = "0.4.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7c7e3581f367a78d7b7e7ae948d023310556f0cfc13156c2e4e00e25616492b9"
+dependencies = [
+ "cc",
+ "libc",
+ "pkg-config",
+]
+
+[[package]]
 name = "libm"
 version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3319,6 +3366,17 @@ checksum = "3c8469b4a23b962c1396b9b451dda50ef5b283e8dd309d69033475fa9b334324"
 dependencies = [
  "libc",
  "pkg-config",
+]
+
+[[package]]
+name = "libz-sys"
+version = "1.1.30"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f710a23e6dbf193214fd46ca56a9d6864e550abe86202184532ae7275e46de19"
+dependencies = [
+ "cc",
+ "pkg-config",
+ "vcpkg",
 ]
 
 [[package]]
@@ -3417,6 +3475,25 @@ checksum = "5c463f9c428b7fc5ec885dcd39ce4aa61e29111d0e33483f6f98c74e89d8621e"
 dependencies = [
  "lyon_geom",
  "num-traits",
+]
+
+[[package]]
+name = "lz4"
+version = "1.28.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a20b523e860d03443e98350ceaac5e71c6ba89aea7d960769ec3ce37f4de5af4"
+dependencies = [
+ "lz4-sys",
+]
+
+[[package]]
+name = "lz4-sys"
+version = "1.11.1+lz4-1.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6bd8c0d6c6ed0cd30b3652886bb8711dc4bb01d637a68105a3d5158039b418e6"
+dependencies = [
+ "cc",
+ "libc",
 ]
 
 [[package]]
@@ -6605,6 +6682,12 @@ name = "valuable"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
+
+[[package]]
+name = "vcpkg"
+version = "0.2.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
 name = "version_check"

@@ -1,0 +1,16 @@
+---
+// From docs/design/screens/Landing.dc.html (D41, concept 8A).
+import Icon, { type IconName } from "./Icon.astro";
+import { strings } from "../i18n";
+
+const t = strings(Astro.currentLocale);
+---
+
+<section class="lp-sec" id="features">
+  <h2 class="lp-h2">{t.features.title}</h2>
+  <div class="fgrid">
+    {t.features.items.map(([icon, title, body]) => (
+      <div class="feat"><span class="fi"><Icon name={icon as IconName} class="ic i16" /></span><h4 aria-level="3">{title}</h4><p set:html={body} /></div>
+    ))}
+  </div>
+</section>
