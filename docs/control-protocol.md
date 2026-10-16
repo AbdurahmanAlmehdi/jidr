@@ -103,7 +103,58 @@ These act on the calling connection and aren't in `commands.list`:
 
 Providers register commands with an id, a label, a params JSON Schema and three flags: `destructive` (MCP refuses it unless allowed, D5), `longRunning` and `locksDevice`. The daemon core provides the commands below; `jidr-widgets` (sensors, phone, network, media, snapshots) and `jidr-root` (root modes) add theirs when they land. `commands.list` is always the source of truth.
 
-<!-- commands:begin (generated from commands.list; JIDR_UPDATE_DOCS=1 cargo nextest run -p jidr-daemon protocol_doc) -->
+<!-- commands:begin (generated from commands.list; JIDR_UPDATE_DOCS=1 cargo nextest run -p jidr protocol_doc) -->
+
+### `app.*`
+
+#### `app.inspect`
+
+Package name of an APK on this machine
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `apk` | string | yes | Path of the APK on this machine. |
+
+#### `app.launch`
+
+Launch an installed app by package (or APK)
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `package` | string |  | Package to launch, e.g. `com.example.shop`. |
+| `apk` | string |  | Or an APK on this machine whose package to launch. |
+
+#### `app.uninstall`
+
+Uninstall an app and its data · locks the device · **destructive**
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `package` | string | yes | Package name, e.g. `com.example.shop`. |
+
+### `battery.*`
+
+#### `battery.get`
+
+Battery level, charger and health
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes | Device name or id. |
+
+#### `battery.set`
+
+Set battery level, charging and health
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `level` | integer |  | Charge level, 0–100 %. |
+| `charging` | boolean |  | Shorthand: `true` plugs in AC, `false` unplugs. |
+| `charger` | `none` \| `ac` \| `usb` \| `wireless` |  |  |
+| `health` | `good` \| `failed` \| `dead` \| `overvoltage` \| `overheated` |  |  |
 
 ### `cache.*`
 
@@ -130,6 +181,45 @@ Delete cached downloads (they're downloaded again when needed)
 |---|---|---|---|
 | `older_than_days` | integer |  | Only remove downloads older than this many days (default: all). |
 
+### `camera.*`
+
+#### `camera.get`
+
+Camera sources used at the next start
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes | Device name or id. |
+
+#### `camera.set`
+
+Use the host webcam (or the emulated camera) at the next start · locks the device
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `back` | CameraSource |  |  |
+| `front` | CameraSource |  |  |
+
+### `clipboard.*`
+
+#### `clipboard.get`
+
+The device clipboard text
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes | Device name or id. |
+
+#### `clipboard.set`
+
+Set the device clipboard text
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `text` | string | yes |  |
+
 ### `daemon.*`
 
 #### `daemon.status`
@@ -137,6 +227,28 @@ Delete cached downloads (they're downloaded again when needed)
 Daemon version, uptime and device counts
 
 No params.
+
+### `dev.*`
+
+#### `dev.get`
+
+Developer toggles: show taps, pointer location, layout bounds, animation scale
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes | Device name or id. |
+
+#### `dev.set`
+
+Set developer toggles
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `show_taps` | boolean |  | Show touches (`show_touches`). |
+| `pointer_location` | boolean |  | Pointer location overlay. |
+| `layout_bounds` | boolean |  | Show layout bounds (`debug.layout`). |
+| `animation_scale` | number |  | Window, transition and animator scales (0, 0.5, 1, 1.5, 2, 5, 10). |
 
 ### `device.*`
 
@@ -172,7 +284,7 @@ Create a device from a profile and a system image
 | `height` | integer |  | Screen height in pixels (overrides the profile). |
 | `density` | integer |  | Screen density in dpi (overrides the profile). |
 | `data_mb` | integer |  | Data partition size in MB (overrides the profile). |
-| `root_mode` | `none` \| `adb` \| `magisk` |  | Default: `adb` where the image allows it, else `none` (D7). |
+| `root_mode` | `none` \| `adb` \| `magisk` |  | Default: the `default_root_mode` setting (`adb` unless changed), or `none` when that is `adb` and the image doesn't allow adb root (D7). |
 | `agent_owned` | boolean |  | Agents may run destructive commands on it (D5). |
 
 #### `device.delete`
@@ -220,6 +332,23 @@ Zip a device's settings, emulator and crash logs and logcat for a bug report
 |---|---|---|---|
 | `device` | string | yes |  |
 | `output` | string |  | Where to write the zip (default: Jidr's logs folder). |
+
+#### `device.props.get`
+
+A device's build props (model, brand, fingerprint…) and whether a restart is pending
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes | Device name or id. |
+
+#### `device.props.set`
+
+Set a Full-root device's build props; the next start (a cold boot) applies them · locks the device
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes | Device name or id (must be in `magisk` mode). |
+| `props` | BuildProps |  | The whole set: fields left out (or empty) report the stock value. |
 
 #### `device.reset`
 
@@ -280,6 +409,79 @@ Copy a file to a running device (default /sdcard/Download/)
 | `local` | string | yes | Local file. |
 | `remote` | string |  | Device path; default `/sdcard/Download/`. |
 
+### `fingerprint.*`
+
+#### `fingerprint.remove`
+
+Lift the finger off the sensor
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes | Device name or id. |
+
+#### `fingerprint.touch`
+
+Touch the sensor with an enrolled finger (recognised) or another (unrecognised)
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `finger` | integer |  | Enrolled finger id (1–10). `touch` only. |
+
+### `gps.*`
+
+#### `gps.get`
+
+The current GPS fix
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes | Device name or id. |
+
+#### `gps.route`
+
+Replay a GPX or KML route at a chosen speed · long-running (job)
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `path` | string | yes | A `.gpx` or `.kml` file on this machine. |
+| `speed` | number |  | Playback speed multiplier (1, 2, 4…). |
+| `loop` | boolean |  | Start again from the first point at the end. |
+| `mps` | number |  | Metres per second at 1× (default 10, a city drive). |
+
+#### `gps.route_control`
+
+Change the running route's speed, pause or loop
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `speed` | number |  |  |
+| `paused` | boolean |  |  |
+| `loop` | boolean |  |  |
+
+#### `gps.route_stop`
+
+Stop the running route replay
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes | Device name or id. |
+
+#### `gps.set`
+
+Set the GPS location
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `latitude` | number | yes | Decimal degrees, −90…90. |
+| `longitude` | number | yes | Decimal degrees, −180…180. |
+| `altitude` | number |  | Metres above sea level. |
+| `bearing` | number |  | Degrees clockwise from north. |
+| `speed` | number |  | Metres per second. |
+
 ### `image.*`
 
 #### `image.install`
@@ -333,6 +535,17 @@ Wait for a job to finish and return it
 | `job` | uuid | yes |  |
 | `timeout_s` | integer |  | Give up after this many seconds and return the job as it is. |
 
+### `key.*`
+
+#### `key.press`
+
+Press a hardware key (back, home, volume, D-pad, media…)
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `key` | string | yes | `back`, `home`, `recents`, `volume_up`, `volume_down`, `mute`, `power`, `menu`, `dpad_up\|down\|left\|right\|center`, `play_pause`, `next`, `previous`, `enter`, `delete`, or any W3C key name. |
+
 ### `logcat.*`
 
 #### `logcat.clear`
@@ -353,6 +566,90 @@ Dump the device log
 | `lines` | integer |  | Only the last N lines. |
 | `filter` | string[] |  | logcat filter specs, e.g. `["ActivityManager:I", "*:S"]`. |
 
+### `media.*`
+
+#### `media.record`
+
+Record the screen to MP4 (H.264) until media.record_stop or max_seconds · long-running (job)
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `path` | string |  | Where to save the MP4 (default `~/Movies/Jidr/<device> <time>.mp4`). |
+| `max_seconds` | integer |  | Stop on its own after this many seconds (default 3600). |
+| `fps` | integer |  | Frames per second (default 30). |
+
+#### `media.record_stop`
+
+Stop the screen recording and save it
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes | Device name or id. |
+
+#### `media.screenshot`
+
+Save a PNG of the screen
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `path` | string |  | Where to save the PNG (default `~/Pictures/Jidr/<device> <time>.png`). |
+
+### `network.*`
+
+#### `network.get`
+
+Wi-Fi, mobile data and speed profile
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes | Device name or id. |
+
+#### `network.set`
+
+Turn Wi-Fi or mobile data on/off and set the speed/delay profile
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `wifi` | boolean |  |  |
+| `mobile` | boolean |  | Mobile data. |
+| `profile` | Profile |  |  |
+
+### `phone.*`
+
+#### `phone.call`
+
+Simulate an incoming call or change its state
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `number` | string | yes | Phone number, digits with optional leading +. |
+| `action` | CallAction |  |  |
+
+#### `phone.gsm`
+
+Mobile signal bars (0–4) and data/voice registration
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `signal` | integer |  | Mobile signal bars, 0 (none) to 4 (great). |
+| `data` | `unregistered` \| `home` \| `roaming` \| `searching` \| `denied` \| `off` \| `on` |  |  |
+| `voice` | `unregistered` \| `home` \| `roaming` \| `searching` \| `denied` \| `off` \| `on` |  |  |
+
+#### `phone.sms`
+
+Deliver an SMS to the device
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `from` | string | yes | Sender number. |
+| `text` | string | yes |  |
+
 ### `profile.*`
 
 #### `profile.list`
@@ -360,6 +657,52 @@ Dump the device log
 Built-in hardware profiles
 
 No params.
+
+### `root.*`
+
+#### `root.auto_grant`
+
+Grant every app root without a prompt on a Full-root device (D22, off by default) · locks the device
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes | Device name or id (must be in `magisk` mode). |
+| `enabled` | boolean | yes | Grant every app root without a prompt (D22, off by default). |
+
+#### `root.module.install`
+
+Install a Magisk module zip and reboot (Full-root devices only) · long-running (job) · locks the device · **destructive**
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes | Device name or id (must be in `magisk` mode). |
+| `path` | string | yes | A local Magisk module zip. |
+
+#### `root.set`
+
+Set a device's root mode (applied live if it is running; the next start is a cold boot) · long-running (job) · locks the device
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes | Device name or id. |
+| `mode` | `none` \| `adb` \| `magisk` | yes | `none`, `adb` (images that allow it) or `magisk`. |
+| `magisk_sha256` | string |  | SHA-256 of a Magisk APK already in the download cache (the CLI imports it with `--magisk <path>` before calling this); overrides the pinned release (D30, offline). |
+
+#### `root.status`
+
+Show a device's root mode and health
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes | Device name or id. |
+
+#### `root.verify`
+
+Check a running device's root against its mode · locks the device
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes | Device name or id. |
 
 ### `sdk.*`
 
@@ -393,6 +736,90 @@ Licenses still to accept before installing packages, with their text
 Where the SDKs are, emulator version, hypervisor, free disk
 
 No params.
+
+### `sensor.*`
+
+#### `sensor.get`
+
+Read a sensor value
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `sensor` | `acceleration` \| `gyroscope` \| `magnetic_field` \| `temperature` \| `proximity` \| `light` \| `pressure` \| `humidity` | yes |  |
+
+#### `sensor.rotate`
+
+Rotate the device (0, 90, 180, 270°)
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `angle` | integer | yes | Device rotation in degrees: 0, 90, 180 or 270 (counter-clockwise). |
+
+#### `sensor.set`
+
+Set a motion or environment sensor value
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `sensor` | `acceleration` \| `gyroscope` \| `magnetic_field` \| `temperature` \| `proximity` \| `light` \| `pressure` \| `humidity` | yes |  |
+| `values` | number[] | yes | Values in the sensor's units (3 for vectors, 1 for scalars). |
+
+### `settings.*`
+
+#### `settings.get`
+
+Daemon-wide settings: default root mode, quick boot on stop
+
+No params.
+
+#### `settings.set`
+
+Change daemon-wide settings (only the fields given)
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `default_root_mode` | `none` \| `adb` \| `magisk` |  | Root mode for `device.create` without `root_mode`. |
+| `quick_boot` | boolean |  | Save a quick-boot snapshot on stop (D29); from each device's next start. |
+
+### `snapshot.*`
+
+#### `snapshot.delete`
+
+Delete a snapshot · locks the device · **destructive**
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `name` | string | yes | Snapshot name. |
+
+#### `snapshot.list`
+
+Snapshots with their root-mode tags, sizes and thumbnails
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes | Device name or id. |
+
+#### `snapshot.load`
+
+Restore a snapshot (refused when it was taken under another root mode) · long-running (job) · locks the device
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `name` | string | yes | Snapshot name. |
+
+#### `snapshot.save`
+
+Save a snapshot of a running device · long-running (job) · locks the device
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `name` | string | yes | Snapshot name. |
 <!-- commands:end -->
 
 ## Changelog
@@ -402,4 +829,6 @@ No params.
 | 0.1 | Initial protocol: hello, errors, jobs, events, core device/sdk/image/profile/file/logcat/jobs commands. |
 | 0.1 (additive) | Phase 5b: `cache.list`, `cache.import`, `cache.prune`, `device.logs`. No existing command changed. |
 | 0.1 (additive) | G15: `root.auto_grant` (D22 "auto-grant all", from the root provider). No existing command changed. |
+| 0.1 (additive) | B4: `settings.get` / `settings.set {default_root_mode?, quick_boot?}` (daemon-wide, `settings.json`). `device.create` without `root_mode` uses `default_root_mode` (still `adb` by default, `none` where adb root isn't allowed); `quick_boot: false` launches with `-no-snapshot-save` from a device's next start. |
+| 0.1 (additive) | B5: `Job.bytes {done, total}` and a `bytes` field on `job.progress` while a job downloads (`image.install`, `sdk.install`); absent otherwise. G14: `image.list` fills `pristine_ramdisk_sha256` for installed images, and `device.details` gains `pristine_ramdisk_sha256`. G16: the command reference now lists every provider's commands (widgets, root), generated by `cargo nextest run -p jidr protocol_doc`. No existing field changed meaning. |
 | 0.1 (additive) | Phase 9f: `device.props.get`, `device.props.set` (a Full-root device's build props, from the root provider). No existing command changed. |

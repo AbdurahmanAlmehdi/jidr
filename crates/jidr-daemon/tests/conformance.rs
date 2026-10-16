@@ -280,3 +280,60 @@ async fn a_private_sdk_image_launches_with_its_sysdir() {
     assert_eq!(spec.sysdir, dir);
     h.stop().await;
 }
+
+/// Gap B4: settings live in the daemon (`settings.json`), so `device.create`
+/// without `root_mode` and the quick-boot launch flag follow them for every
+/// client.
+#[tokio::test]
+async fn settings_drive_create_and_quick_boot() {
+    let h = Harness::start().await;
+    let mut c = h.client().await;
+    let s = c.ok("settings.get", json!({})).await;
+    assert_eq!(s, json!({ "default_root_mode": "adb", "quick_boot": true }));
+    // Default adb, but Play Store images refuse adb root: none.
+    let ps = c
+        .ok(
+            "device.create",
+            json!({ "name": "PS", "image": "35:google_apis_playstore" }),
+        )
+        .await;
+    assert_eq!(ps["root"]["mode"], "none");
+
+    let s = c
+        .ok(
+            "settings.set",
+            json!({ "default_root_mode": "none", "quick_boot": false }),
+        )
+        .await;
+    assert_eq!(
+        s,
+        json!({ "default_root_mode": "none", "quick_boot": false })
+    );
+    let saved: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(h.paths.settings_file()).unwrap()).unwrap();
+    assert_eq!(saved, s);
+    // Only the given fields change.
+    let s = c.ok("settings.set", json!({ "quick_boot": true })).await;
+    assert_eq!(s["default_root_mode"], "none");
+    c.ok("settings.set", json!({ "quick_boot": false })).await;
+    assert_eq!(
+        c.err("settings.set", json!({ "quick": true })).await["code"],
+        -32602
+    );
+
+    let d = c
+        .ok("device.create", json!({ "name": "Plain", "image": "35" }))
+        .await;
+    assert_eq!(d["root"]["mode"], "none");
+    c.run("device.start", json!({ "device": "Plain" })).await;
+    let (_, opts) = h.backend.launches().pop().unwrap();
+    assert!(!opts.snapshot_save, "quick_boot off: -no-snapshot-save");
+
+    // G14: device.details carries the image's pristine ramdisk hash.
+    let det = c.ok("device.details", json!({ "device": "Plain" })).await;
+    assert_eq!(
+        det["pristine_ramdisk_sha256"],
+        "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881"
+    );
+    h.stop().await;
+}

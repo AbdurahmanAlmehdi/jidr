@@ -189,15 +189,20 @@ pub fn jobs() -> Vec<JobVm> {
         device: None,
         progress: Some(0.67),
         message: "Downloading".into(),
+        bytes: Some(jidr_core::JobBytes {
+            done: 1_400_000_000,
+            total: 2_100_000_000,
+        }),
         state: JobState::Running,
         error: None,
         result: None,
         created_at: at(14, 20),
     };
+    let bytes = job.bytes.map(|b| (b.done, b.total));
     vec![model::job_vm(
         &job,
         "Android 16 (API 36) image",
-        Some((1_400_000_000, 2_100_000_000)),
+        bytes,
         Some(110),
     )]
 }
@@ -295,6 +300,10 @@ pub fn download_job() -> Job {
         device: None,
         progress: Some(0.67),
         message: "Downloading system-images;android-36;google_apis;arm64-v8a".into(),
+        bytes: Some(jidr_core::JobBytes {
+            done: 1_400_000_000,
+            total: 2_100_000_000,
+        }),
         state: JobState::Running,
         error: None,
         result: None,

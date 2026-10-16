@@ -12,7 +12,7 @@ use std::time::Duration;
 use clap::{CommandFactory, Parser};
 use cli::{
     CacheCmd, Cli, Cmd, DaemonCmd, DeviceCmd, Hardware, ImageCmd, JobsCmd, ProfileCmd, RootCmd,
-    SdkCmd, Selection, SnapshotCmd,
+    SdkCmd, Selection, SettingsCmd, SnapshotCmd,
 };
 use jidr_client::{Client, SpawnOptions};
 use jidr_core::{ErrorCode, JidrError, JidrPaths, JidrResult, Job, JobState};
@@ -516,6 +516,35 @@ async fn run(cli: Cli, out: Out) -> JidrResult<()> {
             .await?;
             out.ok(&v, |_| "Installed.".into());
         }
+        Cmd::Settings { cmd } => {
+            let v = match cmd {
+                SettingsCmd::Get => c.call("settings.get", json!({})).await?,
+                SettingsCmd::Set {
+                    default_root,
+                    quick_boot,
+                } => {
+                    let mut p = Map::new();
+                    if let Some(r) = default_root {
+                        p.insert("default_root_mode".into(), json!(r.as_str()));
+                    }
+                    if let Some(q) = quick_boot {
+                        p.insert("quick_boot".into(), json!(q));
+                    }
+                    c.call("settings.set", Value::Object(p)).await?
+                }
+            };
+            out.ok(&v, |v| {
+                format!(
+                    "Default root mode: {}\nQuick boot on stop: {}",
+                    v["default_root_mode"].as_str().unwrap_or("?"),
+                    if v["quick_boot"].as_bool().unwrap_or(true) {
+                        "on"
+                    } else {
+                        "off"
+                    }
+                )
+            });
+        }
         Cmd::Cache {
             cmd: CacheCmd::List,
         } => {
@@ -673,7 +702,22 @@ async fn device(c: &Client, out: Out, cmd: DeviceCmd) -> JidrResult<()> {
             if agent_owned {
                 p.insert("agent_owned".into(), json!(true));
             }
-            let v = exec(c, out, "device.create", Value::Object(p)).await?;
+            let mut v = exec(c, out, "device.create", Value::Object(p)).await?;
+            // Full root needs its setup (download, patch, boot, verify), not
+            // just the stored mode.
+            if v["root"]["mode"] == "magisk"
+                && let Some(id) = v["id"].as_str().map(str::to_string)
+            {
+                out.info(&format!("Setting up Full root on {}…", output::device(&v)));
+                exec(
+                    c,
+                    out,
+                    "root.set",
+                    json!({ "device": id, "mode": "magisk" }),
+                )
+                .await?;
+                v = c.call("device.details", json!({ "device": id })).await?["device"].take();
+            }
             out.ok(&v, |v| format!("Created {}", output::device(v)));
         }
         DeviceCmd::Start {
@@ -896,5 +940,31 @@ mod tests {
         ] {
             assert!(daemon.registry().get(method).is_some(), "{method}");
         }
+    }
+
+    /// docs/control-protocol.md's command reference must match what
+    /// `jidr daemon` serves: core, jobs, widgets and root (gap G16; the old
+    /// check in jidr-daemon saw only the core). `JIDR_UPDATE_DOCS=1 cargo
+    /// nextest run -p jidr protocol_doc` rewrites it.
+    #[test]
+    fn protocol_doc_matches_commands_list() {
+        use jidr_daemon::protocol_doc::{render, splice};
+        let tmp = tempfile::tempdir().unwrap();
+        let daemon = build_daemon(JidrPaths::under(tmp.path())).unwrap();
+        let generated = render(&daemon.registry().list());
+        assert!(generated.contains("root.set") && generated.contains("gps.set"));
+        let path =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/control-protocol.md");
+        let doc = std::fs::read_to_string(&path).unwrap();
+        let updated =
+            splice(&doc, &generated).expect("docs/control-protocol.md lost its commands markers");
+        if std::env::var_os("JIDR_UPDATE_DOCS").is_some() {
+            std::fs::write(&path, &updated).unwrap();
+            return;
+        }
+        assert!(
+            updated == doc,
+            "docs/control-protocol.md is out of date with commands.list; run\n  JIDR_UPDATE_DOCS=1 cargo nextest run -p jidr protocol_doc"
+        );
     }
 }
