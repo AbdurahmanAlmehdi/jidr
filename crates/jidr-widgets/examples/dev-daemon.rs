@@ -3,7 +3,7 @@
 //!
 //! ```text
 //! cargo build -p jidr-widgets --example dev-daemon
-//! JIDR_DAEMON_BIN=target/agent-b/debug/examples/dev-daemon cargo run -p jidr-gui
+//! JIDR_DAEMON_BIN=target/debug/examples/dev-daemon cargo run -p jidr-gui
 //! ```
 //! The GUI starts it as `<bin> daemon`; the argument is accepted and ignored.
 //! Android Studio's SDK (`JIDR_TEST_SDK`, default `~/Library/Android/sdk`)

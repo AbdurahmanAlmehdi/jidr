@@ -72,7 +72,7 @@ jobs:
 
   emulator:
     # Emulator integration tests on Linux KVM with x86_64 images (D28).
-    # The arm64 run happens on the dev Mac via `cargo xtask e2e-mac` before release.
+    # The arm64 run happens on an Apple Silicon Mac via `cargo xtask e2e-mac` before release.
     # Skipped when only docs/site/Markdown change, like clippy-macos.
     name: emulator tests (Linux KVM, API ${{ matrix.api }})
     needs: changes

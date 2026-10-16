@@ -110,7 +110,7 @@ mk_template 36 "$GUI/menubar/MenuBarTemplate@2x.png"
 cp "$BRAND/symbol.svg" "$GUI/icons/symbol.svg"
 rsvg-convert -w 256 -h 256 "$BRAND/app-icon.svg" -o "$GUI/icons/app-icon-256.png"
 
-# 9. Web set (Stream C copies into site/public).
+# 9. Web set (copied into site/public).
 sed "s/currentColor/$BOTTOM/" "$BRAND/symbol-bold.svg" > "$WEB/favicon.svg"
 rsvg-convert -w 32 -h 32 "$BRAND/app-icon-small.svg" -o "$WEB/favicon-32.png"
 rsvg-convert -w 16 -h 16 "$BRAND/app-icon-small.svg" -o "$TMP/f16.png"

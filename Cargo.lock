@@ -5786,22 +5786,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "spike-display"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "dirs",
- "png",
- "prost",
- "slint",
- "tokio",
- "tokio-stream",
- "tonic",
- "tonic-prost",
- "tonic-prost-build",
-]
-
-[[package]]
 name = "spin_on"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -62,7 +62,7 @@ async fn boot_battery_stop_ramdisk_quickboot() {
         snap.display()
     );
 
-    // 4. Cold boot with a custom ramdisk via LaunchOptions (Stream C's hook).
+    // 4. Cold boot with a custom ramdisk via LaunchOptions (the root engine's hook).
     let custom = f.tmp.path().join("custom-ramdisk.img");
     std::fs::copy(
         f.image_sdk

@@ -176,7 +176,7 @@ fn play_store(info: &DeviceInfo) -> bool {
 }
 
 /// Full root: open the sheet and run `root.set magisk`. A Play Store image
-/// on its first boot waits for Android first (Root.dc.html, beta frame).
+/// on its first boot waits for Android first (the root design, beta frame).
 fn full_root(ctx: &Rc<Ctx>, device: Uuid) {
     let Some(info) = ctx.info(device) else { return };
     FAILED.with(|f| f.borrow_mut().remove(&device));

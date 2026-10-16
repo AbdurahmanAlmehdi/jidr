@@ -35,7 +35,7 @@ pub fn classify(path: &Path, full_root: bool) -> DropAction {
     }
 }
 
-/// Title and body for the drop label while a file hovers (Device.dc.html).
+/// Title and body for the drop label while a file hovers (the device design).
 pub fn hover_text(action: &DropAction, device: &str) -> (String, String) {
     let name = |p: &Path| {
         p.file_name()

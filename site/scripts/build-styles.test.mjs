@@ -104,7 +104,7 @@ test("prunes rules to the used classes, keeping at-rules and keyframes in use", 
 
 test("the real tokens resolve every variable the design's component CSS uses", () => {
   const design = join(here, "../../docs/design");
-  const jidrCss = readFileSync(join(design, "screens/jidr.css"), "utf8");
+  const jidrCss = readFileSync(join(design, "jidr.css"), "utf8");
   const tokens = tokensCss(JSON.parse(readFileSync(join(design, "tokens.json"), "utf8")));
   const defined = new Set([...tokens.matchAll(/(--jidr-[\w-]+):/g)].map((m) => m[1]));
   const comp = jidrCss.split("page chrome */")[1];
@@ -117,7 +117,7 @@ test("the real tokens resolve every variable the design's component CSS uses", (
 // block and tokens.json must now agree on every Arabic size.
 test("tokens.json carries every Arabic type size jidr.css's token block declares", () => {
   const design = join(here, "../../docs/design");
-  const jidrCss = readFileSync(join(design, "screens/jidr.css"), "utf8");
+  const jidrCss = readFileSync(join(design, "jidr.css"), "utf8");
   const tokens = tokensCss(JSON.parse(readFileSync(join(design, "tokens.json"), "utf8")));
   const decls = (css) =>
     new Map([...(/:root\s*\{([^}]*)\}/.exec(css)?.[1] ?? "").matchAll(/(--jidr-type-[\w-]+-ar):\s*([^;]+);/g)]

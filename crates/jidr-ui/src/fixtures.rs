@@ -270,7 +270,7 @@ pub fn profiles() -> Vec<jidr_core::HardwareProfile> {
     ]
 }
 
-/// The image list from Create.dc.html, newest first.
+/// The image list from the create design, newest first.
 pub fn system_images() -> Vec<jidr_core::SystemImage> {
     let img = |api, tag: &str, size: u64, installed: bool| jidr_core::SystemImage {
         image: image(api, tag),

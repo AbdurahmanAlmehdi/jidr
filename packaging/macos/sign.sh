@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Developer ID signing and notarization (Phase 12b, D32). Prepared but not
-# wired into `cargo xtask release` yet: it needs Abdurahman's certificate and
-# notarization credentials, which don't exist yet.
+# wired into `cargo xtask release` yet: it needs the maintainer's Developer ID
+# certificate and notarization credentials.
 #
 #   packaging/macos/sign.sh app Jidr.app        # hardened runtime, inside-out
 #   packaging/macos/sign.sh dmg Jidr-X-arm64.dmg # sign, notarize, staple

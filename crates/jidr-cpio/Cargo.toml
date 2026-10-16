@@ -13,7 +13,7 @@ publish.workspace = true
 thiserror.workspace = true
 # Byte-identical re-compression of SDK ramdisks needs the reference
 # implementations: liblz4 HC (lz4 -l -12) and zlib deflate (gzip -n -6).
-# miniz_oxide and zlib-rs produce different bytes (see log/devlog-c.md, 9b).
+# miniz_oxide and zlib-rs produce different bytes.
 lz4 = "1.28"
 flate2 = { version = "1.1", default-features = false, features = ["zlib"] }
 liblzma = { version = "0.4", default-features = false, features = ["static"] }
@@ -25,5 +25,5 @@ proptest.workspace = true
 workspace = true
 
 [features]
-# Tests that need a running Android emulator (Linux KVM in CI, arm64 on the dev Mac).
+# Tests that need a running Android emulator (Linux KVM in CI, arm64 on an Apple Silicon Mac).
 emulator = []

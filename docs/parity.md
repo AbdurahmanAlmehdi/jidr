@@ -42,7 +42,7 @@ Status: ✅ done with evidence · 🚧 in progress · ⬜ not started · ⏭️ 
 | Gamepad | Paid | ⏭️ 🔎 | |
 | Device Link | Free | ⏭️ 🔎 | |
 | Clipboard sharing | Free | 🚧 | `clipboard.get/set` tested; two-way sharing toggle in the player (crates/jidr-ui/src/player/session.rs) not tested |
-| Drag-drop APK / files | Free | ✅ | log/devlog-b.md 7c manual check (installed and opened `ly.jidr.hello`) |
+| Drag-drop APK / files | Free | ✅ | manual check (installed and opened `ly.jidr.hello`) |
 | Screenshot | Free | ✅ | `media_emulator::media_screenshot_and_five_minute_recording` |
 | Screen recording | Free | ✅ | `media_screenshot_and_five_minute_recording` (ffprobe h264, 300 s, 9000 frames) |
 | Snapshot manager | — (Jidr only) | ✅ | `snapshot_emulator::snapshot_round_trip_and_cross_root_refusal` |
@@ -52,4 +52,4 @@ Status: ✅ done with evidence · 🚧 in progress · ⬜ not started · ⏭️ 
 | MCP server for AI agents | — (Jidr only) | ⬜ | |
 | Shell REPL (Genymotion Shell) | Free | ⏭️ | |
 
-**Breadth:** 13 / 42 ✅ (Stream B rows only; A and C update theirs on their branches). **Ready for real work:** low, about 20%. The player and widgets work end to end through a daemon (`jidr-widgets --example dev-daemon`), but the shipped app can't start its daemon until `jidr daemon` exists (gap B1), and root (C) and the CLI (A) aren't on this branch.
+**Not yet recounted after the MVP merges:** some rows (device management, CLI, MCP, root) still show ⬜ or 🚧 for features that have shipped. The table is being brought up to date with evidence.

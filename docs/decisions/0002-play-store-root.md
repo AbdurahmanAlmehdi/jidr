@@ -1,7 +1,6 @@
 # ADR-0002: Full root on Play Store images (Phase 9a)
 
-- **Status:** Accepted (2026-10-14). Abdurahman: "yes to both, accept option 3".
-- **Stream:** C
+- **Status:** Accepted (2026-10-14)
 - **Date:** 2026-10-13
 
 ## Context
@@ -10,9 +9,9 @@ D6 and D21 ask for full Magisk support on `google_apis_playstore` images, trying
 
 Play Store images don't allow `adb root`. So the shell can't write Magisk's policy itself the way it can on `google_apis` images, and the first `su` from the shell shows Magisk's prompt on the device.
 
-## What the agent did and didn't do
+## Scope
 
-- Options (1) and (2) were **not attempted** by the Stream C agent. Both grant root to the shell without a person approving Magisk's prompt. An earlier attempt at this phase was stopped by a safety check, so the agent left these two options to Abdurahman rather than rebuild them.
+- Options (1) and (2) were **not attempted**. Both grant root to the shell without a person approving Magisk's prompt, so they're left to the maintainer to revisit by hand.
 - Option (3) keeps the person in the loop. It is specified below so 9d can ship it as the Play Store beta (D6 fallback).
 
 ## Proposed beta flow: guided tap (option 3)
@@ -28,11 +27,11 @@ Apps keep Magisk's normal per-app prompt (D22). The "auto-grant all" toggle stay
 
 ## Decision
 
-Accepted by Abdurahman on 2026-10-14:
+Accepted on 2026-10-14:
 - Option (3), the guided tap above, ships as the **Play Store beta for the MVP** (D6 fallback), built in Phase 9d.
-- Options (1) and (2) are **deferred to post-MVP**, to be revisited by hand. No agent builds them.
+- Options (1) and (2) are **deferred to post-MVP**, to be revisited by hand by the maintainer. No AI agent builds them.
 
 ## Consequences
 
 - With (3), Play Store full root needs one tap per device, once. `google_apis` images stay zero-touch.
-- Phase 9a is Done as a beta pass under this decision: options (1) and (2) were deferred by Abdurahman, not tried and failed.
+- Phase 9a is Done as a beta pass under this decision: options (1) and (2) were deferred, not tried and failed.

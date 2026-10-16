@@ -1,4 +1,4 @@
-// Widget panels for the docked panel (Device.dc.html): Battery, Network,
+// Widget panels for the docked panel (the device design): Battery, Network,
 // Sensors and ⋯ (phone, controls, dev tools, clipboard, biometrics, camera).
 // Every control calls a protocol command through Rust (`widget-action`).
 
@@ -451,7 +451,7 @@ export component MorePanel inherits Rectangle {
     }
 }
 
-/// GPS (Device.dc.html GPS frame): OSM map, coordinates, route replay.
+/// GPS (the device design GPS frame): OSM map, coordinates, route replay.
 export component GpsPanel inherits VerticalLayout {
     in property <WidgetsVm> vm;
     in property <image> map;

@@ -28,7 +28,7 @@ These were sampled from the approved board (`source/brand-board.jpg`). When the 
 | `app-icon-small.svg` | 16/32 px cut (no shadow, larger body) | `.icns` small sizes, favicon |
 | `avatar.svg` / `avatar-1024.png` | circular avatar | GitHub org/repo, social profiles |
 | `social-card.svg` / `.png` | 1200×630 preview card | Open Graph / Twitter card |
-| `web/` | `favicon.svg`, `favicon.ico`, `favicon-32.png`, `apple-touch-icon.png`, `og-image.png`, `avatar-512.png`, `symbol.svg` | **site** (Stream C copies into `site/public/`) |
+| `web/` | `favicon.svg`, `favicon.ico`, `favicon-32.png`, `apple-touch-icon.png`, `og-image.png`, `avatar-512.png`, `symbol.svg` | **site** (copied into `site/public/`) |
 | `../../apps/jidr-gui/assets/macos/Jidr.icns` | app bundle icon (16–1024, @1x/@2x) | Phase 12a bundle (`CFBundleIconFile`) |
 | `../../apps/jidr-gui/assets/macos/AppIcon-1024.png` | master PNG | DMG background / About |
 | `../../apps/jidr-gui/assets/menubar/MenuBarTemplate{,@2x}.png` | 18 pt template image (black + alpha; macOS tints it) | menu bar extra (post-MVP) |

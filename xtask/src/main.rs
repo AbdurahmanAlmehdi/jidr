@@ -15,7 +15,7 @@ tasks:
   ci              fmt --check, clippy -D warnings, nextest, license-check
   license-check   fail if an Apache-2.0 crate links Slint or the GPL GUI crates (D18)
   e2e-mac         full arm64 end-to-end gate on Apple Silicon (release gate, D28)
-  release         build the macOS release artifacts (Stream C, Phase 12a)";
+  release         build the macOS release artifacts (Phase 12a)";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -99,7 +99,7 @@ fn ci() -> Result<()> {
     Ok(())
 }
 
-/// Release gate on the dev Mac: every emulator test on arm64 images, then the
+/// Release gate on an Apple Silicon Mac: every emulator test on arm64 images, then the
 /// end-to-end scripts. Missing scripts fail the gate.
 fn e2e_mac() -> Result<()> {
     if !(cfg!(target_os = "macos") && cfg!(target_arch = "aarch64")) {

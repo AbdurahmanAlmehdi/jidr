@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Root UX (Phase 9e, Stream C): the Root setup sheet, the root-mode cards and
-// the dev-tools root section. Built to docs/design/screens/Root.dc.html,
-// Create.dc.html and the RootBadge / RootModeSelector component specs.
+// the dev-tools root section. Built to the Workbench root design,
+// the create design and the RootBadge / RootModeSelector component specs.
 // Rust (`src/root/mod.rs`) fills `RootUi`; every string here goes through @tr.
 
 import { Theme } from "../../ui/theme.slint";
@@ -27,7 +27,7 @@ export enum RootSheetState {
     unverified,
 }
 
-/// The five steps of Full-root setup (Root.dc.html).
+/// The five steps of Full-root setup (the root design).
 export enum RootStep { download, patch, reboot, install, verify, first-boot, all }
 
 /// Where a step stands.

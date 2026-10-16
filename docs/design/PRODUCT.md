@@ -1,6 +1,6 @@
 # Jidr (جذر): product brief for designers
 
-> The source of truth for design work. The full technical plan is in `docs/plan/2026-10-13-feat-jidr-emulator-suite-plan.md`; read §"Decisions log" there if anything here seems ambiguous.
+> The source of truth for design work. If anything here seems ambiguous, the decisions in `docs/decisions/log.md` settle it.
 
 ## 1. What Jidr is
 

@@ -17,5 +17,5 @@ tracing-subscriber.workspace = true
 workspace = true
 
 [features]
-# Tests that need a running Android emulator (Linux KVM in CI, arm64 on the dev Mac).
+# Tests that need a running Android emulator (Linux KVM in CI, arm64 on an Apple Silicon Mac).
 emulator = []

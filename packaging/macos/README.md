@@ -26,6 +26,6 @@ The CLI lives in `Helpers/` because `MacOS/jidr` and `MacOS/Jidr` are the same p
 cargo xtask release --dry-run --scan    # local build, DMG, mount check, forbidden-content scan
 ```
 
-Signing (D32): until Abdurahman's Developer ID secrets exist, the app is ad-hoc signed. Users open it the first time with right-click → Open. Phase 12b adds hardened-runtime signing, notarization and the Homebrew cask.
+Signing (D32): until the Developer ID signing secrets are configured, the app is ad-hoc signed. Users open it the first time with right-click → Open. Phase 12b adds hardened-runtime signing, notarization and the Homebrew cask.
 
 The scan fails the build if the bundle or the DMG contains Google SDK binaries, system images or Magisk. Jidr downloads those on the user's machine, never ships them.

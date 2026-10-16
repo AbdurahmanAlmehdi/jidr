@@ -33,7 +33,7 @@ jidr --json device start Phone --timeout 300 || exit $?
 | `install <name> <apk> [--no-replace] [--grant] [--downgrade]` | Install an APK. A signature mismatch fails with `details.signature_mismatch = true`. |
 | `push <name> <local> [remote]`, `pull <name> <remote> <local>` | Copy files (push defaults to `/sdcard/Download/`). |
 | `logcat <name> [-n N] [--filter spec…] [-f] [--clear]` | Dump, follow (`-f`) or clear the log. |
-| `flash <name> <zip>` | Not available yet (🔎 research, see docs/gaps.md). |
+| `flash <name> <zip>` | Not available yet (open research item). |
 | `image list [--installed]`, `image install <img> [--accept-licenses]` | System images. |
 | `profile list` | Built-in hardware profiles (D24). |
 | `sdk status`, `sdk licenses <pkgs…>`, `sdk install <pkgs…> [--accept-licenses]` | The SDK Jidr uses (its private one; Android Studio's is only read, D3). |

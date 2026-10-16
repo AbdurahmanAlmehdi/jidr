@@ -333,7 +333,7 @@ async fn run(cli: Cli, out: Out) -> JidrResult<()> {
     }
     if let Cmd::Flash { .. } = &cli.cmd {
         return Err(JidrError::usage(
-            "flash isn't available yet: Genymotion's flash semantics are an open research item (docs/gaps.md)",
+            "flash isn't available yet: Genymotion's flash semantics are an open research item",
         ));
     }
     let client = connect(&paths, &cli, out).await?;

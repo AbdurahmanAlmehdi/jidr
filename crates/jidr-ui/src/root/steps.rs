@@ -1,4 +1,4 @@
-//! Full-root setup as the five steps of the Root sheet (Root.dc.html):
+//! Full-root setup as the five steps of the Root sheet (the root design):
 //! Download, Patch, Reboot, Install Magisk app, Verify. `root.set magisk`
 //! reports finer job messages (`crates/jidr-root/src/magisk/mod.rs`); this
 //! maps them onto the steps, monotonically, and classifies a failure.

@@ -1,12 +1,11 @@
 # ADR-0001: Frame transport for the player
 
 - **Status:** Accepted (Phase 1 spike: **pass**, 2026-10-13)
-- **Stream:** A (decides), B (implements in Phase 7c)
-- **Spike:** `spikes/display` (`cargo run --release -p spike-display -- --help` style flags below)
+- **Spike:** a throwaway crate (`spike-display`), removed after this decision; the numbers below are its measurements.
 
 ## Context
 
-The player window renders the emulator screen and sends input back (plan, "Display pipeline"). The budget is **≥ 30 fps** at 1080×2400 downscaled to a 400 px-wide window and **≤ 80 ms** median input latency on an M-series Mac. Per D20 we try the simplest path first, inline RGBA frames over gRPC into a Slint `SharedPixelBuffer`, and move to MMAP transport or a wgpu texture import only if the budget is missed. egui is the documented fallback.
+The player window renders the emulator screen and sends input back. The budget is **≥ 30 fps** at 1080×2400 downscaled to a 400 px-wide window and **≤ 80 ms** median input latency on an M-series Mac. Per D20 we try the simplest path first, inline RGBA frames over gRPC into a Slint `SharedPixelBuffer`, and move to MMAP transport or a wgpu texture import only if the budget is missed. egui is the documented fallback.
 
 ## What was measured
 
@@ -38,12 +37,12 @@ Estimated input-to-photon with `-gpu host`: 13.5 ms (measured) + up to one 60 Hz
 
 ## Consequences
 
-- Stream B (Phase 7c) implements the player on this path and uses `device.connect_info` for the gRPC endpoint + token.
-- Stream A (Phase 3b) launches with `-gpu host` by default and exposes the GPU mode in `LaunchOptions`.
+- The player window (Phase 7c) is built on this path and uses `device.connect_info` for the gRPC endpoint + token.
+- The backend (Phase 3b) launches with `-gpu host` by default and exposes the GPU mode in `LaunchOptions`.
 - Streaming at 2× Retina costs ~330 MB/s on loopback and ~40% of one core in the player. Acceptable. Re-check if multiple players are open at once.
 - CI (Linux KVM, no GPU) needs `-gpu swiftshader_indirect`. CI only runs functional tests, not the fps budget.
 
 ## Not verified by the spike
 
-- Manual check "tap Settings and confirm it opens" through a mouse click in the window. The spike's scripted gRPC drags and taps exercise the same input path, but the mouse → `TouchArea` → device-pixel mapping needs a human click. Steps: `CARGO_TARGET_DIR=target/agent-a cargo run --release -p spike-display -- --create --gpu host`, then click the Settings icon in the app drawer.
+- Manual check "tap Settings and confirm it opens" through a mouse click in the window. The spike's scripted gRPC drags and taps exercise the same input path, but the mouse → `TouchArea` → device-pixel mapping needs a human click. It remains a manual check in the player window.
 - Multi-touch, keyboard and rotation. They belong in Phase 7c.

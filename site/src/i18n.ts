@@ -1,5 +1,5 @@
 // Page copy in English and Arabic (D33). The English is the design's copy
-// (docs/design/screens/Landing.dc.html); the Arabic follows its RTL hero.
+// (the Workbench landing design); the Arabic follows its RTL hero.
 // Strings ending in `Html`, and feature bodies, carry inline markup and render
 // with set:html.
 //

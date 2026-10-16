@@ -1,4 +1,4 @@
-//! `cargo xtask release`: the macOS release artifacts (Stream C, Phase 12a).
+//! `cargo xtask release`: the macOS release artifacts (Phase 12a).
 //!
 //! Builds `jidr` and `jidr-gui` in release mode, assembles `Jidr.app`, packs
 //! `Jidr-<version>-arm64.dmg`, mounts it to prove it opens, and writes

@@ -16,7 +16,6 @@ members = [
     "apps/jidr",
     "apps/jidr-gui",
     "xtask",
-    "spikes/display",
 ]
 default-members = ["apps/jidr"]
 
@@ -32,7 +31,7 @@ publish = false
 
 # Shared versions for every stream. Crates opt in with `name.workspace = true`;
 # unused entries cost nothing. Streams B and C add new deps in their own crate
-# manifests and ask Stream A (docs/gaps.md) to promote them here if shared.
+# manifests and move them here once a second crate needs them.
 [workspace.dependencies]
 # Internal
 jidr-core = { path = "crates/jidr-core" }
