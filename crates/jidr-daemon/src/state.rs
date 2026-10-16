@@ -8,7 +8,9 @@ use std::sync::{Arc, Mutex, MutexGuard, OnceLock, Weak};
 use async_trait::async_trait;
 use jidr_backend::{Backend, BootStage, InstanceInfo, LaunchOptions, LaunchSpec};
 use jidr_core::provider::{CallCtx, CommandProvider, DaemonContext, DeviceUpdate};
-use jidr_core::{Cancel, ConnectInfo, Device, DeviceStatus, JidrError, JidrPaths, JidrResult};
+use jidr_core::{
+    Cancel, ConnectInfo, Device, DeviceStatus, JidrError, JidrPaths, JidrResult, Settings,
+};
 use jidr_sdk::{AvdManager, Sdk, SdkSet};
 use serde_json::{Value, json};
 use tokio::sync::broadcast;
@@ -49,6 +51,7 @@ pub struct State {
     pub(crate) sdk_repo: Option<String>,
     pub(crate) backend: Arc<dyn Backend>,
     store: Mutex<DeviceStore>,
+    settings: Mutex<Settings>,
     instances: Mutex<HashMap<Uuid, InstanceInfo>>,
     watchers: Mutex<HashMap<Uuid, JoinHandle<()>>>,
     pub(crate) locks: DeviceLocks,
@@ -70,9 +73,33 @@ fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
     m.lock().unwrap_or_else(|e| e.into_inner())
 }
 
+/// `settings.json`, or the defaults when it is missing or unreadable.
+fn load_settings(path: &std::path::Path) -> Settings {
+    match std::fs::read_to_string(path) {
+        Ok(text) => serde_json::from_str(&text).unwrap_or_else(|e| {
+            tracing::warn!("{}: {e}; using the default settings", path.display());
+            Settings::default()
+        }),
+        Err(_) => Settings::default(),
+    }
+}
+
+fn save_settings(path: &std::path::Path, s: &Settings) -> JidrResult<()> {
+    let text = serde_json::to_string_pretty(s).map_err(|e| JidrError::unexpected(e.to_string()))?;
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir)
+            .map_err(|e| JidrError::unexpected(format!("{}: {e}", dir.display())))?;
+    }
+    let tmp = path.with_extension("json.tmp");
+    std::fs::write(&tmp, text)
+        .and_then(|()| std::fs::rename(&tmp, path))
+        .map_err(|e| JidrError::unexpected(format!("{}: {e}", path.display())))
+}
+
 impl State {
     pub fn new(config: DaemonConfig, backend: Arc<dyn Backend>) -> JidrResult<Arc<Self>> {
         let store = DeviceStore::load(config.paths.devices_file())?;
+        let settings = load_settings(&config.paths.settings_file());
         let (events, _) = broadcast::channel(1024);
         Ok(Arc::new_cyclic(|me| Self {
             paths: config.paths,
@@ -80,6 +107,7 @@ impl State {
             sdk_repo: config.sdk_repo,
             backend,
             store: Mutex::new(store),
+            settings: Mutex::new(settings),
             instances: Mutex::new(HashMap::new()),
             watchers: Mutex::new(HashMap::new()),
             locks: DeviceLocks::default(),
@@ -88,6 +116,21 @@ impl State {
             me: me.clone(),
             started_at: std::time::Instant::now(),
         }))
+    }
+
+    /// Daemon-wide settings (gap B4).
+    pub fn settings(&self) -> Settings {
+        *lock(&self.settings)
+    }
+
+    /// Changes the settings and saves them to `settings.json`.
+    pub fn update_settings(&self, f: impl FnOnce(&mut Settings)) -> JidrResult<Settings> {
+        let mut current = lock(&self.settings);
+        let mut next = *current;
+        f(&mut next);
+        save_settings(&self.paths.settings_file(), &next)?;
+        *current = next;
+        Ok(next)
     }
 
     pub(crate) fn set_providers(&self, providers: Vec<Arc<dyn CommandProvider>>) {
@@ -300,6 +343,8 @@ impl DaemonContext for State {
             extra_args: device.launch.extra_args.clone(),
             gpu: device.launch.gpu.clone(),
             cold_boot: cold_boot || device.launch.force_cold_boot,
+            // D29 / gap B4: save a quick-boot snapshot on stop unless off.
+            snapshot_save: self.settings().quick_boot,
             ..LaunchOptions::default()
         };
         self.set_status(id, DeviceStatus::Starting, None);

@@ -8,7 +8,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use chrono::Utc;
 use jidr_core::provider::{CallCtx, CommandProvider, CommandSpec, DaemonContext, parse_params};
-use jidr_core::{Cancel, JidrError, JidrResult, Job, JobState};
+use jidr_core::{Cancel, JidrError, JidrResult, Job, JobBytes, JobState};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -48,6 +48,7 @@ impl JobManager {
             device,
             progress: Some(0.0),
             message: String::new(),
+            bytes: None,
             state: JobState::Running,
             error: None,
             result: None,
@@ -84,11 +85,28 @@ impl JobManager {
     }
 
     pub fn progress(&self, id: Uuid, fraction: Option<f32>, message: &str) {
+        self.update(id, fraction, message, None);
+    }
+
+    /// Progress with the bytes of the current download (gap B5).
+    pub fn progress_bytes(
+        &self,
+        id: Uuid,
+        fraction: Option<f32>,
+        message: &str,
+        done: u64,
+        total: u64,
+    ) {
+        self.update(id, fraction, message, Some(JobBytes { done, total }));
+    }
+
+    fn update(&self, id: Uuid, fraction: Option<f32>, message: &str, bytes: Option<JobBytes>) {
         let _ = self.with(id, |e| {
             e.job.send_modify(|j| {
                 if !j.state.is_terminal() {
                     j.progress = fraction.map(|f| f.clamp(0.0, 1.0));
                     j.message = message.to_string();
+                    j.bytes = bytes;
                 }
             })
         });
@@ -297,6 +315,28 @@ mod tests {
         let (id, _) = m.create("x", None);
         let j = m.wait(id, Some(Duration::from_millis(20))).await.unwrap();
         assert_eq!(j.state, JobState::Running);
+    }
+
+    /// Gap B5: a download's bytes show on the job; any other progress clears
+    /// them.
+    #[test]
+    fn download_bytes_are_set_then_cleared() {
+        let m = JobManager::new();
+        let (id, _) = m.create("image.install", None);
+        m.progress_bytes(id, Some(0.1), "Downloading x", 10, 100);
+        let j = m.get(id).unwrap();
+        assert_eq!(
+            j.bytes,
+            Some(JobBytes {
+                done: 10,
+                total: 100
+            })
+        );
+        assert_eq!(j.message, "Downloading x");
+        m.progress(id, Some(0.9), "Extracting x");
+        assert_eq!(m.get(id).unwrap().bytes, None);
+        let json = serde_json::to_value(m.get(id).unwrap()).unwrap();
+        assert!(json.get("bytes").is_none(), "absent, not null: {json}");
     }
 
     #[test]

@@ -65,6 +65,11 @@ impl JidrPaths {
         self.data.join("devices.json")
     }
 
+    /// Daemon-wide settings (gap B4).
+    pub fn settings_file(&self) -> PathBuf {
+        self.data.join("settings.json")
+    }
+
     /// License consent records (D8).
     pub fn consent_file(&self) -> PathBuf {
         self.data.join("consent.json")

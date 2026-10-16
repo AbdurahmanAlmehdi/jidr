@@ -60,12 +60,25 @@ pub struct CreateParams {
     /// Data partition size in MB (overrides the profile).
     #[serde(default)]
     pub data_mb: Option<u32>,
-    /// Default: `adb` where the image allows it, else `none` (D7).
+    /// Default: the `default_root_mode` setting (`adb` unless changed), or
+    /// `none` when that is `adb` and the image doesn't allow adb root (D7).
     #[serde(default)]
     pub root_mode: Option<RootMode>,
     /// Agents may run destructive commands on it (D5).
     #[serde(default)]
     pub agent_owned: Option<bool>,
+}
+
+/// `settings.set`: only the given fields change.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SettingsParams {
+    /// Root mode for `device.create` without `root_mode`.
+    #[serde(default)]
+    pub default_root_mode: Option<RootMode>,
+    /// Save a quick-boot snapshot on stop (D29); from each device's next start.
+    #[serde(default)]
+    pub quick_boot: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -232,9 +245,23 @@ pub struct DeviceDetails {
     pub config: BTreeMap<String, String>,
     /// Bytes on disk used by the device's AVD (D30).
     pub disk_usage: u64,
+    /// SHA-256 of the image's unmodified `ramdisk.img` in the SDK (gap G14);
+    /// absent when the image isn't installed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pristine_ramdisk_sha256: Option<String>,
 }
 
 // ---- helpers ------------------------------------------------------------
+
+/// The root mode `device.create` uses without `root_mode`: the setting, but
+/// `none` instead of `adb` on images that refuse adb root (Play Store).
+fn default_root(setting: RootMode, image: &ImageRef) -> RootMode {
+    if setting == RootMode::Adb && !image.allows_adb_root() {
+        RootMode::None
+    } else {
+        setting
+    }
+}
 
 /// Parses an image selector; the ABI defaults to the host's.
 pub fn parse_image(sel: &str) -> JidrResult<ImageRef> {
@@ -383,10 +410,14 @@ impl CoreProvider {
                 } else {
                     0.0
                 };
-                ctx.report(
-                    Some((i as f32 + frac) / n),
-                    &format!("{:?} {}", p.phase, p.package),
-                );
+                let fraction = Some((i as f32 + frac) / n);
+                let message = format!("{:?} {}", p.phase, p.package);
+                // B5: bytes only while downloading; other phases clear them.
+                if p.phase == jidr_sdk::Phase::Downloading {
+                    ctx.report_bytes(fraction, &message, p.done, p.total);
+                } else {
+                    ctx.report(fraction, &message);
+                }
             };
             let dir = jidr_sdk::install(&fetcher, &sdk, repo, &consent, pkg, &report, &ctx.cancel)
                 .await?;
@@ -436,11 +467,9 @@ impl CoreProvider {
         if let Some(v) = p.data_mb {
             profile.data_mb = v;
         }
-        let mode = p.root_mode.unwrap_or(if image.allows_adb_root() {
-            RootMode::Adb
-        } else {
-            RootMode::None
-        });
+        let mode = p
+            .root_mode
+            .unwrap_or_else(|| default_root(self.state.settings().default_root_mode, &image));
         if mode == RootMode::Adb && !image.allows_adb_root() {
             return Err(JidrError::usage(format!(
                 "{} images don't allow adb root; use root_mode magisk or none",
@@ -621,11 +650,14 @@ impl CoreProvider {
             .map(|c| c.entries())
             .unwrap_or_default();
         let disk_usage = avds.disk_usage(&device.avd).unwrap_or(0);
+        let pristine_ramdisk_sha256 =
+            jidr_sdk::pristine_ramdisk_sha256(&self.state.sdks(), &device.image);
         json(DeviceDetails {
             avd_dir: avds.dir(&device.avd),
             device,
             config,
             disk_usage,
+            pristine_ramdisk_sha256,
         })
     }
 
@@ -785,6 +817,14 @@ impl CommandProvider for CoreProvider {
                 "cache.prune",
                 "Delete cached downloads (they're downloaded again when needed)",
             ),
+            CommandSpec::new::<NoParams>(
+                "settings.get",
+                "Daemon-wide settings: default root mode, quick boot on stop",
+            ),
+            CommandSpec::new::<SettingsParams>(
+                "settings.set",
+                "Change daemon-wide settings (only the fields given)",
+            ),
         ]
     }
 
@@ -860,6 +900,21 @@ impl CommandProvider for CoreProvider {
                 json(self.state.devices().await)
             }
             "device.details" => self.details(parse_params(params)?).await,
+            "settings.get" => {
+                parse_params::<NoParams>(params)?;
+                json(self.state.settings())
+            }
+            "settings.set" => {
+                let p: SettingsParams = parse_params(params)?;
+                json(self.state.update_settings(|s| {
+                    if let Some(m) = p.default_root_mode {
+                        s.default_root_mode = m;
+                    }
+                    if let Some(q) = p.quick_boot {
+                        s.quick_boot = q;
+                    }
+                })?)
+            }
             "device.connect_info" => {
                 let p: DeviceParams = parse_params(params)?;
                 let d = self.state.device(&p.device).await?;

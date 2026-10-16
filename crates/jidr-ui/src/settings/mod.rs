@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use jidr_core::SystemImage;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use slint::ComponentHandle;
 
 use crate::model::{self, DeviceInfo};
 use crate::{OptionVm, RootChoice, UsageRow};
@@ -18,11 +19,13 @@ pub const OSM_TILES: &str = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 pub struct Prefs {
     /// 0 System, 1 Light, 2 Dark.
     pub appearance: u8,
-    /// `none` | `adb` | `magisk` (gap B4: no daemon setting yet).
+    /// `none` | `adb` | `magisk`. A copy of the daemon's `default_root_mode`
+    /// (gap B4: the daemon owns it, so the CLI and agents agree), refreshed on
+    /// connect; the create sheet and Setup read it.
     pub default_root: String,
     /// Empty = OpenStreetMap.
     pub tile_url: String,
-    /// Gap B4: the daemon always saves quick boot today (D29).
+    /// A copy of the daemon's `quick_boot` setting (D29, gap B4).
     pub quick_boot: bool,
 }
 
@@ -53,6 +56,20 @@ impl Prefs {
         std::fs::create_dir_all(data_dir)?;
         let text = serde_json::to_string_pretty(self).map_err(std::io::Error::other)?;
         std::fs::write(Self::path(data_dir), text)
+    }
+
+    /// Takes the daemon's settings (`settings.get` / `settings.set` result).
+    pub fn apply_daemon_settings(&mut self, v: &Value) {
+        if let Some(m) = v
+            .get("default_root_mode")
+            .and_then(Value::as_str)
+            .filter(|m| matches!(*m, "none" | "adb" | "magisk"))
+        {
+            self.default_root = m.to_string();
+        }
+        if let Some(q) = v.get("quick_boot").and_then(Value::as_bool) {
+            self.quick_boot = q;
+        }
     }
 
     pub fn root_choice(&self) -> RootChoice {
@@ -218,7 +235,6 @@ fn models<T: Clone + 'static>(v: Vec<T>) -> slint::ModelRc<T> {
 
 /// Opens the Settings window on `tab` (0 General, 1 Storage, 2 Agents, 3 About).
 pub fn open(ctx: &std::rc::Rc<crate::app::Ctx>, tab: i32) {
-    use slint::ComponentHandle;
     let Ok(win) = crate::SettingsWindow::new() else {
         return;
     };
@@ -278,10 +294,27 @@ pub fn open(ctx: &std::rc::Rc<crate::app::Ctx>, tab: i32) {
         });
     });
 
+    // The daemon's settings may have changed (CLI, an agent): show them.
+    let weak = win.as_weak();
+    let token = crate::app::defer(move |v: Option<Value>| {
+        let (Some(v), Some(c), Some(win)) = (v, crate::app::ctx(), weak.upgrade()) else {
+            return;
+        };
+        c.prefs.borrow_mut().apply_daemon_settings(&v);
+        let prefs = c.prefs.borrow();
+        win.set_default_root(prefs.root_choice());
+        win.set_quick_boot(prefs.quick_boot);
+    });
+    ctx.bridge.call("settings.get", json!({}), move |r| {
+        crate::app::fire(token, r.ok());
+    });
+
     let c = ctx.clone();
     win.on_default_root_changed(move |choice| {
-        c.prefs.borrow_mut().default_root = crate::device_form::root_mode(choice).into();
+        let mode = crate::device_form::root_mode(choice);
+        c.prefs.borrow_mut().default_root = mode.into();
         let _ = c.prefs.borrow().save(&c.paths.data);
+        set_daemon_setting(&c, json!({ "default_root_mode": mode }));
     });
     let c = ctx.clone();
     win.on_tiles_changed(move |choice, url| {
@@ -307,6 +340,7 @@ pub fn open(ctx: &std::rc::Rc<crate::app::Ctx>, tab: i32) {
     win.on_quick_boot_changed(move |v| {
         c.prefs.borrow_mut().quick_boot = v;
         let _ = c.prefs.borrow().save(&c.paths.data);
+        set_daemon_setting(&c, json!({ "quick_boot": v }));
     });
     let data = ctx.paths.data.clone();
     win.on_show_sdk(move || {
@@ -369,6 +403,29 @@ pub fn dir_size(dir: &Path) -> u64 {
         .sum()
 }
 
+/// Gap B4: refreshes the cached default root mode and quick boot from the
+/// daemon (on connect, so the create sheet follows `jidr settings`).
+pub fn sync_from_daemon(ctx: &crate::app::Ctx) {
+    let token = crate::app::defer(move |v: Option<Value>| {
+        if let (Some(v), Some(c)) = (v, crate::app::ctx()) {
+            c.prefs.borrow_mut().apply_daemon_settings(&v);
+        }
+    });
+    ctx.bridge.call("settings.get", json!({}), move |r| {
+        crate::app::fire(token, r.ok());
+    });
+}
+
+/// `settings.set`; a failure is shown as a toast.
+fn set_daemon_setting(ctx: &crate::app::Ctx, params: Value) {
+    let weak = ctx.app.as_weak();
+    ctx.bridge.call("settings.set", params, move |r| {
+        if let Err(e) = r {
+            crate::app::toast(&weak, format!("Couldn't save the setting: {}", e.message));
+        }
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -414,5 +471,18 @@ mod tests {
         assert_eq!(rows[0].name, "Pixel-ish 6.1");
         assert_eq!(rows[0].sub, "3 snapshots");
         assert_eq!(rows.last().unwrap().size, "19.2 GB");
+    }
+
+    /// Gap B4: the daemon's settings replace the cached copy; unknown or
+    /// missing values leave it alone.
+    #[test]
+    fn daemon_settings_update_the_cached_prefs() {
+        let mut p = Prefs::default();
+        p.apply_daemon_settings(&json!({ "default_root_mode": "magisk", "quick_boot": false }));
+        assert_eq!(p.root_choice(), RootChoice::Full);
+        assert!(!p.quick_boot);
+        p.apply_daemon_settings(&json!({ "default_root_mode": "bogus" }));
+        assert_eq!(p.default_root, "magisk");
+        assert!(!p.quick_boot);
     }
 }

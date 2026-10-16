@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use jidr_adb::Adb;
-use jidr_core::provider::{CallCtx, DaemonContext, ProgressFn, parse_params};
+use jidr_core::provider::{BytesFn, CallCtx, DaemonContext, ProgressFn, parse_params};
 use jidr_core::rpc::Notification;
 use jidr_core::{ErrorCode, JidrError, JidrResult, ResultExt};
 use schemars::JsonSchema;
@@ -281,9 +281,23 @@ impl Daemon {
                     json!({ "job": job, "progress": fraction, "message": message }),
                 );
             });
+            let (jobs, events) = (self.jobs.clone(), daemon.clone());
+            let bytes: BytesFn = Arc::new(move |fraction, message, done, total| {
+                jobs.progress_bytes(job, fraction, message, done, total);
+                events.emit(
+                    "job.progress",
+                    json!({
+                        "job": job,
+                        "progress": fraction,
+                        "message": message,
+                        "bytes": { "done": done, "total": total },
+                    }),
+                );
+            });
             let ctx = CallCtx {
                 daemon: daemon.clone(),
                 progress,
+                bytes,
                 cancel,
             };
             let jobs = self.jobs.clone();

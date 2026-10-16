@@ -298,6 +298,35 @@ impl JobState {
     }
 }
 
+/// Bytes done and expected of a job's current download.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct JobBytes {
+    pub done: u64,
+    pub total: u64,
+}
+
+/// Daemon-wide settings (gap B4), kept in `settings.json` so the CLI, the GUI
+/// and agents agree.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(default)]
+pub struct Settings {
+    /// Root mode for `device.create` without `root_mode` (D7: Shell where the
+    /// image allows adb root, otherwise None).
+    pub default_root_mode: RootMode,
+    /// Save a quick-boot snapshot when a device stops (D29). Applies from the
+    /// device's next start.
+    pub quick_boot: bool,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            default_root_mode: RootMode::Adb,
+            quick_boot: true,
+        }
+    }
+}
+
 /// A long-running operation (image download, boot, Magisk patch).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Job {
@@ -311,6 +340,9 @@ pub struct Job {
     /// Human-readable current step.
     #[serde(default)]
     pub message: String,
+    /// Bytes done of the current download, while there is one (gap B5).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bytes: Option<JobBytes>,
     pub state: JobState,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<crate::JidrError>,

@@ -112,6 +112,11 @@ pub enum Cmd {
         #[command(subcommand)]
         cmd: CacheCmd,
     },
+    /// Daemon-wide settings, shared with the desktop app.
+    Settings {
+        #[command(subcommand)]
+        cmd: SettingsCmd,
+    },
     /// Remove Jidr's daemon, MCP entries, caches and logs; `--purge` also
     /// deletes every Jidr device and its private SDK. Never touches Android
     /// Studio's SDK or devices.
@@ -218,7 +223,9 @@ pub enum DeviceCmd {
         /// Data partition in MB.
         #[arg(long)]
         data_mb: Option<u32>,
-        /// Root mode (default: adb where the image allows it).
+        /// Root mode (default: `jidr settings`' default root mode, adb unless
+        /// changed; none where the image doesn't allow adb root). Magisk runs
+        /// the Full-root setup right after creating.
         #[arg(long, value_enum)]
         root: Option<RootModeArg>,
         /// Let AI agents run destructive commands on it.
@@ -285,6 +292,21 @@ pub enum DeviceCmd {
         /// Where to write the zip (default: Jidr's logs folder).
         #[arg(long)]
         zip: Option<PathBuf>,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum SettingsCmd {
+    /// Show the settings.
+    Get,
+    /// Change settings; only the options given change.
+    Set {
+        /// Root mode for `jidr device create` without `--root`.
+        #[arg(long, value_enum)]
+        default_root: Option<RootModeArg>,
+        /// Save a quick-boot snapshot when a device stops (from its next start).
+        #[arg(long)]
+        quick_boot: Option<bool>,
     },
 }
 

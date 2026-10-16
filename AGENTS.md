@@ -46,7 +46,7 @@ See [docs/clean-room.md](docs/clean-room.md). In short: use only Genymotion's pu
 
 ## Protocol
 
-The control protocol is frozen at the git tag `protocol-v0.1` ([docs/control-protocol.md](docs/control-protocol.md)). Any change to the wire format, an existing command's params or result, error codes or event topics needs a row in that file's changelog. New commands from providers are additive; the generated command reference is kept in sync by `cargo nextest run -p jidr-daemon protocol_doc` (`JIDR_UPDATE_DOCS=1` rewrites it). Providers implement `jidr_core::provider::CommandProvider`; tests can run against `jidr_daemon::testing::TestDaemon` (fake backend, fake SDK, offline).
+The control protocol is frozen at the git tag `protocol-v0.1` ([docs/control-protocol.md](docs/control-protocol.md)). Any change to the wire format, an existing command's params or result, error codes or event topics needs a row in that file's changelog. New commands from providers are additive; the generated command reference (every provider `jidr daemon` registers) is kept in sync by `cargo nextest run -p jidr protocol_doc` (`JIDR_UPDATE_DOCS=1` rewrites it). Providers implement `jidr_core::provider::CommandProvider`; tests can run against `jidr_daemon::testing::TestDaemon` (fake backend, fake SDK, offline).
 
 ## Finish checklist (every phase)
 
