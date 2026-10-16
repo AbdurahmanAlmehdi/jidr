@@ -9,6 +9,7 @@ import { Icons } from "../../ui/icons.slint";
 import { T, Role, Tone, Tones, Icon, Spinner, Tag, Button, ButtonKind, Toggle, Kbd } from "../../ui/components/base.slint";
 import { RootBadge } from "../../ui/components/status.slint";
 import { RootKind, RootChoice } from "../../ui/types.slint";
+import { PropsBlock } from "props/props.slint";
 
 /// Which body the Root sheet shows.
 export enum RootSheetState {
@@ -98,6 +99,21 @@ export global RootUi {
     /// "verify", "revert", "set-up" (also Try again), "auto-grant" (value
     /// "true"/"false").
     callback tools-action(string, string);
+
+    // ---- build identity (Phase 9f, Full root): `src/root/props`
+    /// The daemon has `device.props.set`.
+    in property <bool> props-supported;
+    in property <string> props-summary;
+    in property <bool> props-custom;
+    in property <bool> props-editing;
+    in property <[string]> props-values;
+    in property <int> props-error-field: -1;
+    in property <string> props-error;
+    in property <bool> props-pending;
+    in property <bool> props-saving;
+    /// "edit", "cancel", "save", "reset", "restart".
+    callback props-action(string);
+    callback props-edited(int, string);
 }
 
 // ============================================================ Root sheet
@@ -812,5 +828,19 @@ export component RootDevTools inherits VerticalLayout {
                 : RootUi.tools-auto-grant ? @tr("On: every app that asks gets root without a prompt.")
                 : @tr("Off: apps ask and you tap Grant. adb shell is always granted.");
         }
+    }
+    if RootUi.tools-full && RootUi.props-supported: PropsBlock {
+        summary: RootUi.props-summary;
+        custom: RootUi.props-custom;
+        editing: RootUi.props-editing;
+        values: RootUi.props-values;
+        error-field: RootUi.props-error-field;
+        error: RootUi.props-error;
+        pending: RootUi.props-pending;
+        running: RootUi.tools-running;
+        busy: RootUi.tools-busy;
+        saving: RootUi.props-saving;
+        action(a) => { RootUi.props-action(a); }
+        edited(i, v) => { RootUi.props-edited(i, v); }
     }
 }

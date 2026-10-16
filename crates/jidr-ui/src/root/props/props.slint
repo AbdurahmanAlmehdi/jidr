@@ -1,0 +1,199 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Build identity (Phase 9f, Stream C): the build props a Full-root device
+// reports, in the widget panel's Developer tools under the root rows. No
+// design existed; built from the Workbench tokens and the panel's own rows
+// (label + control, 11 px hints, small buttons), mirrored by hand for RTL.
+// `RootDevTools` binds it to `RootUi`; Rust (`src/root/props/mod.rs`) fills it.
+
+import { Theme } from "../../../ui/theme.slint";
+import { Icons } from "../../../ui/icons.slint";
+import { T, Role, Icon, Button, ButtonKind, TextField } from "../../../ui/components/base.slint";
+
+export component PropsBlock inherits VerticalLayout {
+    /// "Stock values" or "Jidr One · jidr · patch 2026-10-05".
+    in property <string> summary;
+    /// Any field set (Reset to stock applies).
+    in property <bool> custom;
+    in property <bool> editing;
+    /// The six values in form order (model, brand, manufacturer, device,
+    /// fingerprint, security patch); read when the form opens.
+    in property <[string]> values;
+    /// The field the daemon refused (-1: none) and why.
+    in property <int> error-field: -1;
+    in property <string> error;
+    /// Saved since this boot: the next start applies them.
+    in property <bool> pending;
+    in property <bool> running;
+    in property <bool> busy;
+    in property <bool> saving;
+    /// "edit", "cancel", "save", "reset", "restart".
+    callback action(string);
+    callback edited(int, string);
+
+    property <[string]> labels: [@tr("Model"), @tr("Brand"), @tr("Manufacturer"), @tr("Device"), @tr("Fingerprint"), @tr("Security patch")];
+    property <[string]> holders: [@tr("Stock"), @tr("Stock"), @tr("Stock"), @tr("Stock"), @tr("Stock"), "YYYY-MM-DD"];
+    spacing: 8px;
+    accessible-role: groupbox;
+    accessible-label: @tr("Build identity");
+
+    // "Build identity" + [Edit…] on the end edge.
+    Rectangle {
+        height: 20px;
+        title := T {
+            x: Theme.rtl ? parent.width - self.width : 0px;
+            width: min(self.preferred-width, parent.width - 90px);
+            text: @tr("Build identity");
+        }
+        if !editing: Button {
+            x: Theme.rtl ? 0px : parent.width - self.width;
+            y: (parent.height - self.height) / 2;
+            small: true;
+            kind: ButtonKind.tertiary;
+            has-icon: true;
+            icon: Icons.sliders-horizontal;
+            enabled: !busy;
+            text: @tr("Edit…");
+            clicked => { root.action("edit"); }
+        }
+    }
+
+    if !editing: T {
+        height: 16px;
+        font-size: 12px;
+        color: custom ? Theme.text-secondary : Theme.text-tertiary;
+        overflow: elide;
+        text: summary;
+    }
+
+    // ---- the form
+    if editing: VerticalLayout {
+        spacing: 8px;
+        for label[i] in labels: VerticalLayout {
+            spacing: 4px;
+            property <bool> mono: i >= 4;
+            T {
+                height: 14px;
+                role: Role.label;
+                font-size: 12px;
+                color: Theme.text-secondary;
+                horizontal-alignment: Theme.rtl ? right : left;
+                text: label;
+            }
+            TextField {
+                text: values[i];
+                placeholder: holders[i];
+                mono: mono;
+                enabled: !saving;
+                focused-look: error-field == i;
+                edited(v) => { root.edited(i, v); }
+                accepted => { root.action("save"); }
+            }
+            if error-field == i: T {
+                height: 14px;
+                font-size: 11px;
+                color: Theme.negative;
+                overflow: elide;
+                horizontal-alignment: Theme.rtl ? right : left;
+                text: error;
+            }
+        }
+        // Wrapped text reports a one-line preferred height in a layout, so
+        // these get room for two lines.
+        if error != "" && error-field < 0: T {
+            height: 30px;
+            font-size: 11px;
+            color: Theme.negative;
+            wrap: word-wrap;
+            overflow: clip;
+            vertical-alignment: top;
+            horizontal-alignment: Theme.rtl ? right : left;
+            text: error;
+        }
+        T {
+            height: 30px;
+            font-size: 11px;
+            color: Theme.text-tertiary;
+            wrap: word-wrap;
+            overflow: clip;
+            vertical-alignment: top;
+            horizontal-alignment: Theme.rtl ? right : left;
+            text: @tr("Empty fields keep the image's value. Changes apply on the next start, which is a cold boot.");
+        }
+        // [Save] [Cancel] … [Reset to stock]
+        Rectangle {
+            height: Theme.control-height-sm;
+            HorizontalLayout {
+                x: Theme.rtl ? parent.width - self.preferred-width : 0px;
+                width: self.preferred-width;
+                spacing: 8px;
+                for slot[j] in 2: Rectangle {
+                    property <int> i: Theme.rtl ? 1 - j : j;
+                    width: i == 0 ? save.width : cancel.width;
+                    save := Button {
+                        visible: i == 0;
+                        small: true;
+                        kind: ButtonKind.primary;
+                        has-icon: true;
+                        icon: Icons.save;
+                        enabled: !saving && !busy;
+                        text: saving ? @tr("Saving…") : @tr("Save");
+                        clicked => { root.action("save"); }
+                    }
+                    cancel := Button {
+                        visible: i == 1;
+                        small: true;
+                        enabled: !saving;
+                        text: @tr("Cancel");
+                        clicked => { root.action("cancel"); }
+                    }
+                }
+            }
+            if custom: Button {
+                x: Theme.rtl ? 0px : parent.width - self.width;
+                small: true;
+                kind: ButtonKind.tertiary;
+                has-icon: true;
+                icon: Icons.undo-2;
+                enabled: !saving && !busy;
+                text: @tr("Reset to stock");
+                clicked => { root.action("reset"); }
+            }
+        }
+    }
+
+    // ---- saved, not applied yet
+    if pending && !editing: Rectangle {
+        height: 30px;
+        border-radius: Theme.radius-md;
+        background: Theme.status-warning-container;
+        border-width: 1px;
+        border-color: Theme.status-warning-border;
+        Icon {
+            x: Theme.rtl ? parent.width - 10px - self.width : 10px;
+            size: Theme.icon-sm;
+            source: Icons.clock;
+            colorize: Theme.status-warning-on-container;
+        }
+        T {
+            x: Theme.rtl ? (running ? restart.width + 12px : 8px) : 30px;
+            width: parent.width - 38px - (running ? restart.width + 4px : 0px);
+            font-size: 12px;
+            color: Theme.status-warning-on-container;
+            overflow: elide;
+            horizontal-alignment: Theme.rtl ? right : left;
+            text: @tr("Applies on the next start");
+        }
+        restart := Button {
+            visible: running;
+            x: Theme.rtl ? 4px : parent.width - self.width - 4px;
+            y: (parent.height - self.height) / 2;
+            small: true;
+            kind: ButtonKind.tertiary;
+            has-icon: true;
+            icon: Icons.rotate-cw;
+            enabled: !busy;
+            text: @tr("Restart now");
+            clicked => { root.action("restart"); }
+        }
+    }
+}
