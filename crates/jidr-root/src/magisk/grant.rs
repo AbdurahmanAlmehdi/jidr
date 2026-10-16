@@ -51,21 +51,19 @@ async fn magisk_binary(adb: &Adb) -> JidrResult<String> {
     ))
 }
 
-/// Waits until the shell answers `id` with the uid `mode` promises.
+/// Waits until the shell answers `id` with the uid `mode` promises. adbd
+/// restarts for `adb root`/`unroot`, and its transport can stay offline
+/// until reconnected (CI: "adbd did not settle to the expected uid").
 async fn wait_adbd(adb: &Adb, want_root: bool) -> JidrResult<()> {
-    let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
-    loop {
-        match adb.shell_status("id -u").await {
-            Ok((_, out)) if (out.trim() == "0") == want_root => return Ok(()),
-            _ => {}
-        }
-        if tokio::time::Instant::now() >= deadline {
-            return Err(JidrError::root_failed(
-                "adbd did not settle to the expected uid",
-            ));
-        }
-        tokio::time::sleep(POLL).await;
-    }
+    crate::adb_ready::until(
+        adb,
+        None,
+        Duration::from_secs(60),
+        "adbd did not settle to the expected uid",
+        "id -u",
+        |out| (out.trim() == "0") == want_root,
+    )
+    .await
 }
 
 /// Runs `adb root` unless the shell is already root.
@@ -74,13 +72,13 @@ pub async fn ensure_adbd_root(adb: &Adb) -> JidrResult<()> {
         Ok((_, out)) if out.trim() == "0" => return Ok(()),
         _ => {}
     }
-    adb.root().await?;
+    crate::adb_ready::switch_adbd(adb, None, true, Duration::from_secs(60)).await?;
     wait_adbd(adb, true).await
 }
 
 /// Runs `adb unroot` so later checks exercise Magisk's `su`, not adbd's root.
 pub async fn drop_adbd_root(adb: &Adb) -> JidrResult<()> {
-    adb.unroot().await?;
+    crate::adb_ready::switch_adbd(adb, None, false, Duration::from_secs(60)).await?;
     wait_adbd(adb, false).await
 }
 
