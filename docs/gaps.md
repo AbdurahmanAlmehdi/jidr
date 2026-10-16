@@ -64,7 +64,7 @@ Keep the summary table and the detail sections in sync. After every edit, bump "
 | R2 | Network profiles with packet loss and bad DNS (`4g-high-losses`, `4g-bad-dns`) | PRO | 🟡 needs root (proven: `tc netem` on `wlan0`) | S–M | High | Post-MVP | Accepted |
 | R3 | Wi-Fi signal strength levels | PRO | 🟠 (✅ mobile bars, proven) | M | High | Phase 8a (mobile) · Post-MVP (Wi-Fi) | Accepted |
 | R4 | Live IMEI / MEID / Device ID change | Free | 🟠 (✅ Android ID with root, proven) | L | Medium | Post-MVP | Accepted |
-| R5 | Build props at creation (MODEL, BRAND, MANUFACTURER, DEVICE, FINGERPRINT, …) | Free | 🟡 Magisk devices only (`-prop` disproven) | M | High | MVP+ (Phase 9f) | Accepted |
+| R5 | Build props at creation (MODEL, BRAND, MANUFACTURER, DEVICE, FINGERPRINT, …) | Free | 🟡 Magisk devices only (`-prop` disproven) | M | High | MVP+ (Phase 9f) | Done (Phase 9f: `device.props.set`, Magisk `resetprop` at `post-fs-data`) |
 | R6 | Disk I/O read-rate limit (High / Mid / Low / custom) | Free | ❌ in guest (proven) · 🟠 host QEMU route unverified | M–L | High (negative) | Post-MVP (moved from MVP+) | Accepted |
 | R7 | Camera / media injection from image and video files | PRO | 🟠 (✅ webcam / still scene, proven) | L | High (native parts) | Phase 8a (webcam) · Post-MVP (files) | Accepted |
 | R8 | Biometric scenarios (recognised, unrecognised, dirty, partial, insufficient, too fast) | All products | 🟠 (✅ recognised/unrecognised, proven) | S native · M rich | High | MVP: Phase 8a (native, D36) · Post-MVP (rich) | Accepted |
