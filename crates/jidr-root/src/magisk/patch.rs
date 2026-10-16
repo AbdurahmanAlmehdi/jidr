@@ -123,12 +123,18 @@ fn config() -> Vec<u8> {
     b"KEEPVERITY=true\nKEEPFORCEENCRYPT=true\nRECOVERYMODE=false\nVENDORBOOT=false\n".to_vec()
 }
 
-/// Builds a patched ramdisk from pristine bytes and a payload.
+/// Builds a patched ramdisk from pristine bytes and a payload. Non-empty
+/// `props` also add the build-prop hook (Phase 9f): `overlay.d/jidr-props.rc`
+/// and its script under `overlay.d/sbin`.
 ///
 /// Only the first (generic) segment is edited: that is where the emulator's
 /// `init` lives, and Magisk's own patcher operates on one cpio archive. The
 /// vendor fragments are left byte-identical.
-pub fn patch_ramdisk(pristine: &[u8], payload: &Payload) -> JidrResult<Vec<u8>> {
+pub fn patch_ramdisk(
+    pristine: &[u8],
+    payload: &Payload,
+    props: &crate::props::BuildProps,
+) -> JidrResult<Vec<u8>> {
     let mut ramdisk = Ramdisk::parse(pristine)
         .map_err(|e| JidrError::root_failed(format!("parsing ramdisk.img: {e}")))?;
     let archive = &mut ramdisk
@@ -168,6 +174,19 @@ pub fn patch_ramdisk(pristine: &[u8], payload: &Payload) -> JidrResult<Vec<u8>> 
     archive.insert(Entry::file("overlay.d/sbin/magisk.xz", 0o644, magisk_xz));
     archive.insert(Entry::file("overlay.d/sbin/stub.xz", 0o644, stub_xz));
     archive.insert(Entry::file("overlay.d/sbin/init-ld.xz", 0o644, init_ld_xz));
+    if !props.is_empty() {
+        use crate::props::{RC, SCRIPT, rc};
+        archive.insert(Entry::file(
+            format!("overlay.d/{RC}"),
+            0o644,
+            rc().into_bytes(),
+        ));
+        archive.insert(Entry::file(
+            format!("overlay.d/sbin/{SCRIPT}"),
+            0o755,
+            props.script().into_bytes(),
+        ));
+    }
     backup(archive, &original)?;
     archive.insert(Entry::dir(".backup", 0));
     archive.insert(Entry::file(".backup/.magisk", 0, config()));
@@ -249,6 +268,13 @@ pub fn write_atomic(path: &Path, bytes: &[u8]) -> JidrResult<()> {
 pub struct Provenance {
     pub magisk_version: String,
     pub pristine_sha256: String,
+    /// The APK the payload came from, so a props change re-patches with the
+    /// same release (absent in patches made before Phase 9f).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub apk_sha256: Option<String>,
+    /// The build props baked in (Phase 9f); stock when absent.
+    #[serde(default, skip_serializing_if = "crate::props::BuildProps::is_empty")]
+    pub props: crate::props::BuildProps,
 }
 
 /// The sidecar metadata file next to a patched ramdisk.
@@ -303,7 +329,7 @@ mod tests {
 
     #[test]
     fn patch_replaces_init_and_adds_magisk_entries() {
-        let patched = patch_ramdisk(&pristine_ramdisk(), &payload()).unwrap();
+        let patched = patch_ramdisk(&pristine_ramdisk(), &payload(), &Default::default()).unwrap();
         let ramdisk = Ramdisk::parse(&patched).unwrap();
         let (idx, init) = ramdisk.get("init").unwrap();
         assert_eq!(idx, 0);
@@ -334,7 +360,7 @@ mod tests {
         // the emulator's real first-stage init and the device never reaches
         // adb (Phase 9d e2e hang).
         let pristine = pristine_ramdisk();
-        let patched = patch_ramdisk(&pristine, &payload()).unwrap();
+        let patched = patch_ramdisk(&pristine, &payload(), &Default::default()).unwrap();
         let ramdisk = Ramdisk::parse(&patched).unwrap();
 
         let (_, backup) = ramdisk.get(".backup/init.xz").unwrap();
@@ -366,15 +392,15 @@ mod tests {
 
     #[test]
     fn patch_is_idempotent_and_deterministic() {
-        let a = patch_ramdisk(&pristine_ramdisk(), &payload()).unwrap();
-        let b = patch_ramdisk(&pristine_ramdisk(), &payload()).unwrap();
+        let a = patch_ramdisk(&pristine_ramdisk(), &payload(), &Default::default()).unwrap();
+        let b = patch_ramdisk(&pristine_ramdisk(), &payload(), &Default::default()).unwrap();
         assert_eq!(a, b);
     }
 
     #[test]
     fn patch_refuses_an_already_patched_ramdisk() {
-        let once = patch_ramdisk(&pristine_ramdisk(), &payload()).unwrap();
-        let err = patch_ramdisk(&once, &payload()).unwrap_err();
+        let once = patch_ramdisk(&pristine_ramdisk(), &payload(), &Default::default()).unwrap();
+        let err = patch_ramdisk(&once, &payload(), &Default::default()).unwrap_err();
         assert_eq!(err.code, ErrorCode::RootFailed);
         assert!(err.message.contains("pristine"), "{err}");
     }
@@ -389,11 +415,48 @@ mod tests {
         let prov = Provenance {
             magisk_version: "30.7".into(),
             pristine_sha256: "a".repeat(64),
+            apk_sha256: Some("b".repeat(64)),
+            props: crate::props::BuildProps {
+                model: Some("Pixel 8".into()),
+                ..Default::default()
+            },
         };
         write_provenance(&path, &prov).unwrap();
         assert_eq!(read_provenance(&path).as_ref(), Some(&prov));
         assert!(provenance_path(&path).ends_with("ramdisk.magisk-30.7.img.json"));
         assert!(read_provenance(&dir.path().join("missing.img")).is_none());
+    }
+
+    /// Phase 9f: props add the rc hook and its script, both listed in
+    /// `.rmlist` so a Magisk restore removes them; stock adds neither.
+    #[test]
+    fn props_add_the_boot_hook() {
+        let props = crate::props::BuildProps {
+            model: Some("Pixel 8".into()),
+            ..Default::default()
+        };
+        let patched = patch_ramdisk(&pristine_ramdisk(), &payload(), &props).unwrap();
+        let ramdisk = Ramdisk::parse(&patched).unwrap();
+        let a = &ramdisk.segments[0].archive;
+        let rc = a.get("overlay.d/jidr-props.rc").unwrap();
+        assert!(String::from_utf8_lossy(&rc.data).contains("on post-fs-data"));
+        let script = a.get("overlay.d/sbin/jidr-props.sh").unwrap();
+        assert_eq!(script.permissions(), 0o755);
+        assert!(String::from_utf8_lossy(&script.data).contains("ro.product.model 'Pixel 8'"));
+        let rmlist = String::from_utf8_lossy(&a.get(".backup/.rmlist").unwrap().data).into_owned();
+        assert!(rmlist.contains("overlay.d/jidr-props.rc"), "{rmlist:?}");
+        assert!(
+            rmlist.contains("overlay.d/sbin/jidr-props.sh"),
+            "{rmlist:?}"
+        );
+
+        let stock = patch_ramdisk(&pristine_ramdisk(), &payload(), &Default::default()).unwrap();
+        let stock = Ramdisk::parse(&stock).unwrap();
+        assert!(
+            !stock.segments[0]
+                .archive
+                .contains("overlay.d/jidr-props.rc")
+        );
     }
 
     #[test]
