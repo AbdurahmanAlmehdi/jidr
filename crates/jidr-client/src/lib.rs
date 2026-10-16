@@ -38,8 +38,8 @@ type Pending = Arc<std::sync::Mutex<HashMap<u64, oneshot::Sender<Response>>>>;
 /// How to start the daemon when none is running (D4: on demand).
 #[derive(Debug, Clone, Default)]
 pub struct SpawnOptions {
-    /// The `jidr` binary. Default: `$JIDR_DAEMON_BIN`, then a `jidr` next to
-    /// the current executable, then `jidr` on `PATH`.
+    /// The `jidr` binary. Default: `$JIDR_DAEMON_BIN`, then the `jidr` shipped
+    /// with the current executable ([`bundled_jidr`]), then `jidr` on `PATH`.
     pub program: Option<PathBuf>,
     /// Replace a daemon of another version instead of failing with `daemon_stale`.
     pub restart_stale: bool,
@@ -57,10 +57,36 @@ impl SpawnOptions {
         }
         std::env::current_exe()
             .ok()
-            .and_then(|exe| exe.parent().map(|d| d.join("jidr")))
-            .filter(|p| p.is_file())
+            .and_then(|exe| bundled_jidr(&exe))
             .unwrap_or_else(|| PathBuf::from("jidr"))
     }
+}
+
+/// The `jidr` binary shipped with `exe`: `Contents/Helpers/jidr` in the macOS
+/// app bundle, else a `jidr` next to it. Never `exe` itself: on the default
+/// case-insensitive APFS volume, `Jidr.app/Contents/MacOS/jidr` *is* the GUI
+/// `MacOS/Jidr`, and spawning the GUI as the daemon makes every copy spawn
+/// another one.
+pub fn bundled_jidr(exe: &Path) -> Option<PathBuf> {
+    let dir = exe.parent()?;
+    [dir.join("../Helpers/jidr"), dir.join("jidr")]
+        .into_iter()
+        .find(|p| p.is_file() && !same_file(p, exe))
+}
+
+/// Whether two paths name the same file on disk (case aliases included).
+#[cfg(unix)]
+fn same_file(a: &Path, b: &Path) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    match (std::fs::metadata(a), std::fs::metadata(b)) {
+        (Ok(a), Ok(b)) => a.dev() == b.dev() && a.ino() == b.ino(),
+        _ => false,
+    }
+}
+
+#[cfg(not(unix))]
+fn same_file(a: &Path, b: &Path) -> bool {
+    matches!((std::fs::canonicalize(a), std::fs::canonicalize(b)), (Ok(a), Ok(b)) if a == b)
 }
 
 pub struct Client {
@@ -400,4 +426,48 @@ fn spawn_daemon(paths: &JidrPaths, opts: &SpawnOptions) -> JidrResult<()> {
 /// the protocol themselves).
 pub fn error_from_rpc(e: &RpcError) -> JidrError {
     e.to_jidr()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::bundled_jidr;
+    use std::path::Path;
+
+    fn touch(p: &Path) {
+        std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+        std::fs::write(p, b"bin").unwrap();
+    }
+
+    #[test]
+    fn the_app_bundle_uses_its_helper() {
+        let tmp = tempfile::tempdir().unwrap();
+        let contents = tmp.path().join("Jidr.app/Contents");
+        touch(&contents.join("MacOS/Jidr"));
+        touch(&contents.join("Helpers/jidr"));
+        let found = bundled_jidr(&contents.join("MacOS/Jidr")).unwrap();
+        assert_eq!(
+            found.canonicalize().unwrap(),
+            contents.join("Helpers/jidr").canonicalize().unwrap()
+        );
+    }
+
+    /// Regression: launching Jidr.app made the GUI spawn itself as the daemon
+    /// (`MacOS/jidr` is `MacOS/Jidr` on case-insensitive APFS), and every copy
+    /// spawned another.
+    #[test]
+    fn never_the_executable_itself() {
+        let tmp = tempfile::tempdir().unwrap();
+        let gui = tmp.path().join("Jidr.app/Contents/MacOS/Jidr");
+        touch(&gui);
+        assert_eq!(bundled_jidr(&gui), None);
+    }
+
+    #[test]
+    fn a_sibling_jidr_outside_a_bundle() {
+        let tmp = tempfile::tempdir().unwrap();
+        let gui = tmp.path().join("bin/jidr-gui");
+        touch(&gui);
+        touch(&tmp.path().join("bin/jidr"));
+        assert_eq!(bundled_jidr(&gui), Some(tmp.path().join("bin/jidr")));
+    }
 }

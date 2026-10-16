@@ -360,11 +360,11 @@ pub fn open(ctx: &std::rc::Rc<crate::app::Ctx>, tab: i32) {
     });
     let c = ctx.clone();
     win.on_add_to_claude(move || {
-        let bin = std::env::current_exe()
-            .ok()
-            .and_then(|e| e.parent().map(|d| d.join("jidr")))
-            .map(|p| p.to_string_lossy().into_owned())
-            .unwrap_or_else(|| "jidr".into());
+        // The CLI that serves MCP, never the GUI itself (see bundled_jidr).
+        let bin = jidr_client::SpawnOptions::default()
+            .program()
+            .to_string_lossy()
+            .into_owned();
         let msg = match claude_config_path() {
             Some(path) => match add_to_claude(&path, &bin) {
                 Ok(()) => "Added Jidr to Claude Desktop. Restart Claude to use it.".to_string(),
