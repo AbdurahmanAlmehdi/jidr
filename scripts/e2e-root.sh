@@ -11,9 +11,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-target/agent-c}"
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-target}"
 cargo build -q -p jidr
-JIDR="$PWD/$CARGO_TARGET_DIR/debug/jidr"
+# CARGO_TARGET_DIR may be absolute (CI, `cargo xtask e2e-mac` callers) or relative.
+case "$CARGO_TARGET_DIR" in /*) TARGET="$CARGO_TARGET_DIR" ;; *) TARGET="$PWD/$CARGO_TARGET_DIR" ;; esac
+JIDR="$TARGET/debug/jidr"
 
 case "$(uname -m)" in arm64|aarch64) ABI=arm64-v8a ;; *) ABI=x86_64 ;; esac
 SDK="${JIDR_TEST_SDK:-${ANDROID_HOME:-$HOME/Library/Android/sdk}}"

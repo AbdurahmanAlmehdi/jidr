@@ -12,7 +12,7 @@ set -euo pipefail
 
 STUDIO_SDK="${JIDR_TEST_SDK:-${ANDROID_HOME:-$HOME/Library/Android/sdk}}"
 STUDIO_AVD="${ANDROID_AVD_HOME:-$HOME/.android/avd}"
-export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-target/agent-a}"
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-target}"
 
 if [ "$#" -eq 0 ]; then
   # Install → use → uninstall --purge on a real emulator, plus the SDK tests.
