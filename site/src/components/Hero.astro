@@ -24,7 +24,7 @@ const meta =
     ) : (
       <div class="cta">
         <a class="btn btn-primary btn-lg" href={links.repo}><Icon name="star" class="ic i16" />{t.hero.star}</a>
-        <a class="btn btn-lg" href={links.sponsors}><Icon name="heart" class="ic i16" />{t.hero.sponsor}</a>
+        {links.sponsors && <a class="btn btn-lg" href={links.sponsors}><Icon name="heart" class="ic i16" />{t.hero.sponsor}</a>}
       </div>
     )
   }

@@ -3,11 +3,14 @@
 
 // "soon" is the 11a coming-soon page (Star and Sponsor, no download); "launch"
 // is the 11b page with the download, agent, CLI and docs sections.
-export const phase: "soon" | "launch" = "launch";
+export const phase: "soon" | "launch" = "soon";
 
-// Planned public links (D1, D25, D26). The org, repo and Sponsors profile don't
-// exist yet; Abdurahman creates them before launch, then only these change.
-const repo = "https://github.com/jidr-dev/jidr";
+// Public links (D1, D25, D26). The repo moves to the `jidr-dev` org before
+// launch (D26); until then it's the current public repo. `sponsors` stays null
+// until a GitHub Sponsors profile exists: the Sponsor buttons and section are
+// hidden while it's null.
+const repo = "https://github.com/AbdurahmanAlmehdi/jidr";
+const sponsors: string | null = null;
 
 // The release the Download buttons point at. `xtask release` names the DMG
 // `Jidr-<version>-arm64.dmg` and `release.yml` tags it `v<version>`. Fill in
@@ -22,7 +25,7 @@ export const release = {
 
 export const links = {
   repo,
-  sponsors: "https://github.com/sponsors/jidr-dev",
+  sponsors,
   releases: `${repo}/releases`,
   dmg: `${repo}/releases/download/v${release.version}/Jidr-${release.version}-arm64.dmg`,
   doc: (path: string) => `${repo}/blob/main/${path}`,
