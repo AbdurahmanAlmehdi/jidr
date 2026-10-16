@@ -1,0 +1,39 @@
+name: Release Please
+
+# Every merge to main updates one open "chore: release vX.Y.Z" pull request:
+# the next version (from conventional commits) and CHANGELOG.md. Merging that
+# pull request tags the version, publishes the GitHub Release and builds the
+# signed, notarized DMG into it (release.yml).
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          # Pull requests opened with the default GITHUB_TOKEN don't trigger
+          # CI. A token from RELEASE_PLEASE_TOKEN (a fine-grained PAT or app
+          # token with contents and pull-requests write) lets the release PR
+          # run the required checks.
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  dmg:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.release-please.outputs.tag_name }}
+    secrets: inherit
