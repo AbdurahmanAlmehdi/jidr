@@ -179,7 +179,7 @@ Coordination: a stream that needs something from another stream's crate files an
 The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent works on them until Abdurahman's research lands in `docs/gaps.md` (D11).
 
 ### Phase 0 (A): Workspace bootstrap
-- **Status:** Not started
+- **Status:** Done
 - **Scope:** Cargo workspace with every crate stubbed, `rust-toolchain.toml`, never-crash clippy policy (`deny(unwrap_used, expect_used, panic)` outside tests), CI (fmt, clippy, tests on macOS + Linux; a Linux KVM job for `--features emulator`), `xtask ci` and `xtask license-check` (fails if `slint` is in the dependency tree of `apps/jidr`), split licensing (D18), `AGENTS.md`/`CLAUDE.md` (rules, finish checklist, stream ownership), `docs/clean-room.md` (allowed sources and log), `docs/gaps.md`, `docs/parity.md` (hand-edited table: Feature | Genymotion tier | Jidr status | Evidence), `docs/decisions/`. All other docs are created by the phase that needs them.
 - **Files touched:** `Cargo.toml`, `crates/*/Cargo.toml` + `src/lib.rs` stubs, `apps/*/`, `xtask/src/{main,license_check}.rs`, `.github/workflows/ci.yml`, `AGENTS.md`, `CLAUDE.md`, `LICENSE-APACHE`, `crates/jidr-ui/LICENSE-GPL`, `apps/jidr-gui/LICENSE-GPL`, `NOTICE`, `docs/{clean-room,gaps,parity}.md`
 - **Acceptance criteria:** `cargo xtask ci` is green; `cargo xtask license-check` fails when `slint` is temporarily added to `apps/jidr` (shown by a test).
@@ -328,14 +328,14 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `cargo nextest run -p jidr-cpio`
 
 ### Phase 9c (C): adb root mode
-- **Status:** Done (arm64 API 31 `google_apis` locally; API 30/33/35 x86_64 run in the Linux KVM CI job once the branch is pushed)
+- **Status:** Done (arm64 API 31 `google_apis` locally; `adb_root_cycle_none_adb_none` passes on API 30/33/35 x86_64 in the Linux KVM CI job, PR #1 run 38713573404)
 - **Scope:** `jidr-root` `CommandProvider`: `root.set {mode: none|adb}`, `root.verify`, `root.status`; adb mode via `adb root` after boot (optional `writable_system` is post-MVP); revert; root-mode tags written into snapshots via `snapshot.*` metadata (request through gaps if 10b isn't ready).
 - **Files touched:** `crates/jidr-root/src/{lib,adb_mode,verify}.rs`
 - **Acceptance criteria:** `none → adb → none` on API 30/33/35 `google_apis`, verified each step.
 - **Validation:** `cargo nextest run -p jidr-root --features emulator -- adb`
 
 ### Phase 9d (C): Magisk mode ★ headline
-- **Status:** Done (offline tests + `cargo xtask ci` pass; the real-emulator e2e — `scripts/e2e-root.sh` on API 30/33/35 x86_64 and `cargo nextest run -p jidr-root --features emulator` — runs on Linux KVM CI once the branch is pushed, and in `xtask e2e-mac` on arm64 before release)
+- **Status:** Done (offline tests + `cargo xtask ci` pass; `magisk_root_cycle_none_magisk_none` (`cargo nextest run -p jidr-root --features emulator`) passes on API 30/33/35 x86_64 in the Linux KVM CI job, PR #1 run 38713573404. CI runs the nextest suite, not `scripts/e2e-root.sh`; that script and arm64 run in `xtask e2e-mac` before release)
 - **Scope:** pinned Magisk release (`assets/magisk-pins.toml`: version, URL, SHA-256), download through the 5b cache, host-side patch with `jidr-cpio` into `<avd>/jidr/ramdisk.magisk-<ver>.img`, launch via `LaunchOptions.ramdisk` + cold boot, app install + env setup + reboot, shell su auto-grant (D22; Play Store path per ADR-0002), verify, revert, re-patch when the pristine hash or the pin changes, Play Integrity notice, `docs/root.md`, and `root.module.install {path}` (`magisk --install-module` + reboot) used by the player's zip drop (D35, R12).
 - **Files touched:** `crates/jidr-root/src/magisk/**`, `assets/magisk-pins.toml`, `docs/root.md`, `scripts/e2e-root.sh`
 - **Acceptance criteria:** `scripts/e2e-root.sh` cycles none → adb → magisk → none on API 30/33/35 `google_apis` and checks `su -c id` = uid=0 in magisk mode; the SDK `ramdisk.img` hash is unchanged at the end. Linux KVM (x86_64) on PRs; arm64 in `xtask e2e-mac` before release.
