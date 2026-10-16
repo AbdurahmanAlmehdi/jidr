@@ -72,13 +72,13 @@ pub async fn ensure_adbd_root(adb: &Adb) -> JidrResult<()> {
         Ok((_, out)) if out.trim() == "0" => return Ok(()),
         _ => {}
     }
-    adb.root().await?;
+    crate::adb_ready::switch_adbd(adb, None, true, Duration::from_secs(60)).await?;
     wait_adbd(adb, true).await
 }
 
 /// Runs `adb unroot` so later checks exercise Magisk's `su`, not adbd's root.
 pub async fn drop_adbd_root(adb: &Adb) -> JidrResult<()> {
-    adb.unroot().await?;
+    crate::adb_ready::switch_adbd(adb, None, false, Duration::from_secs(60)).await?;
     wait_adbd(adb, false).await
 }
 
