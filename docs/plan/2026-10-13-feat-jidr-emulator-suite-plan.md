@@ -342,7 +342,7 @@ The parity map's ⚠️ rows (🔎 research) are **out of MVP scope**. No agent 
 - **Validation:** `scripts/e2e-root.sh`
 
 ### Phase 9f (C, MVP+ — after the MVP, not part of the current goal): Build-prop spoofing
-- **Status:** Not started (MVP+)
+- **Status:** Done (`props_spoof_after_cold_boot_and_stock_after_revert` passes on API 31 arm64 locally: "Jidr One" after the cold boot, `su` still uid 0, stock values after revert; API 30/33/35 x86_64 run in the Linux KVM CI job. The params are `{device, props: {model, brand, manufacturer, device, fingerprint, security_patch}}`, because `device` already selects the device; `device.props.get` reads them back. GUI: Build identity in the dev-tools root section; see log/devlog-c.md)
 - **Scope:** `device.props.set {model, brand, manufacturer, device, fingerprint, securityPatch}` for Full-root devices, applied by a `resetprop` step in the per-device ramdisk's `overlay.d` boot hook from 9d (R5; `-prop` was disproven in the proof run). Identity properties only; never hardware/HAL properties.
 - **Files touched:** `crates/jidr-root/src/props.rs`, `crates/jidr-ui/src/root/props/**`
 - **Acceptance criteria:** after a cold boot, `getprop ro.product.model` returns the configured value on API 30/33/35 `google_apis`; un-patching restores the stock value.
