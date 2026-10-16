@@ -116,14 +116,23 @@ async fn until_with(
             Step::Done => return Ok(()),
             Step::Wait => {}
             Step::Reconnect => {
+                // A stale transport shows as `offline`, or as `device` with a
+                // shell that hangs (CI, API 30: "state: device; last: adb
+                // shell id -u timed out"). `reconnect offline` only drops the
+                // first kind, so also kick this device's own transport.
+                // While the device is still booting it isn't `device` yet,
+                // and kicking it then only slows the reconnect.
                 let _ = host.raw(&["reconnect", "offline"]).await;
+                if adb.serial().is_some() && state(&shell).await == "device" {
+                    let _ = adb
+                        .clone()
+                        .with_timeout(Duration::from_secs(10))
+                        .raw(&["reconnect"])
+                        .await;
+                }
             }
             Step::GiveUp => {
-                let state = shell
-                    .raw(&["get-state"])
-                    .await
-                    .map(|o| format!("{}{}", o.stdout, o.stderr).trim().to_string())
-                    .unwrap_or_default();
+                let state = state(&shell).await;
                 return Err(JidrError::root_failed(format!(
                     "{what}: adb didn't answer within {} s (state: {state}; last: {last})",
                     timeout.as_secs()
@@ -133,6 +142,62 @@ async fn until_with(
         }
         tokio::time::sleep(POLL).await;
     }
+}
+
+/// `adb get-state` for the device: `device`, `offline`, or the error text.
+async fn state(adb: &Adb) -> String {
+    adb.raw(&["get-state"])
+        .await
+        .map(|o| format!("{}{}", o.stdout, o.stderr).trim().to_string())
+        .unwrap_or_default()
+}
+
+/// `adb root` (`root`) or `adb unroot`, once the shell answers.
+///
+/// Regression (CI, API 35): right after a boot the transport was stale and
+/// `adb root` failed with "unable to connect for root: closed". So wait for
+/// the shell first, and when the transport still drops during the call, wait
+/// again and retry once. A refused switch ("production builds") isn't retried.
+/// The caller then waits for the new uid.
+pub async fn switch_adbd(
+    adb: &Adb,
+    cancel: Option<&Cancel>,
+    root: bool,
+    ready: Duration,
+) -> JidrResult<()> {
+    let wait = || {
+        until(
+            adb,
+            cancel,
+            ready,
+            "before switching adbd",
+            "echo ok",
+            |o| o.trim() == "ok",
+        )
+    };
+    let run = || async {
+        if root {
+            adb.root().await
+        } else {
+            adb.unroot().await
+        }
+    };
+    wait().await?;
+    match run().await {
+        Err(e) if transport_dropped(&e) => {
+            wait().await?;
+            run().await
+        }
+        r => r,
+    }
+}
+
+/// adb lost the device mid-call (as opposed to refusing the switch).
+fn transport_dropped(e: &JidrError) -> bool {
+    let m = e.message.to_lowercase();
+    ["unable to connect", "closed", "offline", "no devices"]
+        .iter()
+        .any(|s| m.contains(s))
 }
 
 #[cfg(test)]
@@ -226,5 +291,74 @@ mod tests {
             e.message
         );
         assert!(e.message.contains("state: offline"), "{}", e.message);
+    }
+
+    /// Regression (CI, API 30): adb listed the device as `device` while its
+    /// shell hung, and `reconnect offline` never helped. A fake adb whose
+    /// shell hangs until the device's own transport is reconnected.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_hung_transport_on_a_live_device_is_kicked() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let flag = dir.path().join("kicked");
+        let bin = dir.path().join("adb");
+        std::fs::write(
+            &bin,
+            format!(
+                "#!/bin/sh\nwhile [ \"$1\" = -s ]; do shift 2; done\n\
+                 case \"$1\" in\n\
+                 reconnect) if [ \"$2\" != offline ]; then touch {f}; fi;;\n\
+                 shell) if [ -f {f} ]; then echo ok; else sleep 30; fi;;\n\
+                 get-state) echo device;;\n\
+                 esac\n",
+                f = flag.display()
+            ),
+        )
+        .unwrap();
+        std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let adb = Adb::new(&bin).device("emulator-5554");
+        let wait = Wait::with(s(20.0), s(0.2), s(1.0));
+        let r = until_with(&adb, None, wait, "test", "echo ok", |o| o.trim() == "ok").await;
+        assert!(r.is_ok(), "{r:?}");
+    }
+
+    /// A fake adb whose shell answers, and whose first `adb root` fails the
+    /// way the API 35 CI run did.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_closed_transport_during_adb_root_is_retried() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let tried = dir.path().join("tried");
+        let bin = dir.path().join("adb");
+        std::fs::write(
+            &bin,
+            format!(
+                "#!/bin/sh\nwhile [ \"$1\" = -s ]; do shift 2; done\n\
+                 case \"$1\" in\n\
+                 shell) echo ok;;\n\
+                 root) if [ -f {f} ]; then echo 'restarting adbd as root'; \
+                 else touch {f}; echo 'adb: unable to connect for root: closed' >&2; exit 1; fi;;\n\
+                 esac\n",
+                f = tried.display()
+            ),
+        )
+        .unwrap();
+        std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let adb = Adb::new(&bin).device("emulator-5554");
+        let r = switch_adbd(&adb, None, true, Duration::from_secs(5)).await;
+        assert!(r.is_ok(), "{r:?}");
+        assert!(tried.exists());
+    }
+
+    #[test]
+    fn a_refused_switch_is_not_retried() {
+        assert!(transport_dropped(&JidrError::sdk(
+            "adb root failed: adb: unable to connect for root: closed"
+        )));
+        assert!(!transport_dropped(&JidrError::root_failed(
+            "adb root: adbd cannot run as root in production builds"
+        )));
     }
 }
