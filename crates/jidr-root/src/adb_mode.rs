@@ -11,6 +11,8 @@ use crate::verify::{self, Verification};
 
 /// How long adbd may take to restart under its new uid.
 const RESTART_TIMEOUT: Duration = Duration::from_secs(60);
+/// How long the shell may take to answer before the switch.
+const READY_TIMEOUT: Duration = Duration::from_secs(60);
 const POLL: Duration = Duration::from_millis(500);
 
 /// Switches a running device's adbd to `mode` and verifies it. On failure the
@@ -33,16 +35,19 @@ pub(crate) async fn apply(
 }
 
 async fn switch(ctx: &CallCtx, device: &Device, mode: RootMode) -> JidrResult<Verification> {
-    let adb = verify::device_adb(ctx, device).await?;
-    match mode {
-        RootMode::Adb => adb.root().await?,
-        RootMode::None => adb.unroot().await?,
-        RootMode::Magisk => {
-            return Err(JidrError::usage(
-                "Full root (Magisk) isn't applied through adbd",
-            ));
-        }
+    if mode == RootMode::Magisk {
+        return Err(JidrError::usage(
+            "Full root (Magisk) isn't applied through adbd",
+        ));
     }
+    let adb = verify::device_adb(ctx, device).await?;
+    crate::adb_ready::switch_adbd(
+        &adb,
+        Some(&ctx.cancel),
+        mode == RootMode::Adb,
+        READY_TIMEOUT,
+    )
+    .await?;
     // adbd restarts: the device drops off and comes back. Poll until the shell
     // answers with the uid the mode promises, or time out.
     let deadline = tokio::time::Instant::now() + RESTART_TIMEOUT;

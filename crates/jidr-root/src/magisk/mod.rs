@@ -139,7 +139,23 @@ async fn cold_boot(ctx: &CallCtx, device: &Device) -> JidrResult<Device> {
         ctx.daemon.stop_device(device.id).await?;
     }
     ctx.report(None, "Cold booting");
-    ctx.daemon.start_device(device.id, true, &ctx.cancel).await
+    let device = ctx
+        .daemon
+        .start_device(device.id, true, &ctx.cancel)
+        .await?;
+    // Booted is not yet reachable: the adb transport can stay offline for a
+    // while after a cold boot (CI: "adb: device offline" on the app install).
+    let adb = verify::device_adb(ctx, &device).await?;
+    crate::adb_ready::until(
+        &adb,
+        Some(&ctx.cancel),
+        std::time::Duration::from_secs(90),
+        "after the cold boot",
+        "echo ok",
+        |out| out.trim() == "ok",
+    )
+    .await?;
+    Ok(device)
 }
 
 /// Switches a device to Magisk mode: fetch, patch, set state, cold boot, then
