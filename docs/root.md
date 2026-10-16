@@ -53,10 +53,11 @@ still present).
 
 ## Re-patch
 
-A patched ramdisk records the pristine SHA-256 and the Magisk version it was
-built from. When either changes — an image update, or a newer pinned Magisk —
-the next `root.set magisk` (or the boot hook) rebuilds the patched copy from the
-pristine image. Patches never stack.
+A patched ramdisk records the pristine SHA-256, the Magisk version and APK,
+and the build props it was built from. When the image or the version changes
+(an image update, or a newer pinned Magisk), the next `root.set magisk` (or the
+boot hook) rebuilds the patched copy from the pristine image; a props change
+rebuilds it at once. Patches never stack.
 
 ## Offline Magisk
 
@@ -86,6 +87,39 @@ Magisk's superuser *automatic response* (`su_auto_response`: `2` = grant,
 stopped device it stores the flag and applies it on the next boot. Leaving Full
 root resets the flag to off. The flag is off by default; Play Integrity is
 unaffected.
+
+## Build props (Phase 9f)
+
+A Full-root device can report another identity: `Build.MODEL`, `BRAND`,
+`MANUFACTURER`, `DEVICE`, `FINGERPRINT` and `VERSION.SECURITY_PATCH`. In the
+GUI, open the player's widget panel → More → Developer tools → Build identity.
+From the CLI or an agent:
+
+```bash
+jidr call device.props.set '{"device":"Phone","props":{"model":"Pixel 8","brand":"google","security_patch":"2026-10-05"}}'
+jidr call device.props.get '{"device":"Phone"}'
+jidr call device.props.set '{"device":"Phone","props":{}}'   # back to stock
+```
+
+`props` is the whole set: a field left out (or empty) keeps the image's value.
+Values are trimmed, at most 256 characters, with no line breaks, and
+`security_patch` is `YYYY-MM-DD`. A refused value names its field in
+`error.data.field`.
+
+How it works: the emulator's `-prop` only reaches `qemu.*` properties, so the
+values are applied by Magisk's `resetprop` at boot. `device.props.set` stores
+them in `<avd>/jidr/props.json` and re-patches the per-device ramdisk with the
+same Magisk APK. The patch adds `overlay.d/jidr-props.rc`, which Magisk appends
+to `init.rc`, and a script in `overlay.d/sbin`. At `post-fs-data`, before
+zygote starts, the script runs `resetprop -n` for each property and its
+partition copies (`ro.product.model`, `ro.product.vendor.model`, …). Only
+identity properties are set, never hardware or HAL ones.
+
+The next start applies them, as a cold boot; `restart_required` is true until
+then. Other modes refuse `device.props.set` with `usage`. Reverting root boots
+the stock ramdisk, so the stock values come back, and the stored props are
+dropped. Play Integrity is unaffected: a changed fingerprint doesn't make an
+emulator pass it.
 
 ## Play Store images (beta)
 
