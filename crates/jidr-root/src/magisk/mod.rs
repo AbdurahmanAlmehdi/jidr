@@ -45,12 +45,13 @@ pub fn patched_ramdisk_path(ctx: &CallCtx, device: &Device, version: &str) -> Pa
 
 /// Resolves the Magisk APK: either the pinned release (downloaded through the
 /// 5b cache, verified by SHA-256) or a local `--magisk <path>` imported into
-/// the cache. Returns the APK path and the Magisk version it carries.
+/// the cache. Returns the APK path, its SHA-256 and the Magisk version it
+/// carries.
 async fn resolve_apk(
     ctx: &CallCtx,
     pin: &MagiskPin,
     magisk_sha256: Option<&str>,
-) -> JidrResult<(PathBuf, String)> {
+) -> JidrResult<(PathBuf, String, String)> {
     let cache = DownloadCache::new(ctx.daemon.paths().downloads());
     match magisk_sha256 {
         Some(sha) => {
@@ -61,7 +62,7 @@ async fn resolve_apk(
                 ))
             })?;
             let version = patch::version_from_apk(&apk)?;
-            Ok((apk, version))
+            Ok((apk, sha.to_string(), version))
         }
         None => {
             // A verified cached copy means no download, so the GPL licence and
@@ -88,27 +89,30 @@ async fn resolve_apk(
                     &ctx.cancel,
                 )
                 .await?;
-            Ok((apk, pin.version.clone()))
+            Ok((apk, pin.sha256.clone(), pin.version.clone()))
         }
     }
 }
 
 /// Hashes the pristine ramdisk and rebuilds the patched copy when the pristine
-/// hash or the pinned version differs from what is recorded (patches never
-/// stack). Returns the patched file path.
+/// hash, the Magisk version or the device's build props (Phase 9f) differ
+/// from what is recorded (patches never stack). Returns the patched file path.
 async fn ensure_patched(
     ctx: &CallCtx,
     device: &Device,
     version: &str,
     apk: &Path,
+    apk_sha256: &str,
 ) -> JidrResult<PathBuf> {
     let pristine_path = pristine_ramdisk_path(device);
     let pristine_sha = jidr_sdk::cache::sha256_file(&pristine_path)?;
     let patched = patched_ramdisk_path(ctx, device, version);
+    let props = crate::props::load(ctx, device);
 
     if patched.is_file()
-        && patch::read_provenance(&patched)
-            .is_some_and(|p| p.pristine_sha256 == pristine_sha && p.magisk_version == version)
+        && patch::read_provenance(&patched).is_some_and(|p| {
+            p.pristine_sha256 == pristine_sha && p.magisk_version == version && p.props == props
+        })
     {
         return Ok(patched);
     }
@@ -119,16 +123,62 @@ async fn ensure_patched(
         format!("reading {}", pristine_path.display()),
     )?;
     let payload = patch::load_payload(apk, &device.image.abi)?;
-    let bytes = patch::patch_ramdisk(&pristine, &payload)?;
+    let bytes = patch::patch_ramdisk(&pristine, &payload, &props)?;
     patch::write_atomic(&patched, &bytes)?;
     patch::write_provenance(
         &patched,
         &patch::Provenance {
             magisk_version: version.to_string(),
             pristine_sha256: pristine_sha,
+            apk_sha256: Some(apk_sha256.to_string()),
+            props,
         },
     )?;
     Ok(patched)
+}
+
+/// Rebuilds a Full-root device's patched ramdisk after its build props
+/// changed (Phase 9f), with the same Magisk APK it was patched from (or the
+/// cached pinned release of the same version), and makes the next start a
+/// cold boot. Never downloads.
+pub(crate) async fn repatch(ctx: &CallCtx, device: &Device) -> JidrResult<Device> {
+    let version = device
+        .root
+        .magisk_version
+        .clone()
+        .ok_or_else(|| JidrError::usage(format!("{} has no Magisk patch yet", device.name)))?;
+    let cache = DownloadCache::new(ctx.daemon.paths().downloads());
+    let recorded = device
+        .root
+        .patched_ramdisk_path
+        .as_deref()
+        .and_then(patch::read_provenance)
+        .and_then(|p| p.apk_sha256);
+    let pin = pins::default_pin().ok().filter(|p| p.version == version);
+    let mut found = None;
+    for sha in recorded.into_iter().chain(pin.map(|p| p.sha256)) {
+        if let Some(apk) = cache.get_verified(&sha)? {
+            found = Some((apk, sha));
+            break;
+        }
+    }
+    let (apk, sha) = found.ok_or_else(|| {
+        JidrError::usage(format!(
+            "the Magisk {version} APK isn't in the download cache; run `root.set magisk` again"
+        ))
+    })?;
+    ctx.report(None, "Patching the ramdisk with the build props");
+    let patched = ensure_patched(ctx, device, &version, &apk, &sha).await?;
+    ctx.daemon
+        .update_device(
+            device.id,
+            Box::new(move |d| {
+                d.root.patched_ramdisk_path = Some(patched.clone());
+                d.launch.ramdisk = Some(patched);
+                d.launch.force_cold_boot = true;
+            }),
+        )
+        .await
 }
 
 /// Stops the device if it is running, then cold-boots it. The stored
@@ -174,9 +224,9 @@ async fn to_magisk_inner(
     let adb_root_allowed = device.image.allows_adb_root();
 
     ctx.report(None, "Resolving the Magisk release");
-    let (apk, version) = resolve_apk(ctx, &pin, magisk_sha256).await?;
+    let (apk, apk_sha, version) = resolve_apk(ctx, &pin, magisk_sha256).await?;
 
-    let patched = ensure_patched(ctx, device, &version, &apk).await?;
+    let patched = ensure_patched(ctx, device, &version, &apk, &apk_sha).await?;
     let device = ctx
         .daemon
         .update_device(
@@ -261,6 +311,9 @@ pub(crate) async fn clear_patch(
         let _ = std::fs::remove_file(patched);
         let _ = std::fs::remove_file(patch::provenance_path(patched));
     }
+    // Build props only apply on Full root (Phase 9f); like auto-grant, they
+    // don't survive leaving it.
+    crate::props::clear(ctx, device);
     let device = ctx
         .daemon
         .update_device(
@@ -299,7 +352,7 @@ pub(crate) async fn on_booted(ctx: &CallCtx, device: &Device) -> JidrResult<()> 
         return Ok(());
     };
     let version = pin.version.clone();
-    let Ok(patched) = ensure_patched(ctx, device, &version, &apk).await else {
+    let Ok(patched) = ensure_patched(ctx, device, &version, &apk, &pin.sha256).await else {
         return Ok(());
     };
     // Force the next start to be a cold boot only when the patch actually

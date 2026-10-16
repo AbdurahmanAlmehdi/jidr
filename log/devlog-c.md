@@ -403,3 +403,33 @@ so its cached SharedPreferences re-read the change. Offline tests cover the
 ## Phase 9e: Done (2026-10-16)
 
 - Abdurahman ran the manual one-click Full-root flow on the dev Mac. The first attempt didn't boot because of a daemon launch bug: images in Jidr's private SDK, emulator from Android Studio's (fixed with `-sysdir`, PR #13). With the fix the emulator works. 9e's status is Done.
+
+## Phase 9f: build-prop spoofing — plan (2026-10-16)
+
+On Abdurahman's go-ahead, built in the coordinating session. His choices: the doc fixes (Phase 0, 9c/9d CI runs, G10) go into PR #14, not this PR; I design a small form, because no design exists; saving on a running device applies on the next start (`restart_required`), with a "Restart now" button in the GUI.
+
+Findings that shape it:
+- `-prop` was disproven in the R5 proof run, so the only route is Magisk's `resetprop`. Magisk's public docs ("Root Directory Overlay System") say that `overlay.d/*.rc` is appended to `init.rc`, with `${MAGISKTMP}` replaced by Magisk's tmpfs, and that `overlay.d/sbin/*` is copied into that tmpfs. The docs also say to use `resetprop -n` instead of `setprop` in post-fs-data.
+- `jidr call` (CLI) and `command_run` (MCP) run any provider command, so 9f needs no Stream A changes. The props live in a sidecar under `<avd>/jidr/`, which C owns, not in `jidr-core`'s `Device`.
+- A start clears `launch.force_cold_boot`, so "saved, restart pending" = running && `force_cold_boot`.
+
+Build:
+- `crates/jidr-root/src/props.rs`:
+  - `BuildProps {model, brand, manufacturer, device, fingerprint, security_patch}`. Each field is optional and validated: printable, at most 256 chars; `security_patch` is `YYYY-MM-DD`.
+  - Each field maps onto its `ro.*` property and the partition variants (`ro.product.{,system.,vendor.,product.,odm.,system_ext.}model`, …), identity properties only.
+  - The prop file and the `.rc` hook: `on post-fs-data` → `exec u:r:magisk:s0 root root -- ${MAGISKTMP}/magisk resetprop -n --file ${MAGISKTMP}/jidr.prop`.
+  - Stored as `<avd>/jidr/props.json`.
+- Commands:
+  - `device.props.get {device}` → `{device, props, applies, restart_required}`.
+  - `device.props.set {device, props}`: Full-root only (`usage` otherwise). It stores the props, re-patches the per-device ramdisk and sets `force_cold_boot`. An empty `props` means stock.
+  - `clear_patch` deletes the props when the device leaves Magisk, like auto-grant.
+- Patch: `patch_ramdisk` takes the props and adds `overlay.d/jidr-props.rc` and `overlay.d/sbin/jidr.prop` (both listed in `.rmlist`). The provenance records `props_sha256`, so a change re-patches, and `apk_sha256`, so `device.props.set` re-patches with the same Magisk APK.
+- GUI (`crates/jidr-ui/src/root/props/**`, plus `RootUi` and `RootDevTools` in `root.slint`): an "Identity" block in the dev-tools root section for Full root. Collapsed, it shows "Stock" or a summary with Edit. Expanded, it shows six fields, Save and Reset to stock, and per-field errors. Once saved, "Applies on the next start" shows, with Restart now when the device is running. It's hidden when the daemon doesn't list `device.props.set`.
+- Tests:
+  - unit: validation, the property mapping, the rc/prop file, the patch entries and `.rmlist`, re-patch on a props change, and the GUI view model;
+  - `TestDaemon`: get/set, refusal off Full root, clearing on revert;
+  - emulator `props_emulator` (`props_spoof_after_cold_boot_and_stock_after_revert`): Full root, set the model, cold boot, `getprop ro.product.model`, then revert and check the stock value;
+  - goldens `root-devtools-props` and `root-devtools-props-edit`.
+- Protocol: a changelog row for the two commands and a regenerated reference (after #32 lands, it includes the root provider).
+
+Validation: `cargo nextest run -p jidr-root --features emulator -- props` (API 31 arm64 locally; API 30/33/35 on Linux KVM CI), `snapshot --check`, `cargo xtask ci`.

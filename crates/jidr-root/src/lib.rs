@@ -4,13 +4,16 @@
 //! - `root.status`: the stored root state of a device;
 //! - `root.verify`: checks the live uid (and Magisk version) against the mode;
 //! - `root.set`: switches the mode, live when the device is running;
-//! - `root.module.install`: installs a Magisk module zip on a Magisk device.
+//! - `root.module.install`: installs a Magisk module zip on a Magisk device;
+//! - `device.props.get` / `device.props.set`: a Full-root device's build
+//!   props (Phase 9f, [`props`]).
 //!
 //! adb-mode devices get `adb root` after every boot through
 //! [`CommandProvider::on_booted`]; Magisk devices get a re-patch check.
 
 mod adb_mode;
 mod magisk;
+pub mod props;
 mod verify;
 
 use std::path::PathBuf;
@@ -100,6 +103,15 @@ impl CommandProvider for RootProvider {
                 "Grant every app root without a prompt on a Full-root device (D22, off by default)",
             )
             .locks_device(),
+            CommandSpec::new::<DeviceParams>(
+                "device.props.get",
+                "A device's build props (model, brand, fingerprint…) and whether a restart is pending",
+            ),
+            CommandSpec::new::<props::SetParams>(
+                "device.props.set",
+                "Set a Full-root device's build props; the next start (a cold boot) applies them",
+            )
+            .locks_device(),
         ]
     }
 
@@ -124,6 +136,10 @@ impl CommandProvider for RootProvider {
                 magisk::install_module(ctx, &device, &p.path).await
             }
             "root.auto_grant" => auto_grant(ctx, parse_params(params)?).await,
+            "device.props.get" => {
+                props::get(ctx, &parse_params::<DeviceParams>(params)?.device).await
+            }
+            "device.props.set" => props::set(ctx, parse_params(params)?).await,
             other => Err(JidrError::not_found(format!("unknown method {other}"))),
         }
     }
