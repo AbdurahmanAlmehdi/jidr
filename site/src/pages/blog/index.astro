@@ -1,0 +1,31 @@
+---
+// The blog index: every Markdown post in this folder, newest first.
+import Base from "../../layouts/Base.astro";
+import Nav from "../../components/Nav.astro";
+import Footer from "../../components/Footer.astro";
+import { posts } from "../../posts";
+---
+
+<Base title="Jidr blog: Android emulators on Apple Silicon" description="Guides to rooting, automating and testing with Android emulators on Apple Silicon Macs.">
+  <div class="site jidr-dark" dir="ltr" lang="en">
+    <div class="wrap">
+      <Nav />
+      <main id="main">
+        <section class="lp-hero">
+          <h1>Blog</h1>
+          <p>Guides to rooting, automating and testing with Android emulators on Apple Silicon Macs.</p>
+        </section>
+        <section class="lp-sec post-list">
+          {posts.map((p) => (
+            <article class="feat">
+              <h2 class="post-title"><a href={p.url}>{p.title}</a></h2>
+              <p>{p.description}</p>
+              <p class="post-meta"><time datetime={p.iso}>{p.shown}</time></p>
+            </article>
+          ))}
+        </section>
+      </main>
+      <Footer />
+    </div>
+  </div>
+</Base>

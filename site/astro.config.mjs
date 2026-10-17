@@ -11,4 +11,7 @@ export default defineConfig({
     defaultLocale: "en",
     routing: { prefixDefaultLocale: false },
   },
+  // Blog code blocks: the high-contrast theme keeps every token readable on
+  // the dark page (WCAG AA), which the default github-dark misses.
+  markdown: { shikiConfig: { theme: "github-dark-high-contrast" } },
 });

@@ -37,6 +37,11 @@ Full comparison: https://jidr.ly/vs/genymotion/
 - [Control protocol](https://github.com/AbdurahmanAlmehdi/jidr/blob/main/docs/control-protocol.md)
 - [Feature parity with Genymotion Desktop](https://github.com/AbdurahmanAlmehdi/jidr/blob/main/docs/parity.md)
 
+## Guides
+
+- [How to root the Android emulator on an Apple Silicon Mac](https://jidr.ly/blog/root-android-emulator-apple-silicon/): adb root, Magisk in the ramdisk, verify and revert
+- [Driving an Android emulator from an AI agent over MCP](https://jidr.ly/blog/drive-android-from-an-ai-agent-mcp/): setup for Claude Code and Claude Desktop, the tools, a sample session, safety
+
 ## Optional
 
 - [Planned features](https://github.com/AbdurahmanAlmehdi/jidr/labels/upcoming%20feature)
