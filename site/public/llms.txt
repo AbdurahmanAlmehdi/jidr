@@ -1,0 +1,42 @@
+# Jidr (جذر)
+
+> Jidr is a free, open-source Android emulator manager for Apple Silicon Macs, written in Rust: an open-source alternative to Genymotion Desktop. It creates and runs virtual Android phones and tablets from Google's emulator images, roots them in one click (Shell root with `adb root`, or Full root with Magisk, verified with `su -c id`), and ships a desktop app, a CLI with JSON output and an MCP server for AI agents. No accounts, no telemetry, no paid tier.
+
+Status: pre-release. The first release (v0.1.0) is in preparation; until then Jidr builds from source. Jidr is not affiliated with Google or Genymotion.
+
+## What it does
+
+- Devices: create, clone, start, stop and delete virtual devices (API 29–36, arm64). Jidr keeps its own SDK copy and never modifies Android Studio's SDK or AVDs.
+- Root: None, Shell root (`adb root`) or Full root (Magisk patched into a per-device copy of the ramdisk, then verified). Revert at any time. Play Store images get a guided beta.
+- Widgets: battery, rotation and motion sensors, network (Wi-Fi, mobile data, speed and delay profiles), calls, SMS and signal bars, GPS with GPX/KML route replay, fingerprint, the host webcam as the camera, clipboard, developer toggles.
+- Media and state: PNG screenshots, MP4 recordings, snapshots tagged with the root mode they were taken in.
+- Build identity: set build properties (model, brand, fingerprint) on Full-root devices.
+- Automation: every action is a `jidr` CLI command with `--json` output and stable exit codes; `jidr mcp` lets Claude and other MCP clients see and drive a device (screenshot, tap, type, UI tree, logs).
+
+## Compared with Genymotion Desktop
+
+- Free and open source (Apache-2.0; the desktop app is GPL-3.0-only).
+- Includes features Genymotion sells in paid plans: CLI automation, network speed and delay profiles, GPS route replay, quick boot and a root toggle.
+- Uses Google's official emulator images and the AOSP emulator, run locally on the Mac.
+- Mac only for now (macOS 14 or later on Apple Silicon); no Windows or Linux builds yet.
+- Some Genymotion features are planned but not built yet, such as operator and SIM identity, IMEI changes, disk speed limits and gamepad passthrough.
+
+## Requirements
+
+- macOS 14 or later on Apple Silicon
+- About 10 GB of free disk space for the SDK and one system image
+
+## Docs
+
+- [README](https://github.com/AbdurahmanAlmehdi/jidr#readme): overview, build from source, quick start
+- [CLI reference](https://github.com/AbdurahmanAlmehdi/jidr/blob/main/docs/cli.md)
+- [MCP tools](https://github.com/AbdurahmanAlmehdi/jidr/blob/main/docs/mcp.md)
+- [Root modes](https://github.com/AbdurahmanAlmehdi/jidr/blob/main/docs/root.md)
+- [Control protocol](https://github.com/AbdurahmanAlmehdi/jidr/blob/main/docs/control-protocol.md)
+- [Feature parity with Genymotion Desktop](https://github.com/AbdurahmanAlmehdi/jidr/blob/main/docs/parity.md)
+
+## Optional
+
+- [Planned features](https://github.com/AbdurahmanAlmehdi/jidr/labels/upcoming%20feature)
+- [Contributing](https://github.com/AbdurahmanAlmehdi/jidr/blob/main/CONTRIBUTING.md)
+- [Security policy](https://github.com/AbdurahmanAlmehdi/jidr/blob/main/SECURITY.md)
