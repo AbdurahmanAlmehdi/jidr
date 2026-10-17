@@ -5,8 +5,7 @@
 // is the 11b page with the download, agent, CLI and docs sections.
 export const phase: "soon" | "launch" = "soon";
 
-// Public links (D1, D25, D26). The repo moves to the `jidr-dev` org before
-// launch (D26); until then it's the current public repo. `sponsors` stays null
+// Public links (D1, D25, D26). `sponsors` stays null
 // until a GitHub Sponsors profile exists: the Sponsor buttons and section are
 // hidden while it's null.
 const repo = "https://github.com/AbdurahmanAlmehdi/jidr";

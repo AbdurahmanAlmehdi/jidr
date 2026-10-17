@@ -6,7 +6,7 @@ To change a decision, open an issue that names it and explains why; the change l
 
 | # | Decision |
 |---|---|
-| D1 | Name **Jidr** (جذر, "root"). CLI `jidr`, crates `jidr-*`, app `Jidr.app`, GitHub org `jidr-dev`, site `jidr.ly`. |
+| D1 | Name **Jidr** (جذر, "root"). CLI `jidr`, crates `jidr-*`, app `Jidr.app`, site `jidr.ly`. |
 | D2 | UI toolkit **Slint** (GPLv3 accepted); possible egui migration later. |
 | D3 | Private SDK; Android Studio SDK/AVDs read-only. |
 | D4 | Daemon auto-starts on first client, lives while devices run, exits 10 min after the last stops; no launchd agent. |
@@ -31,7 +31,7 @@ To change a decision, open an issue that names it and explains why; the change l
 | D23 | API 29–36 arm64 supported; 28 best-effort; 25–27 not offered. |
 | D24 | Generic device profile names; SDK device definitions imported as-is. |
 | D25 | No paid tier; GitHub Sponsors (Open Collective later). |
-| D26 | Repo at `github.com/AbdurahmanAlmehdi/jidr`; moves to the `jidr-dev` org before launch. |
+| D26 | Repo stays at `github.com/AbdurahmanAlmehdi/jidr` (the `jidr-dev` org move was dropped on 2026-10-17). The Homebrew cask lives in the `AbdurahmanAlmehdi/homebrew-tap` tap; the MCP Registry name is `io.github.AbdurahmanAlmehdi/jidr`. |
 | D27 | Built in three parallel streams after the core platform: A core platform, B player and widgets, C root, release and site. |
 | D28 | CI: Linux KVM runners (x86_64 images) for emulator tests on every PR; `cargo xtask e2e-mac` on an Apple Silicon Mac (arm64) before release. |
 | D29 | Stop saves a quick-boot snapshot by default; cold boot is separate; root changes force a cold boot; root-tagged snapshots. |
