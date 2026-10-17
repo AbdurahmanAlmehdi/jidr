@@ -20,15 +20,45 @@ import kufi600 from "@fontsource/noto-kufi-arabic/files/noto-kufi-arabic-arabic-
 import "../styles/tokens.css";
 import "../styles/workbench.css";
 import "../styles/site.css";
-import { phase } from "../config";
+import { links, phase, release } from "../config";
 import { locales, strings } from "../i18n";
 
+interface Props {
+  /** Keep the page out of search indexes (the 404 page). */
+  noindex?: boolean;
+  /** Page title and description; the home page's by default. */
+  title?: string;
+  description?: string;
+}
+
 const t = strings(Astro.currentLocale);
-const title = t.title;
-const description = t.description[phase];
+const { noindex = false, title = t.title, description = t.description[phase] } = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site);
 const ogImage = new URL("/og-image.png", Astro.site);
 const alternates = locales.map((l) => ({ lang: l, href: new URL(strings(l).home, Astro.site) }));
+// schema.org data for search engines and AI assistants: only what's true in
+// this phase (no download or version before launch, no ratings).
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Jidr",
+  alternateName: "جذر",
+  description,
+  inLanguage: t.lang,
+  url: new URL(t.home, Astro.site).href,
+  image: ogImage.href,
+  applicationCategory: "DeveloperApplication",
+  applicationSubCategory: "Android emulator",
+  operatingSystem: "macOS 14 or later on Apple Silicon",
+  isAccessibleForFree: true,
+  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+  license: [
+    "https://www.apache.org/licenses/LICENSE-2.0",
+    "https://www.gnu.org/licenses/gpl-3.0.html",
+  ],
+  sameAs: [links.repo],
+  ...(phase === "launch" ? { softwareVersion: release.version, downloadUrl: links.dmg } : {}),
+};
 // The hero's faces (headline, lede, buttons, metaline), fetched with the HTML
 // instead of after the CSS. More preloads only compete with these.
 const fonts = t.lang === "ar" ? [kufi600, kufi400] : [geist700, geist400, geist500, mono400];
@@ -41,7 +71,7 @@ const fonts = t.lang === "ar" ? [kufi600, kufi400] : [geist700, geist400, geist5
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <link rel="canonical" href={canonical} />
+    {noindex ? <meta name="robots" content="noindex" /> : <link rel="canonical" href={canonical} />}
     {alternates.map((a) => <link rel="alternate" hreflang={a.lang} href={a.href} />)}
     <link rel="alternate" hreflang="x-default" href={new URL("/", Astro.site)} />
     {fonts.map((href) => <link rel="preload" href={href} as="font" type="font/woff2" crossorigin />)}
@@ -61,6 +91,8 @@ const fonts = t.lang === "ar" ? [kufi600, kufi400] : [geist700, geist400, geist5
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImage} />
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+    <slot name="head" />
   </head>
   <body>
     <a class="skip-link" href="#main">{t.skip}</a>

@@ -79,6 +79,7 @@ const en = {
     paid: "Paid plan",
     free: "Free",
     fine: "Plans checked 14 October 2026; see genymotion.com for current pricing. Genymotion is a trademark of its owner. Jidr is not affiliated with Genymotion.",
+    more: "Full comparison with Genymotion Desktop →",
   },
   agents: {
     eyebrow: "MCP server",
@@ -213,6 +214,7 @@ const ar: Strings = {
     paid: "خطة مدفوعة",
     free: "مجانًا",
     fine: "راجعنا الخطط في 14 أكتوبر 2026؛ انظر genymotion.com للأسعار الحالية. Genymotion علامة تجارية لمالكها. جذر غير تابع لـ Genymotion.",
+    more: "المقارنة الكاملة مع Genymotion Desktop (بالإنجليزية) ←",
   },
   agents: {
     eyebrow: "خادم MCP",

@@ -1,0 +1,130 @@
+---
+// Jidr vs Genymotion Desktop. Every Jidr status comes from docs/parity.md
+// (backed by tests); Genymotion's tiers come from its public docs and pricing
+// page, checked on the date below. Text only, no logos (clean-room rules).
+// Update this page whenever parity.md or Genymotion's plans change.
+import Base from "../../layouts/Base.astro";
+import Nav from "../../components/Nav.astro";
+import Footer from "../../components/Footer.astro";
+import Icon from "../../components/Icon.astro";
+import { links, phase } from "../../config";
+
+const checked = "14 October 2026";
+const issue = (n: number) => `${links.repo}/issues/${n}`;
+
+type Status = { kind: "yes" | "partly" | "planned" | "no"; note?: string; issue?: number };
+const rows: { feature: string; genymotion: string; jidr: Status }[] = [
+  { feature: "Create, clone and delete devices", genymotion: "Free", jidr: { kind: "yes" } },
+  { feature: "Quick boot", genymotion: "Paid plan", jidr: { kind: "yes" } },
+  { feature: "CLI automation", genymotion: "Paid plan", jidr: { kind: "yes", note: "every action, with --json" } },
+  { feature: "Root toggle (Android 12+)", genymotion: "Paid plan", jidr: { kind: "yes", note: "Shell root (adb root)" } },
+  { feature: "Full root with Magisk, verified", genymotion: "Not offered", jidr: { kind: "yes", note: "one click, revertible" } },
+  { feature: "GPS and GPX/KML route replay", genymotion: "Paid plan (routes)", jidr: { kind: "yes" } },
+  { feature: "Network speed and delay profiles", genymotion: "Paid plan", jidr: { kind: "yes" } },
+  { feature: "Network packet loss and bad DNS", genymotion: "Paid plan", jidr: { kind: "planned", issue: 17 } },
+  { feature: "Calls, SMS and signal bars", genymotion: "Free / Paid plan", jidr: { kind: "yes" } },
+  { feature: "Operator and SIM identity", genymotion: "Paid plan", jidr: { kind: "planned", issue: 16 } },
+  { feature: "Device identifiers (Android ID, IMEI)", genymotion: "Free", jidr: { kind: "planned", issue: 19 } },
+  { feature: "Build properties (model, brand, fingerprint)", genymotion: "Free", jidr: { kind: "yes", note: "Full-root devices" } },
+  { feature: "Disk I/O limits", genymotion: "Free", jidr: { kind: "planned", issue: 20 } },
+  { feature: "Camera injection", genymotion: "Paid plan", jidr: { kind: "partly", note: "host webcam; image and video files planned", issue: 21 } },
+  { feature: "Biometrics", genymotion: "Paid plan", jidr: { kind: "partly", note: "fingerprint touch and lift; more scenarios planned", issue: 22 } },
+  { feature: "Gamepad", genymotion: "Paid plan", jidr: { kind: "planned", issue: 23 } },
+  { feature: "Device Link", genymotion: "Free", jidr: { kind: "no" } },
+  { feature: "Screenshots and screen recording", genymotion: "Free", jidr: { kind: "yes" } },
+  { feature: "Snapshots tagged with their root mode", genymotion: "Not offered", jidr: { kind: "yes" } },
+  { feature: "MCP server for AI agents", genymotion: "Not offered", jidr: { kind: "yes", note: "screenshot, tap, type, UI tree, logs" } },
+];
+const label = { yes: "Yes", partly: "Partly", planned: "Planned", no: "No" };
+
+const faq: [string, string][] = [
+  ["Is Jidr free?", "Yes. Jidr is free and open source, with no paid tier and no account. The desktop app is GPL-3.0-only and everything else is Apache-2.0. Sponsorships fund the work."],
+  ["Does Jidr run on Windows or Linux?", "Not yet. Jidr runs on macOS 14 or later on Apple Silicon. Genymotion Desktop also runs on Windows and Linux, so on those systems it's the option today."],
+  ["Which Android images does Jidr use?", "Google's official Android Emulator system images (API 29 to 36, arm64), downloaded on your Mac under the Android SDK License. Jidr runs them with the AOSP emulator and never modifies Android Studio's SDK."],
+  ["Can Jidr root a device like Genymotion's root toggle?", "Yes, two ways: Shell root (adb root) on images that allow it, and Full root, which patches Magisk into a per-device copy of the ramdisk and verifies it with su -c id. Both revert in one step."],
+  ["Can I use Jidr in CI or from an AI agent?", "Yes. Every action is a jidr CLI command with --json output and stable exit codes, and jidr mcp is an MCP server that lets Claude and other agents see and drive a device."],
+  ["What does Genymotion do that Jidr doesn't?", "Today: Windows and Linux support, operator and SIM identity, IMEI changes, disk I/O limits, network packet loss and bad-DNS profiles, gamepad passthrough, Device Link and file-based camera injection. Most of these are planned; the issue links in the table track them."],
+];
+const faqLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faq.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })),
+};
+
+const title = "Jidr vs Genymotion Desktop: a free, open-source alternative for Mac";
+const description =
+  "How Jidr compares with Genymotion Desktop: features, root, automation, platforms and price, including what Jidr doesn't do yet.";
+---
+
+<Base title={title} description={description}>
+  <script slot="head" type="application/ld+json" set:html={JSON.stringify(faqLd)} />
+  <div class="site jidr-dark" dir="ltr" lang="en">
+    <div class="wrap">
+      <Nav />
+      <main id="main">
+        <section class="lp-hero">
+          <h1>Jidr vs Genymotion Desktop</h1>
+          <p>Jidr is a free, open-source alternative to Genymotion Desktop for Apple Silicon Macs, with one-click rooted devices, a CLI and an MCP server for AI agents. Here's how they compare, including what Jidr doesn't do yet.</p>
+          <div class="cta">
+            {phase === "launch"
+              ? <a class="btn btn-primary btn-lg" href={links.dmg}><Icon name="download" class="ic i16" />Download for Mac</a>
+              : <a class="btn btn-primary btn-lg" href={links.repo}><Icon name="star" class="ic i16" />Star on GitHub</a>}
+            <a class="btn btn-lg" href="/">About Jidr</a>
+          </div>
+        </section>
+
+        <section class="lp-sec">
+          <h2 class="lp-h2">The short answer</h2>
+          <div class="fgrid">
+            <div class="feat">
+              <h4 aria-level="3">Choose Jidr if</h4>
+              <p>You're on an Apple Silicon Mac and want rooted devices (including Magisk), CLI or CI automation, or an AI agent driving the device, without a paid plan or an account.</p>
+            </div>
+            <div class="feat">
+              <h4 aria-level="3">Choose Genymotion if</h4>
+              <p>You need Windows or Linux, cloud devices, commercial support, or one of the features Jidr hasn't built yet: operator and SIM identity, IMEI changes, disk I/O limits, gamepad or Device Link.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="lp-sec">
+          <h2 class="lp-h2">Feature by feature</h2>
+          <div class="tblbox">
+            <table class="cmpt">
+              <thead><tr><th scope="col">Feature</th><th scope="col">Genymotion Desktop</th><th scope="col">Jidr</th></tr></thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr>
+                    <td>{r.feature}</td>
+                    <td><span class="paid">{r.genymotion}</span></td>
+                    <td>
+                      {r.jidr.kind === "yes"
+                        ? <span class="yes"><Icon name="check" class="ic i14" />{label.yes}</span>
+                        : <span class="paid">{label[r.jidr.kind]}</span>}
+                      {r.jidr.note && <span class="paid"> · {r.jidr.note}</span>}
+                      {r.jidr.issue && <a class="doc-link" href={issue(r.jidr.issue)}> #{r.jidr.issue}</a>}
+                    </td>
+                  </tr>
+                ))}
+                <tr><td>Platforms</td><td><span class="paid">Windows, macOS, Linux</span></td><td><span class="paid">macOS 14+ on Apple Silicon</span></td></tr>
+                <tr><td>Licence</td><td><span class="paid">Proprietary</span></td><td><span class="paid">Open source (Apache-2.0, app GPL-3.0)</span></td></tr>
+                <tr><td>Price</td><td><span class="paid">Free tier and paid plans</span></td><td><span class="yes"><Icon name="check" class="ic i14" />Free</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="fine" style="margin:0">Genymotion tiers checked {checked} against genymotion.com and docs.genymotion.com; see there for current plans. Jidr statuses come from <a class="doc-link" href={links.doc("docs/parity.md")}>the parity table</a>, where every “Yes” cites a test. Genymotion is a trademark of its owner. Jidr is not affiliated with Genymotion or Google.</p>
+        </section>
+
+        <section class="lp-sec">
+          <h2 class="lp-h2">Questions</h2>
+          <div class="fgrid">
+            {faq.map(([q, a]) => (
+              <div class="feat"><h4 aria-level="3">{q}</h4><p>{a}</p></div>
+            ))}
+          </div>
+        </section>
+      </main>
+      <Footer />
+    </div>
+  </div>
+</Base>
