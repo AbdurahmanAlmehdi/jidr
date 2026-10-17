@@ -1,0 +1,47 @@
+---
+// A blog post: Markdown pages in src/pages/blog/ name this layout in their
+// frontmatter (title, description, date). English only, like /vs/genymotion/.
+import Base from "./Base.astro";
+import Nav from "../components/Nav.astro";
+import Footer from "../components/Footer.astro";
+import { links } from "../config";
+import { postDate } from "../dates";
+
+interface Props {
+  frontmatter: { title: string; description: string; date: string | Date };
+}
+
+const { title, description, date } = Astro.props.frontmatter;
+const { iso, shown } = postDate(date);
+const canonical = new URL(Astro.url.pathname, Astro.site).href;
+const posting = {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  headline: title,
+  description,
+  datePublished: iso,
+  url: canonical,
+  mainEntityOfPage: canonical,
+  image: new URL("/og-image.png", Astro.site).href,
+  inLanguage: "en",
+  author: { "@type": "Organization", name: "Jidr contributors", url: links.repo },
+  publisher: { "@type": "Organization", name: "Jidr", url: new URL("/", Astro.site).href },
+};
+---
+
+<Base title={`${title} · Jidr`} description={description}>
+  <script slot="head" type="application/ld+json" set:html={JSON.stringify(posting)} />
+  <div class="site jidr-dark" dir="ltr" lang="en">
+    <div class="wrap">
+      <Nav />
+      <main id="main">
+        <article class="post">
+          <p class="post-meta"><a href="/blog/">Blog</a> · <time datetime={iso}>{shown}</time></p>
+          <h1>{title}</h1>
+          <slot />
+        </article>
+      </main>
+      <Footer />
+    </div>
+  </div>
+</Base>
