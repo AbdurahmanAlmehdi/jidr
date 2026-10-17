@@ -57,6 +57,7 @@ claude mcp add jidr -- jidr mcp
 - [Control protocol](docs/control-protocol.md): the JSON-RPC protocol the app, the CLI and the MCP server share
 - [Design system](docs/design/README.md)
 - [Decisions](docs/decisions/log.md) and [architecture decision records](docs/decisions/)
+- [Feature parity with Genymotion Desktop](docs/parity.md)
 - [Clean-room policy](docs/clean-room.md)
 
 ## Licensing
