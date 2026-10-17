@@ -10,8 +10,9 @@
 //! `notarytool`), so xtask needs no new dependencies. With
 //! `JIDR_SIGNING_IDENTITY` set, the app gets a hardened-runtime Developer ID
 //! signature and the DMG is signed, notarized and stapled by
-//! `packaging/macos/sign.sh` (which also needs `APPLE_ID`, `APPLE_TEAM_ID` and
-//! `APPLE_APP_PASSWORD`). Without it, or with `--dry-run`, the build is ad-hoc
+//! `packaging/macos/sign.sh` (which also needs an App Store Connect API key:
+//! `NOTARY_KEY_PATH`, `NOTARY_KEY_ID`, `NOTARY_ISSUER_ID`). Without it, or with
+//! `--dry-run`, the build is ad-hoc
 //! signed and CI gets a warning (D32).
 
 use std::path::{Path, PathBuf};

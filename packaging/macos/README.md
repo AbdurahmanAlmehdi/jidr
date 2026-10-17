@@ -34,13 +34,15 @@ Repository secrets for signing (without them the DMG is ad-hoc signed and the ru
 
 | Secret | Value |
 |---|---|
-| `APPLE_DEVELOPER_ID_CERT` | the Developer ID Application certificate and its private key, exported from Keychain Access as a `.p12`, base64-encoded (`base64 -i cert.p12`) |
-| `APPLE_DEVELOPER_ID_CERT_PASSWORD` | the password chosen when exporting the `.p12` |
-| `APPLE_ID` | the Apple ID used for notarization |
-| `APPLE_TEAM_ID` | the 10-character team ID |
-| `APPLE_APP_PASSWORD` | an app-specific password for that Apple ID (account.apple.com), never the account password |
+| `MAC_DEVELOPER_ID_P12_BASE64` | the Developer ID Application certificate and its private key, exported from Keychain Access as a `.p12`, base64-encoded |
+| `MAC_DEVELOPER_ID_P12_PASSWORD` | the password chosen when exporting the `.p12` |
+| `MAC_NOTARY_KEY_P8_BASE64` | an App Store Connect API key (`.p8`, from App Store Connect › Users and Access › Integrations), base64-encoded |
+| `MAC_NOTARY_KEY_ID` | that key's ID |
+| `MAC_NOTARY_ISSUER_ID` | that key's issuer ID |
 | `RELEASE_PLEASE_TOKEN` | optional: a fine-grained token with contents and pull-requests write, so the release PR runs CI |
 
-To sign locally: `JIDR_SIGNING_IDENTITY="Developer ID Application: Name (TEAMID)" APPLE_ID=… APPLE_TEAM_ID=… APPLE_APP_PASSWORD=… cargo xtask release --scan`. The Homebrew cask (`packaging/homebrew/jidr.rb`) is still a template.
+Set them without printing anything, for example `base64 -i developer-id.p12 | gh secret set MAC_DEVELOPER_ID_P12_BASE64`, and check the file exists first: if `base64` fails, `gh` stores an empty secret.
+
+To sign and notarize locally: `JIDR_SIGNING_IDENTITY="Developer ID Application: Name (TEAMID)" NOTARY_KEY_PATH=path/to/AuthKey.p8 NOTARY_KEY_ID=… NOTARY_ISSUER_ID=… cargo xtask release --scan`. The Homebrew cask (`packaging/homebrew/jidr.rb`) is still a template.
 
 The scan fails the build if the bundle or the DMG contains Google SDK binaries, system images or Magisk. Jidr downloads those on the user's machine, never ships them.
