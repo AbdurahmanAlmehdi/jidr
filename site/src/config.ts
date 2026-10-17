@@ -16,7 +16,7 @@ const sponsors: string | null = null;
 // `Jidr-<version>-arm64.dmg` and `release.yml` tags it `v<version>`. Fill in
 // the size and the SHA-256 from the published release's SHA256SUMS.txt.
 export const release = {
-  version: "0.1.0",
+  version: "0.1.0", // x-release-please-version
   sizeMb: "[size]",
   sha256: "[checksum]",
   // The Homebrew cask ships with signing and notarization (Phase 12b).

@@ -1,4 +1,4 @@
-//! `cargo xtask release`: the macOS release artifacts (Phase 12a).
+//! `cargo xtask release`: the macOS release artifacts (Phases 12a and 12b).
 //!
 //! Builds `jidr` and `jidr-gui` in release mode, assembles `Jidr.app`, packs
 //! `Jidr-<version>-arm64.dmg`, mounts it to prove it opens, and writes
@@ -6,10 +6,14 @@
 //! anything Jidr must never ship: Google SDK binaries, system images or
 //! Magisk (NOTICE, clean-room rules).
 //!
-//! Only system tools are used (`codesign`, `hdiutil`, `plutil`, `shasum`), so
-//! xtask needs no new dependencies. Developer ID signing and notarization are
-//! Phase 12b; until the secrets exist the build is ad-hoc signed and CI gets a
-//! warning (D32).
+//! Only system tools are used (`codesign`, `hdiutil`, `plutil`, `shasum`,
+//! `notarytool`), so xtask needs no new dependencies. With
+//! `JIDR_SIGNING_IDENTITY` set, the app gets a hardened-runtime Developer ID
+//! signature and the DMG is signed, notarized and stapled by
+//! `packaging/macos/sign.sh` (which also needs an App Store Connect API key:
+//! `NOTARY_KEY_PATH`, `NOTARY_KEY_ID`, `NOTARY_ISSUER_ID`). Without it, or with
+//! `--dry-run`, the build is ad-hoc
+//! signed and CI gets a warning (D32).
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -25,7 +29,8 @@ usage: cargo xtask release [--dry-run] [--scan] [--out <dir>]
   --scan      fail if the artifacts contain Google SDK binaries, system images or Magisk
   --out DIR   output directory (default: <target>/release-artifacts)";
 
-/// Env var that will carry the Developer ID identity in CI (Phase 12b).
+/// Env var with the Developer ID identity, e.g.
+/// `Developer ID Application: Name (TEAMID)` (Phase 12b).
 const SIGNING_IDENTITY_ENV: &str = "JIDR_SIGNING_IDENTITY";
 
 #[derive(Debug, Default, PartialEq)]
@@ -93,7 +98,10 @@ pub fn run(args: &[String]) -> Result<()> {
     let staging = out.join("staging");
     let app = staging.join("Jidr.app");
     assemble_app(&root, &bin, &app, &version)?;
-    sign(&app, &opts)?;
+    let identity = std::env::var(SIGNING_IDENTITY_ENV).ok();
+    let signing = signing_mode(identity.as_deref(), opts.dry_run);
+    let sign_script = root.join("packaging/macos/sign.sh");
+    sign(&app, &signing, &sign_script)?;
     std::os::unix::fs::symlink("/Applications", staging.join("Applications"))
         .context("linking /Applications into the DMG")?;
 
@@ -115,6 +123,10 @@ pub fn run(args: &[String]) -> Result<()> {
             &path_str(&dmg)?,
         ],
     )?;
+    if signing == Signing::DeveloperId {
+        // Sign, notarize and staple before the checksum is taken.
+        tool("bash", &[&path_str(&sign_script)?, "dmg", &path_str(&dmg)?])?;
+    }
 
     let mut findings = Vec::new();
     if opts.scan {
@@ -248,21 +260,35 @@ fn render_plist(template: &str, version: &str) -> Result<String> {
     Ok(template.replace("@VERSION@", version))
 }
 
-/// Ad-hoc signature, inside-out. Developer ID signing is Phase 12b.
-fn sign(app: &Path, opts: &Options) -> Result<()> {
-    let identity = std::env::var(SIGNING_IDENTITY_ENV)
-        .ok()
-        .filter(|s| !s.is_empty());
-    let message = match (&identity, opts.dry_run) {
-        (_, true) => "dry run: the app is ad-hoc signed only",
-        (Some(_), false) => {
-            "Developer ID signing and notarization arrive in Phase 12b; this release is ad-hoc signed"
+/// How the release is signed.
+#[derive(Debug, PartialEq)]
+enum Signing {
+    /// Hardened runtime with the Developer ID identity, then notarization.
+    DeveloperId,
+    /// Ad-hoc only, with the reason shown as a warning.
+    AdHoc(&'static str),
+}
+
+fn signing_mode(identity: Option<&str>, dry_run: bool) -> Signing {
+    match (identity.filter(|s| !s.is_empty()), dry_run) {
+        (_, true) => Signing::AdHoc("dry run: the app is ad-hoc signed only"),
+        (Some(_), false) => Signing::DeveloperId,
+        (None, false) => Signing::AdHoc(
+            "Apple Developer ID secrets are missing; this release is unsigned (ad-hoc). Users open it from System Settings › Privacy & Security › Open Anyway (D32)",
+        ),
+    }
+}
+
+/// Signs the app inside-out: with the Developer ID through `sign.sh`, or
+/// ad-hoc.
+fn sign(app: &Path, signing: &Signing, sign_script: &Path) -> Result<()> {
+    let message = match signing {
+        Signing::DeveloperId => {
+            return tool("bash", &[&path_str(sign_script)?, "app", &path_str(app)?]);
         }
-        (None, false) => {
-            "Apple Developer ID secrets are missing; this release is unsigned (ad-hoc). Users open it with right-click → Open (D32)"
-        }
+        Signing::AdHoc(message) => message,
     };
-    if std::env::var_os("GITHUB_ACTIONS").is_some() && !opts.dry_run {
+    if std::env::var_os("GITHUB_ACTIONS").is_some() && !message.starts_with("dry run") {
         println!("::warning::{message}");
     } else {
         println!("xtask: warning: {message}");
@@ -444,6 +470,20 @@ fn contains(haystack: &[u8], needle: &[u8]) -> bool {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn signing_follows_the_identity_and_dry_run() {
+        use super::{Signing, signing_mode};
+        assert_eq!(
+            signing_mode(Some("Developer ID Application: A (T)"), false),
+            Signing::DeveloperId
+        );
+        assert!(
+            matches!(signing_mode(Some("Developer ID Application: A (T)"), true), Signing::AdHoc(m) if m.starts_with("dry run"))
+        );
+        assert!(matches!(signing_mode(None, false), Signing::AdHoc(m) if m.contains("missing")));
+        assert!(matches!(signing_mode(Some(""), false), Signing::AdHoc(_)));
+    }
+
     use super::*;
 
     #[test]

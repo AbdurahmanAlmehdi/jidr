@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
-# Developer ID signing and notarization (Phase 12b, D32). Prepared but not
-# wired into `cargo xtask release` yet: it needs the maintainer's Developer ID
-# certificate and notarization credentials.
+# Developer ID signing and notarization (Phase 12b, D32). `cargo xtask release`
+# runs it when JIDR_SIGNING_IDENTITY is set: `app` before the DMG is built,
+# `dmg` after.
 #
 #   packaging/macos/sign.sh app Jidr.app        # hardened runtime, inside-out
 #   packaging/macos/sign.sh dmg Jidr-X-arm64.dmg # sign, notarize, staple
 #
 # Environment:
 #   JIDR_SIGNING_IDENTITY   "Developer ID Application: <Name> (<TEAMID>)"
-#   APPLE_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD   notarytool credentials
-#                           (an app-specific password, never the account password)
+#   NOTARY_KEY_PATH         App Store Connect API key (.p8) for notarytool
+#   NOTARY_KEY_ID           its key ID
+#   NOTARY_ISSUER_ID        its issuer ID
 set -euo pipefail
 
 die() { echo "sign.sh: $*" >&2; exit 1; }
@@ -34,15 +35,20 @@ case "$kind" in
         codesign --verify --strict --verbose=2 "$target"
         ;;
     dmg)
-        need APPLE_ID
-        need APPLE_TEAM_ID
-        need APPLE_APP_PASSWORD
+        need NOTARY_KEY_PATH
+        need NOTARY_KEY_ID
+        need NOTARY_ISSUER_ID
+        [ -f "$NOTARY_KEY_PATH" ] || die "NOTARY_KEY_PATH $NOTARY_KEY_PATH does not exist"
         sign "$target"
-        xcrun notarytool submit "$target" \
-            --apple-id "$APPLE_ID" \
-            --team-id "$APPLE_TEAM_ID" \
-            --password "$APPLE_APP_PASSWORD" \
-            --wait
+        result=$(xcrun notarytool submit "$target" \
+            --key "$NOTARY_KEY_PATH" \
+            --key-id "$NOTARY_KEY_ID" \
+            --issuer "$NOTARY_ISSUER_ID" \
+            --wait 2>&1) || die "notarytool failed: $result"
+        echo "$result"
+        # Check Apple's verdict, not only notarytool's exit code.
+        grep -q "status: Accepted" <<<"$result" \
+            || die "notarization was not accepted; run 'xcrun notarytool log <id>' with the same key for details"
         xcrun stapler staple "$target"
         ;;
     *)
