@@ -2891,7 +2891,7 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
 name = "jidr"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "assert_cmd",
  "clap",
@@ -2915,7 +2915,7 @@ dependencies = [
 
 [[package]]
 name = "jidr-adb"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "jidr-core",
  "schemars",
@@ -2927,7 +2927,7 @@ dependencies = [
 
 [[package]]
 name = "jidr-backend"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -2947,7 +2947,7 @@ dependencies = [
 
 [[package]]
 name = "jidr-client"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "jidr-backend",
  "jidr-core",
@@ -2961,7 +2961,7 @@ dependencies = [
 
 [[package]]
 name = "jidr-core"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -2975,7 +2975,7 @@ dependencies = [
 
 [[package]]
 name = "jidr-cpio"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "flate2",
  "liblzma",
@@ -2986,7 +2986,7 @@ dependencies = [
 
 [[package]]
 name = "jidr-daemon"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3007,7 +3007,7 @@ dependencies = [
 
 [[package]]
 name = "jidr-gui"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "jidr-ui",
  "tracing-subscriber",
@@ -3015,7 +3015,7 @@ dependencies = [
 
 [[package]]
 name = "jidr-mcp"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "base64 0.22.1",
  "jidr-adb",
@@ -3036,7 +3036,7 @@ dependencies = [
 
 [[package]]
 name = "jidr-proto"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "prost",
  "tempfile",
@@ -3047,7 +3047,7 @@ dependencies = [
 
 [[package]]
 name = "jidr-root"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3069,7 +3069,7 @@ dependencies = [
 
 [[package]]
 name = "jidr-sdk"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "dirs",
@@ -3094,7 +3094,7 @@ dependencies = [
 
 [[package]]
 name = "jidr-ui"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "dirs",
@@ -3119,7 +3119,7 @@ dependencies = [
 
 [[package]]
 name = "jidr-widgets"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "async-trait",
  "block2 0.6.2",
@@ -7670,7 +7670,7 @@ checksum = "ec7a2a501ed189703dba8b08142f057e887dfc4b2cc4db2d343ac6376ba3e0b9"
 
 [[package]]
 name = "xtask"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "serde",
