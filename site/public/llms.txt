@@ -15,6 +15,8 @@ Status: pre-release. The first release (v0.1.0) is in preparation; until then Ji
 
 ## Compared with Genymotion Desktop
 
+Full comparison: https://jidr.ly/vs/genymotion/
+
 - Free and open source (Apache-2.0; the desktop app is GPL-3.0-only).
 - Includes features Genymotion sells in paid plans: CLI automation, network speed and delay profiles, GPS route replay, quick boot and a root toggle.
 - Uses Google's official emulator images and the AOSP emulator, run locally on the Mac.

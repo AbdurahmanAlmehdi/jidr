@@ -26,12 +26,13 @@ import { locales, strings } from "../i18n";
 interface Props {
   /** Keep the page out of search indexes (the 404 page). */
   noindex?: boolean;
+  /** Page title and description; the home page's by default. */
+  title?: string;
+  description?: string;
 }
 
-const { noindex = false } = Astro.props;
 const t = strings(Astro.currentLocale);
-const title = t.title;
-const description = t.description[phase];
+const { noindex = false, title = t.title, description = t.description[phase] } = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site);
 const ogImage = new URL("/og-image.png", Astro.site);
 const alternates = locales.map((l) => ({ lang: l, href: new URL(strings(l).home, Astro.site) }));
@@ -91,6 +92,7 @@ const fonts = t.lang === "ar" ? [kufi600, kufi400] : [geist700, geist400, geist5
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImage} />
     <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+    <slot name="head" />
   </head>
   <body>
     <a class="skip-link" href="#main">{t.skip}</a>

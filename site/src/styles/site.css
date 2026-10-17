@@ -83,3 +83,8 @@ body {
 .site[dir="rtl"] :is(.lp-hero h1, .lfoot h5, .doc b, b, strong) {
   font-weight: var(--jidr-font-weight-semibold);
 }
+
+/* Text links in sections (the comparison page, "Full comparison →"). */
+.doc-link {
+  color: var(--jidr-color-accent-text);
+}
