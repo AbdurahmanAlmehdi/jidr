@@ -1,13 +1,15 @@
 # macOS packaging
 
-`cargo xtask release` (in `xtask/src/release.rs`) builds `Jidr.app` and `Jidr-<version>-arm64.dmg` from this folder.
+`cargo xtask release` (in `xtask/src/release.rs`) builds `Jidr.app`, `Jidr-<version>-arm64.dmg` and the MCP bundle `jidr-mcp-<version>-darwin-arm64.mcpb` from this folder and `../mcp`.
 
 | File | What |
 |---|---|
 | `Info.plist.in` | bundle metadata; `@VERSION@` becomes the workspace version |
 | `sign.sh` | Developer ID signing (hardened runtime, inside-out) and DMG notarization + staple; `cargo xtask release` calls it when `JIDR_SIGNING_IDENTITY` is set |
 | `verify.sh` | Gatekeeper, hardened runtime and the stapled ticket; the release workflow runs it on signed builds. Fails on ad-hoc builds, as expected |
-| `../homebrew/jidr.rb` | 12b: cask template for the future tap |
+| `../homebrew/jidr.rb` | cask template; `release.yml` fills in the version and checksum and pushes it to `AbdurahmanAlmehdi/homebrew-tap` |
+| `../mcp/manifest.json` | MCPB manifest (`@VERSION@`); the bundle holds it, the signed `jidr` as `server/jidr`, the icon and the licences. `jidr-mcp`'s tests check its tool list |
+| `../../server.json` | MCP Registry entry; `release.yml` points it at the release's `.mcpb` and publishes it |
 
 Bundle layout:
 
@@ -28,7 +30,7 @@ cargo xtask release --dry-run --scan    # local build, DMG, mount check, forbidd
 
 ## Releases and signing (D32)
 
-Releases are cut by release-please: every merge to `main` updates a "chore: release vX.Y.Z" pull request (version from conventional commits, `CHANGELOG.md`). Merging it tags the version and publishes the GitHub Release; `.github/workflows/release.yml` then builds the DMG on macOS, signs and notarizes it, runs `verify.sh` and uploads the DMG and `SHA256SUMS.txt` to the release.
+Releases are cut by release-please: every merge to `main` updates a "chore: release vX.Y.Z" pull request (version from conventional commits, `CHANGELOG.md`). Merging it tags the version and publishes the GitHub Release; `.github/workflows/release.yml` then builds the DMG and the `.mcpb` on macOS, signs and notarizes them, runs `verify.sh` and uploads both with `SHA256SUMS.txt`. For a signed build it then pushes `Casks/jidr.rb` to the tap (`brew install --cask abdurahmanalmehdi/tap/jidr`) and publishes `server.json` to the [MCP Registry](https://registry.modelcontextprotocol.io) with GitHub OIDC.
 
 Repository secrets for signing (without them the DMG is ad-hoc signed and the run warns; users then open the app from System Settings › Privacy & Security › Open Anyway):
 
@@ -40,9 +42,10 @@ Repository secrets for signing (without them the DMG is ad-hoc signed and the ru
 | `MAC_NOTARY_KEY_ID` | that key's ID |
 | `MAC_NOTARY_ISSUER_ID` | that key's issuer ID |
 | `RELEASE_PLEASE_TOKEN` | optional: a fine-grained token with contents and pull-requests write, so the release PR runs CI |
+| `HOMEBREW_TAP_TOKEN` | a fine-grained token with contents write on `AbdurahmanAlmehdi/homebrew-tap` only; without it the cask isn't updated and the run warns |
 
 Set them without printing anything, for example `base64 -i developer-id.p12 | gh secret set MAC_DEVELOPER_ID_P12_BASE64`, and check the file exists first: if `base64` fails, `gh` stores an empty secret.
 
-To sign and notarize locally: `JIDR_SIGNING_IDENTITY="Developer ID Application: Name (TEAMID)" NOTARY_KEY_PATH=path/to/AuthKey.p8 NOTARY_KEY_ID=… NOTARY_ISSUER_ID=… cargo xtask release --scan`. The Homebrew cask (`packaging/homebrew/jidr.rb`) is still a template.
+To sign and notarize locally: `JIDR_SIGNING_IDENTITY="Developer ID Application: Name (TEAMID)" NOTARY_KEY_PATH=path/to/AuthKey.p8 NOTARY_KEY_ID=… NOTARY_ISSUER_ID=… cargo xtask release --scan`.
 
 The scan fails the build if the bundle or the DMG contains Google SDK binaries, system images or Magisk. Jidr downloads those on the user's machine, never ships them.
