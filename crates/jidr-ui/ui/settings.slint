@@ -191,6 +191,12 @@ export component SettingsWindow inherits Window {
     in property <string> mcp-json: "{ \"mcpServers\": { \"jidr\": { \"command\": \"jidr\", \"args\": [\"mcp\"] } } }";
     // About
     in property <string> version;
+    // Check for updates: the status line (empty = hidden), its button label
+    // (empty = no button) and the button's link (empty = copy the brew command).
+    in property <string> update-status;
+    in property <string> update-label;
+    in property <string> update-url;
+    in property <bool> update-checking;
 
     callback default-root-changed(RootChoice);
     callback tiles-changed(int, string);
@@ -205,6 +211,7 @@ export component SettingsWindow inherits Window {
     callback open-source();
     callback sponsor();
     callback check-updates();
+    callback update-action();
 
     title: @tr("Settings");
     width: 820px;
@@ -538,7 +545,25 @@ export component SettingsWindow inherits Window {
                 x: Theme.rtl ? 0px : parent.width - self.width;
                 y: 17px;
                 text: @tr("Check for updates");
+                enabled: !root.update-checking;
                 clicked => { root.check-updates(); }
+            }
+        }
+        if root.update-status != "": HorizontalLayout {
+            height: 24px;
+            spacing: 8px;
+            alignment: Theme.rtl ? LayoutAlignment.end : LayoutAlignment.start;
+            T {
+                width: self.preferred-width;
+                vertical-alignment: center;
+                text: root.update-status;
+                font-size: 12px;
+                color: Theme.text-secondary;
+            }
+            if root.update-label != "": Button {
+                small: true;
+                text: root.update-label;
+                clicked => { root.update-action(); }
             }
         }
         T { height: 14px; text: @tr("Licences"); role: Role.caption; font-weight: 600; color: Theme.text-secondary; }

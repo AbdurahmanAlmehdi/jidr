@@ -1,5 +1,8 @@
 //! Settings: GUI preferences (pure view state, kept in `gui-prefs.json`),
-//! storage rows from daemon data, and the "Add Jidr to Claude" config merge.
+//! storage rows from daemon data, the "Add Jidr to Claude" config merge and
+//! the update check.
+
+pub mod update;
 
 use std::path::{Path, PathBuf};
 
@@ -382,7 +385,21 @@ pub fn open(ctx: &std::rc::Rc<crate::app::Ctx>, tab: i32) {
     let repo = env!("CARGO_PKG_REPOSITORY");
     win.on_open_source(move || open_external(&[repo]));
     win.on_sponsor(move || open_external(&[repo]));
-    win.on_check_updates(move || open_external(&[&format!("{repo}/releases")]));
+    let c = ctx.clone();
+    let w = win.as_weak();
+    win.on_check_updates(move || check_updates(&c, w.clone()));
+    let c = ctx.clone();
+    let w = win.as_weak();
+    win.on_update_action(move || {
+        let Some(win) = w.upgrade() else { return };
+        let url = win.get_update_url().to_string();
+        if url.is_empty() {
+            copy_text(update::BREW_UPGRADE);
+            crate::app::toast(&c.app.as_weak(), "Copied".into());
+        } else {
+            open_external(&[&url]);
+        }
+    });
     win.on_show_licences(move || open_external(&[&format!("{repo}/blob/main/NOTICE")]));
 
     let _ = win.show();
@@ -413,6 +430,30 @@ pub fn sync_from_daemon(ctx: &crate::app::Ctx) {
     });
     ctx.bridge.call("settings.get", json!({}), move |r| {
         crate::app::fire(token, r.ok());
+    });
+}
+
+/// Settings › About: asks GitHub for the latest release (IO thread) and shows
+/// the answer under the version line.
+fn check_updates(ctx: &crate::app::Ctx, weak: slint::Weak<crate::SettingsWindow>) {
+    let current = env!("CARGO_PKG_VERSION");
+    let repo = env!("CARGO_PKG_REPOSITORY");
+    if let Some(win) = weak.upgrade() {
+        win.set_update_checking(true);
+        win.set_update_status("Checking…".into());
+        win.set_update_label("".into());
+    }
+    let token = crate::app::defer(move |check: update::Check| {
+        let Some(win) = weak.upgrade() else { return };
+        let (status, action, url) =
+            update::view(&check, current, update::installed_by_homebrew(), repo);
+        win.set_update_checking(false);
+        win.set_update_status(status.into());
+        win.set_update_label(action.into());
+        win.set_update_url(url.into());
+    });
+    ctx.bridge.handle().spawn(async move {
+        crate::app::fire(token, update::check(repo, current).await);
     });
 }
 

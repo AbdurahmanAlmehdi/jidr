@@ -183,6 +183,10 @@ fn setup(v: Variant, step: i32) -> Result<SharedPixelBuffer<Rgba8Pixel>, String>
 }
 
 fn settings_tab(v: Variant, tab: i32) -> Result<SharedPixelBuffer<Rgba8Pixel>, String> {
+    shot(&settings_window(v, tab)?, 820, 640)
+}
+
+fn settings_window(v: Variant, tab: i32) -> Result<SettingsWindow, String> {
     let w = SettingsWindow::new().map_err(|e| e.to_string())?;
     apply(&w, v);
     w.set_tab(tab);
@@ -200,7 +204,7 @@ fn settings_tab(v: Variant, tab: i32) -> Result<SharedPixelBuffer<Rgba8Pixel>, S
         &infos,
     )));
     w.set_cache_size("0.4 GB".into());
-    shot(&w, 820, 640)
+    Ok(w)
 }
 
 /// The device tab for `device` (0 = Pixel-ish 6.1) with the mock screen.
@@ -529,6 +533,22 @@ pub fn cases() -> Vec<Case> {
         Case {
             name: "settings-about",
             render: |v| settings_tab(v, 3),
+        },
+        Case {
+            name: "settings-about-update",
+            render: |v| {
+                let w = settings_window(v, 3)?;
+                let available = settings::update::Check::Available {
+                    version: "0.2.0".into(),
+                    url: String::new(),
+                };
+                let (status, label, url) =
+                    settings::update::view(&available, "0.1.0", true, "https://github.com/x/y");
+                w.set_update_status(status.into());
+                w.set_update_label(label.into());
+                w.set_update_url(url.into());
+                shot(&w, 820, 640)
+            },
         },
         Case {
             name: "launcher-reconnecting",
