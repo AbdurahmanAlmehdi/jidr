@@ -22,7 +22,7 @@ To change a decision, open an issue that names it and explains why; the change l
 | D14 | GPS map: OpenStreetMap tiles, attribution, configurable URL; GPX/KML replay. |
 | D15 | MVP = Apple Silicon macOS only; code stays portable. |
 | D16 | Landing page: Astro + Vue islands on Cloudflare Pages. |
-| D17 | No telemetry; no auto-updater (Homebrew cask + GitHub Releases check). |
+| D17 | No telemetry; no auto-updater. Updates come from the Homebrew cask (`brew upgrade --cask jidr`), or from Settings › About › Check for updates, which asks GitHub's latest-release API only when clicked and links the new release (amended in #44). |
 | D18 | Split licensing: Apache-2.0 everywhere except `jidr-ui` + `apps/jidr-gui` (GPLv3). |
 | D19 | Names/handles as in D1. |
 | D20 | Phase 1 spike tests Slint only (`SharedPixelBuffer`, then wgpu import if needed); egui is the documented fallback. |
