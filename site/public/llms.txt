@@ -2,7 +2,7 @@
 
 > Jidr is a free, open-source Android emulator manager for Apple Silicon Macs, written in Rust: an open-source alternative to Genymotion Desktop. It creates and runs virtual Android phones and tablets from Google's emulator images, roots them in one click (Shell root with `adb root`, or Full root with Magisk, verified with `su -c id`), and ships a desktop app, a CLI with JSON output and an MCP server for AI agents. No accounts, no telemetry, no paid tier.
 
-Status: pre-release. The first release (v0.1.0) is in preparation; until then Jidr builds from source. Jidr is not affiliated with Google or Genymotion.
+Status: early releases (0.x). Download the DMG from https://jidr.ly or https://github.com/AbdurahmanAlmehdi/jidr/releases/latest, or install with `brew install --cask abdurahmanalmehdi/tap/jidr`. Jidr is not affiliated with Google or Genymotion.
 
 ## What it does
 
