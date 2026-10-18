@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.0](https://github.com/AbdurahmanAlmehdi/jidr/compare/v0.1.0...v0.2.0) (2026-10-18)
+
+
+### Features
+
+* **site:** blog with two technical guides ([7264e14](https://github.com/AbdurahmanAlmehdi/jidr/commit/7264e1464fcb3f4b632f0c11bb9f5f8397426600))
+* **site:** show the brew install and upgrade lines now the cask is in the tap ([3a30c65](https://github.com/AbdurahmanAlmehdi/jidr/commit/3a30c652052c8a192ba313898d445a87f7a62a14))
+* **site:** switch jidr.ly to the launch page for v0.1.0 ([094c642](https://github.com/AbdurahmanAlmehdi/jidr/commit/094c642b5c61b338b2a98d10b1b073b8a42ed6ed))
+* **site:** switch jidr.ly to the launch page for v0.1.0 ([3fcc5ad](https://github.com/AbdurahmanAlmehdi/jidr/commit/3fcc5ad4ba4ff58779ebb8adf8e07965cdf57a11))
+* **ui:** Check for updates compares with the latest GitHub release ([45ee1d6](https://github.com/AbdurahmanAlmehdi/jidr/commit/45ee1d6d63b20673d1c4e83b0695b536e57c5311))
+* **ui:** Check for updates compares with the latest GitHub release ([f907b68](https://github.com/AbdurahmanAlmehdi/jidr/commit/f907b685204da59e3ca8c1ebd13480a32d3aa646)), closes [#44](https://github.com/AbdurahmanAlmehdi/jidr/issues/44)
+
 ## 0.1.0 (2026-10-18)
 
 
