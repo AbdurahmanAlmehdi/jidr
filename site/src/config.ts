@@ -20,7 +20,7 @@ export const release = {
   sha256: "13b49341c3ff2c860cfdfbd4bfcef4324e6524134f99d4f1fe119dc4a58fbac6",
   // True once release.yml has pushed the cask to the tap (needs the
   // HOMEBREW_TAP_TOKEN secret); shows the brew install and upgrade lines.
-  homebrew: false,
+  homebrew: true,
 };
 
 export const links = {
