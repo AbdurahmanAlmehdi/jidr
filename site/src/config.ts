@@ -15,7 +15,7 @@ const sponsors: string | null = null;
 // `Jidr-<version>-arm64.dmg` and `release.yml` tags it `v<version>`. Fill in
 // the size and the SHA-256 from the published release's SHA256SUMS.txt.
 export const release = {
-  version: "0.1.0", // x-release-please-version
+  version: "0.2.0", // x-release-please-version
   sizeMb: "20.9",
   sha256: "13b49341c3ff2c860cfdfbd4bfcef4324e6524134f99d4f1fe119dc4a58fbac6",
   // True once release.yml has pushed the cask to the tap (needs the
