@@ -1,0 +1,24 @@
+---
+// Served by Cloudflare Pages with status 404 for any unknown path, so search
+// engines don't index stray URLs as copies of the home page.
+import Base from "../layouts/Base.astro";
+import Nav from "../components/Nav.astro";
+---
+
+<Base noindex>
+  <div class="site jidr-dark" dir="ltr" lang="en">
+    <div class="wrap">
+      <Nav />
+      <main id="main">
+        <section class="lp-hero">
+          <h1>Page not found</h1>
+          <p>There's nothing at this address.</p>
+          <div class="cta">
+            <a class="btn btn-primary btn-lg" href="/">Go to jidr.ly</a>
+            <a class="btn btn-lg" href="/ar/" lang="ar" hreflang="ar">الصفحة العربية</a>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+</Base>
