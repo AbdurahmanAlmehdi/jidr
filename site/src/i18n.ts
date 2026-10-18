@@ -43,6 +43,7 @@ const en = {
     meta: { soon: ["Free forever", "no account", "macOS 14+ on Apple Silicon"], launch: ["macOS 14+", "Apple Silicon"] },
     version: (v: string) => `v${v}`,
     brew: "or brew install --cask abdurahmanalmehdi/tap/jidr",
+    upgrade: "update with brew upgrade --cask jidr",
   },
   shotLabel: "The Jidr app: device list, a phone running a delivery app, and the GPS panel",
   root: {
@@ -178,6 +179,7 @@ const ar: Strings = {
     meta: { soon: ["macOS 14+", "Apple Silicon"], launch: ["macOS 14+", "Apple Silicon"] },
     version: (v: string) => `الإصدار ${v}`,
     brew: "أو brew install --cask abdurahmanalmehdi/tap/jidr",
+    upgrade: "وللتحديث brew upgrade --cask jidr",
   },
   shotLabel: "تطبيق جذر: قائمة الأجهزة، وهاتف يشغّل تطبيق توصيل، ولوحة GPS",
   root: {
