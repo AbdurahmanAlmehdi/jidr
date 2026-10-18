@@ -88,3 +88,105 @@ body {
 .doc-link {
   color: var(--jidr-color-accent-text);
 }
+
+/* Blog posts (layouts/Post.astro): one readable column of Markdown. */
+.post {
+  max-width: 70ch;
+  margin: 0 auto;
+  padding: var(--jidr-space-xl) 0 96px;
+  font-size: 17px;
+  line-height: 28px;
+}
+
+.post h1 {
+  margin: var(--jidr-space-sm) 0 var(--jidr-space-lg);
+  font: var(--jidr-type-web-display-weight) var(--jidr-type-web-display-size)/var(--jidr-type-web-display-line-height) var(--jidr-font-family-ui);
+  letter-spacing: var(--jidr-type-web-display-letter-spacing);
+  text-wrap: balance;
+}
+
+.post h2 {
+  margin: 48px 0 var(--jidr-space-md);
+  font-size: 24px;
+  line-height: 32px;
+  letter-spacing: -0.01em;
+}
+
+.post :is(p, ul, ol, table, pre) {
+  margin: 0 0 var(--jidr-space-lg);
+}
+
+.post li + li {
+  margin-top: var(--jidr-space-xs);
+}
+
+.post a {
+  color: var(--jidr-color-accent-text);
+}
+
+.post :not(pre) > code {
+  font-family: var(--jidr-font-family-mono);
+  font-size: 0.88em;
+  color: var(--jidr-color-text-code);
+  background: var(--jidr-color-surface-sunken);
+  border-radius: var(--jidr-radius-xs);
+  padding: 1px 5px;
+  overflow-wrap: anywhere;
+}
+
+/* Shiki sets the colours; long lines scroll inside the block, never the page. */
+.post pre {
+  padding: var(--jidr-space-lg);
+  border: 1px solid var(--jidr-color-border-default);
+  border-radius: var(--jidr-radius-lg);
+  overflow-x: auto;
+  font: 14px/22px var(--jidr-font-family-mono);
+}
+
+.post table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.post :is(th, td) {
+  padding: var(--jidr-space-sm) var(--jidr-space-md);
+  border-bottom: 1px solid var(--jidr-color-border-default);
+  text-align: start;
+  vertical-align: top;
+}
+
+.post th {
+  font-size: 13px;
+  color: var(--jidr-color-text-secondary);
+}
+
+.post-meta {
+  margin: 0;
+  font: 500 13px/20px var(--jidr-font-family-mono);
+  color: var(--jidr-color-text-secondary);
+}
+
+.post-meta a {
+  color: inherit;
+}
+
+.post-list {
+  max-width: 70ch;
+  margin: 0 auto;
+  padding-top: var(--jidr-space-xl);
+  padding-bottom: 96px;
+  gap: var(--jidr-space-lg);
+}
+
+.post-title {
+  margin: 0;
+  font-size: 19px;
+  line-height: 26px;
+}
+
+.post-title a {
+  color: var(--jidr-color-text-primary);
+}
