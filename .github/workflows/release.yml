@@ -20,6 +20,8 @@ name: Release
 #   HOMEBREW_TAP_TOKEN             fine-grained token with contents write on
 #                                  AbdurahmanAlmehdi/homebrew-tap; without it
 #                                  the cask step is skipped with a warning
+#   CLOUDFLARE_DEPLOY_HOOK         the jidr Pages project's deploy hook URL;
+#                                  rebuilds jidr.ly once the DMG is uploaded
 on:
   workflow_call:
     inputs:
@@ -186,3 +188,20 @@ jobs:
           curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/download/v1.8.1/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
           ./mcp-publisher login github-oidc
           ./mcp-publisher publish
+
+  site:
+    name: Rebuild jidr.ly
+    needs: macos-arm64
+    runs-on: ubuntu-latest
+    steps:
+      # The site reads the newest release that has its DMG and checksums
+      # (site/scripts/release.mjs); they're uploaded now, so rebuild it.
+      - name: Call the Cloudflare Pages deploy hook
+        env:
+          HOOK: ${{ secrets.CLOUDFLARE_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::warning::CLOUDFLARE_DEPLOY_HOOK is not set; jidr.ly was not rebuilt"
+            exit 0
+          fi
+          curl -fsS -X POST "$HOOK" > /dev/null
