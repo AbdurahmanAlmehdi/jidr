@@ -1,6 +1,6 @@
 # jidr.ly
 
-The Jidr landing page: Astro (static) for Cloudflare Pages (D16), built to the Workbench design (D41). English at `/`, Arabic (RTL) at `/ar/` (D33). Deployed to Cloudflare Pages (project `jidr`) at https://jidr.ly.
+The Jidr landing page: Astro (static) for Cloudflare Pages (D16), built to the Workbench design (D41). English at `/`, Arabic (RTL) at `/ar/` (D33). Deployed to Cloudflare Pages (project `jidr`) at https://jidr.ly by `.github/workflows/site.yml` on every push to `main` that touches `site/` or `docs/design/`; pull requests only build it.
 
 ```bash
 npm ci
