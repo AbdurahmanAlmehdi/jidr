@@ -1,6 +1,6 @@
 # Homebrew cask for the AbdurahmanAlmehdi/homebrew-tap tap:
 #   brew install --cask abdurahmanalmehdi/tap/jidr
-# release.yml fills in @VERSION@ and @SHA256@ (the DMG's line in
+# release.yml fills in the version and the DMG's checksum (its line in
 # SHA256SUMS.txt) and pushes the result to Casks/jidr.rb in the tap.
 cask "jidr" do
   version "@VERSION@"
