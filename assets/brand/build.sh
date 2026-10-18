@@ -83,6 +83,7 @@ EOF
 
 # 5. Raster masters.
 rsvg-convert -w 1024 -h 1024 "$BRAND/app-icon.svg" -o "$BRAND/app-icon-1024.png"
+rsvg-convert -w 512 -h 512   "$BRAND/app-icon.svg" -o "$BRAND/app-icon-512.png"  # the MCP bundle icon
 rsvg-convert -w 1024 -h 1024 "$BRAND/avatar.svg"   -o "$BRAND/avatar-1024.png"
 rsvg-convert -w 1200 -h 630  "$BRAND/social-card.svg" -o "$BRAND/social-card.png"
 

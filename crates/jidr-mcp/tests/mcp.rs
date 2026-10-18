@@ -222,3 +222,26 @@ async fn destructive_policy_d5() {
     .await;
     d.stop().await;
 }
+
+/// The MCPB bundle's manifest (packaging/mcp/manifest.json) lists the tools
+/// for Claude Desktop and the registries; it must match what the server serves.
+#[test]
+fn mcpb_manifest_lists_every_tool() {
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../packaging/mcp/manifest.json"
+    );
+    let manifest: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    let mut listed: Vec<&str> = manifest["tools"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t["name"].as_str().unwrap())
+        .collect();
+    let served = jidr_mcp::JidrMcp::tools();
+    let mut served: Vec<&str> = served.iter().map(|t| t.name.as_ref()).collect();
+    listed.sort_unstable();
+    served.sort_unstable();
+    assert_eq!(listed, served);
+}

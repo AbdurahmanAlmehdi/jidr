@@ -1,8 +1,9 @@
 //! `cargo xtask release`: the macOS release artifacts (Phases 12a and 12b).
 //!
 //! Builds `jidr` and `jidr-gui` in release mode, assembles `Jidr.app`, packs
-//! `Jidr-<version>-arm64.dmg`, mounts it to prove it opens, and writes
-//! `SHA256SUMS.txt`. With `--scan` it fails if the bundle or the DMG contains
+//! `Jidr-<version>-arm64.dmg`, mounts it to prove it opens, packs the MCP
+//! bundle `jidr-mcp-<version>-darwin-arm64.mcpb` (the signed `jidr` plus
+//! `packaging/mcp/manifest.json`) and writes `SHA256SUMS.txt`. With `--scan` it fails if the bundle or the DMG contains
 //! anything Jidr must never ship: Google SDK binaries, system images or
 //! Magisk (NOTICE, clean-room rules).
 //!
@@ -102,6 +103,16 @@ pub fn run(args: &[String]) -> Result<()> {
     let signing = signing_mode(identity.as_deref(), opts.dry_run);
     let sign_script = root.join("packaging/macos/sign.sh");
     sign(&app, &signing, &sign_script)?;
+    // The bundle reuses the signed CLI; the DMG's notarization covers it.
+    let mcpb_name = format!("jidr-mcp-{version}-darwin-arm64.mcpb");
+    let mcpb_dir = out.join("mcpb");
+    pack_mcpb(
+        &root,
+        &app.join("Contents/Helpers/jidr"),
+        &mcpb_dir,
+        &out.join(&mcpb_name),
+        &version,
+    )?;
     std::os::unix::fs::symlink("/Applications", staging.join("Applications"))
         .context("linking /Applications into the DMG")?;
 
@@ -131,11 +142,13 @@ pub fn run(args: &[String]) -> Result<()> {
     let mut findings = Vec::new();
     if opts.scan {
         findings.extend(scan_tree(&app)?);
+        findings.extend(scan_tree(&mcpb_dir)?);
     }
     findings.extend(check_dmg(&dmg, &out.join("mnt"), opts.scan)?);
     std::fs::remove_dir_all(&staging).ok();
+    std::fs::remove_dir_all(&mcpb_dir).ok();
 
-    let sums = tool_output("shasum", &["-a", "256", &dmg_name], &out)?;
+    let sums = tool_output("shasum", &["-a", "256", &dmg_name, &mcpb_name], &out)?;
     std::fs::write(out.join("SHA256SUMS.txt"), &sums)?;
     std::fs::write(out.join("VERSION"), format!("{version}\n"))?;
     print!("{sums}");
@@ -241,14 +254,35 @@ fn assemble_app(root: &Path, bin: &Path, app: &Path, version: &str) -> Result<()
     let template = std::fs::read_to_string(root.join("packaging/macos/Info.plist.in"))
         .context("reading packaging/macos/Info.plist.in")?;
     let plist = contents.join("Info.plist");
-    std::fs::write(&plist, render_plist(&template, version)?)?;
+    std::fs::write(&plist, render_version(&template, version, "Info.plist.in")?)?;
     std::fs::write(contents.join("PkgInfo"), "APPL????")?;
     tool("plutil", &["-lint", &path_str(&plist)?])
 }
 
-fn render_plist(template: &str, version: &str) -> Result<String> {
+/// An MCPB bundle (a zip: `manifest.json`, `server/jidr`, icon, licences)
+/// for Claude Desktop and the MCP registries.
+fn pack_mcpb(root: &Path, jidr: &Path, dir: &Path, mcpb: &Path, version: &str) -> Result<()> {
+    copy(jidr, &dir.join("server/jidr"))?;
+    for (from, name) in [
+        ("assets/brand/app-icon-512.png", "icon.png"),
+        ("LICENSE-APACHE", "LICENSE-APACHE"),
+        ("NOTICE", "NOTICE"),
+    ] {
+        copy(&root.join(from), &dir.join(name))?;
+    }
+    let template = std::fs::read_to_string(root.join("packaging/mcp/manifest.json"))
+        .context("reading packaging/mcp/manifest.json")?;
+    let manifest = render_version(&template, version, "manifest.json")?;
+    serde_json::from_str::<serde_json::Value>(&manifest).context("manifest.json is not JSON")?;
+    std::fs::write(dir.join("manifest.json"), manifest)?;
+    tool_output("zip", &["-X", "-r", "-q", &path_str(mcpb)?, "."], dir)?;
+    Ok(())
+}
+
+/// Fills `@VERSION@` in a packaging template.
+fn render_version(template: &str, version: &str, file: &str) -> Result<String> {
     if !template.contains("@VERSION@") {
-        bail!("Info.plist.in has no @VERSION@ placeholder");
+        bail!("{file} has no @VERSION@ placeholder");
     }
     if version.is_empty()
         || !version
@@ -582,10 +616,12 @@ mod tests {
     }
 
     #[test]
-    fn plist_gets_the_version() {
-        let p = render_plist("<string>@VERSION@</string>", "0.1.0").unwrap();
+    fn templates_get_the_version() {
+        let p = render_version("<string>@VERSION@</string>", "0.1.0", "t").unwrap();
         assert_eq!(p, "<string>0.1.0</string>");
-        assert!(render_plist("<string/>", "0.1.0").is_err());
-        assert!(render_plist("@VERSION@", "0.1.0<x>").is_err());
+        assert!(render_version("<string/>", "0.1.0", "t").is_err());
+        assert!(render_version("@VERSION@", "0.1.0<x>", "t").is_err());
+        let manifest = include_str!("../../packaging/mcp/manifest.json");
+        assert!(render_version(manifest, "0.1.0", "manifest.json").is_ok());
     }
 }
