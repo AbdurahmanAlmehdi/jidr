@@ -29,6 +29,7 @@ const t = strings(Astro.currentLocale);
       <span class="sum"><bdi>{t.download.system}</bdi> · <bdi>{t.download.size(release.sizeMb)}</bdi></span>
       <span class="sum" lang="en" dir="ltr"><span>{t.download.sha}</span><code class="sha">{release.sha256}</code></span>
       {release.homebrew && <span class="sum"><bdi>{t.hero.brew}</bdi></span>}
+      {release.homebrew && <span class="sum"><bdi>{t.hero.upgrade}</bdi></span>}
       <a class="sum" href={links.releases}>{t.download.all}</a>
     </div>
   </div>
