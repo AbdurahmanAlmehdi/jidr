@@ -8,6 +8,7 @@ use std::time::Duration;
 
 use jidr_backend::fake::FakeBackend;
 use jidr_core::{ImageRef, JidrPaths, JidrResult};
+use jidr_sdk::host::HostMemory;
 
 use crate::{Daemon, DaemonConfig};
 
@@ -70,8 +71,21 @@ pub struct TestDaemon {
 }
 
 impl TestDaemon {
-    /// Starts serving and waits for the socket.
+    /// Starts serving and waits for the socket. The host pretends to have
+    /// 1 TB of RAM, so the budget (D42) never gets in the way.
     pub async fn start(root: &Path) -> JidrResult<Self> {
+        Self::start_with_memory(
+            root,
+            HostMemory {
+                total_mb: 1 << 20,
+                available_mb: 1 << 19,
+            },
+        )
+        .await
+    }
+
+    /// Like [`start`](Self::start), on a host with this much RAM.
+    pub async fn start_with_memory(root: &Path, memory: HostMemory) -> JidrResult<Self> {
         let paths = JidrPaths::under(root.join("j"));
         let studio = fake_studio(&root.join("studio"))
             .map_err(|e| jidr_core::JidrError::unexpected(format!("fake SDK: {e}")))?;
@@ -95,6 +109,7 @@ impl TestDaemon {
             },
             backend.clone(),
         )
+        .host_memory(memory)
         .build()?;
         let (tx, rx) = tokio::sync::oneshot::channel();
         let d = daemon.clone();

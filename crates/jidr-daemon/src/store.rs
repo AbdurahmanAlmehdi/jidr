@@ -184,6 +184,7 @@ mod tests {
             launch: Default::default(),
             status: Default::default(),
             runtime: None,
+            footprint_mb: None,
         }
     }
 

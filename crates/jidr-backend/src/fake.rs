@@ -23,6 +23,7 @@ struct FakeState {
     launches: Vec<(String, LaunchOptions)>,
     specs: Vec<LaunchSpec>,
     fail_next: Option<JidrError>,
+    footprints: HashMap<String, u64>,
 }
 
 #[derive(Debug, Default)]
@@ -73,6 +74,11 @@ impl FakeBackend {
 
     pub fn running(&self) -> Vec<u32> {
         self.lock().running.keys().copied().collect()
+    }
+
+    /// What [`Backend::footprint_mb`] reports for AVD `avd` while it runs.
+    pub fn set_footprint(&self, avd: &str, mb: u64) {
+        self.lock().footprints.insert(avd.to_string(), mb);
     }
 }
 
@@ -147,6 +153,14 @@ impl Backend for FakeBackend {
 
     async fn adopt(&self, _avd_home: &Path) -> Vec<InstanceInfo> {
         Vec::new()
+    }
+
+    async fn footprint_mb(&self, instance: &InstanceInfo) -> Option<u64> {
+        let s = self.lock();
+        s.running
+            .contains_key(&instance.pid)
+            .then(|| s.footprints.get(&instance.avd).copied())
+            .flatten()
     }
 
     async fn wait_for_crash(&self, instance: &InstanceInfo, _log_dir: &Path) -> CrashReport {

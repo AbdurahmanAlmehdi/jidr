@@ -404,6 +404,14 @@ impl Backend for AospBackend {
     async fn wait_for_crash(&self, instance: &InstanceInfo, log_dir: &Path) -> crate::CrashReport {
         self.crash_watch(instance, log_dir).await
     }
+
+    async fn footprint_mb(&self, instance: &InstanceInfo) -> Option<u64> {
+        let pid = instance.pid;
+        tokio::task::spawn_blocking(move || jidr_sdk::host::process_footprint_mb(pid))
+            .await
+            .ok()
+            .flatten()
+    }
 }
 
 pub async fn process_alive(pid: u32) -> bool {

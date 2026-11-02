@@ -61,6 +61,7 @@ fn device(
         launch: Default::default(),
         status,
         runtime: None,
+        footprint_mb: None,
     }
 }
 
@@ -261,6 +262,9 @@ pub fn profiles() -> Vec<jidr_core::HardwareProfile> {
         data_mb: 6144,
         config: Default::default(),
         build_props: Default::default(),
+        audio: true,
+        camera_back: None,
+        camera_front: None,
     };
     vec![
         p("phone-6.1-fhd", "Phone 6.1″ FHD+", 1080, 2400, 420, 4096, 4),

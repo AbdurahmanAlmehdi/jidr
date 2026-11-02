@@ -31,10 +31,24 @@ pub struct HardwareProfile {
     /// Requested build props (🔎 research: not applied in the MVP).
     #[serde(default)]
     pub build_props: BTreeMap<String, String>,
+    /// Guest audio to the host; devices created from the profile start with
+    /// `-no-audio` when `false`.
+    #[serde(default = "yes")]
+    pub audio: bool,
+    /// `-camera-back` for devices created from the profile (`none` saves RAM).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub camera_back: Option<String>,
+    /// `-camera-front`, same values.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub camera_front: Option<String>,
 }
 
 fn default_data_mb() -> u32 {
     6144
+}
+
+fn yes() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -231,6 +245,10 @@ pub struct Device {
     pub status: DeviceStatus,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub runtime: Option<DeviceRuntime>,
+    /// Peak host memory of the device's last run in MB, measured by the
+    /// daemon (D42 cost model).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub footprint_mb: Option<u32>,
 }
 
 /// Per-device launch settings. The root engine sets `ramdisk` (Magisk) and
@@ -255,6 +273,9 @@ pub struct LaunchPrefs {
     /// `-camera-front`: same values.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub camera_front: Option<String>,
+    /// Guest audio; `Some(false)` adds `-no-audio` (lean profile). `None` = on.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub audio: Option<bool>,
 }
 
 /// How to reach a running device directly (the player streams frames from
@@ -316,6 +337,8 @@ pub struct Settings {
     /// Save a quick-boot snapshot when a device stops (D29). Applies from the
     /// device's next start.
     pub quick_boot: bool,
+    /// Share of host RAM running devices may use, in percent (D42).
+    pub budget_percent: u8,
 }
 
 impl Default for Settings {
@@ -323,6 +346,7 @@ impl Default for Settings {
         Self {
             default_root_mode: RootMode::Adb,
             quick_boot: true,
+            budget_percent: 75,
         }
     }
 }

@@ -88,6 +88,9 @@ fn hint(e: &JidrError) -> Option<&'static str> {
         BootTimeout => Some(
             "try `jidr device start <name> --cold-boot`, or see the emulator log with `jidr device details <name>`",
         ),
+        ResourceExhausted => Some(
+            "see `jidr budget`; stop a device, use `--profile agent-lean`, or start with `--force`",
+        ),
         _ => None,
     }
 }
@@ -154,6 +157,40 @@ pub fn devices(v: &Value) -> String {
         return "No devices. Create one with `jidr device create <name> --image 35`.".into();
     }
     table(&["NAME", "STATUS", "IMAGE", "ROOT", "SERIAL"], rows)
+}
+
+/// `host.budget`.
+pub fn budget(v: &Value) -> String {
+    let gb = |key: &Value| key.as_f64().unwrap_or(0.0) / 1024.0;
+    let mut text = format!(
+        "RAM budget: {:.1} of {:.1} GB used ({}% of {:.1} GB host RAM, {:.1} GB available now)",
+        gb(&v["used_mb"]),
+        gb(&v["budget_mb"]),
+        v["budget_percent"],
+        gb(&v["total_mb"]),
+        gb(&v["available_mb"]),
+    );
+    let rows: Vec<Vec<String>> = v["devices"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|d| {
+            vec![
+                s(d, "name"),
+                format!("{:.1} GB", gb(&d["expected_mb"])),
+                if d["measured_mb"].is_null() {
+                    "-".into()
+                } else {
+                    format!("{:.1} GB", gb(&d["measured_mb"]))
+                },
+            ]
+        })
+        .collect();
+    if !rows.is_empty() {
+        text.push('\n');
+        text.push_str(&table(&["DEVICE", "EXPECTED", "MEASURED"], rows));
+    }
+    text
 }
 
 pub fn device(d: &Value) -> String {

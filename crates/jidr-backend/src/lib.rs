@@ -186,6 +186,12 @@ pub trait Backend: Send + Sync + std::fmt::Debug {
 
     /// Resolves when the instance crashes (D9: report, never restart).
     async fn wait_for_crash(&self, instance: &InstanceInfo, log_dir: &Path) -> CrashReport;
+
+    /// Host memory the instance uses now, in MB (D42 budget). `None` when it
+    /// can't be measured.
+    async fn footprint_mb(&self, _instance: &InstanceInfo) -> Option<u64> {
+        None
+    }
 }
 
 #[cfg(test)]

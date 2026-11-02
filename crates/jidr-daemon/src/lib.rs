@@ -2,6 +2,7 @@
 //! per-device locks. Registers the core provider plus any provider handed to
 //! the builder (`jidr-widgets`, `jidr-root`).
 
+pub mod budget;
 pub mod bundle;
 pub mod core_provider;
 pub mod jobs;
@@ -58,6 +59,7 @@ pub struct DaemonBuilder {
     backend: Arc<dyn Backend>,
     providers: Vec<Arc<dyn CommandProvider>>,
     version: Option<String>,
+    host_memory: Option<jidr_sdk::host::HostMemory>,
 }
 
 impl DaemonBuilder {
@@ -73,9 +75,15 @@ impl DaemonBuilder {
         self
     }
 
+    /// Pretends the host has this much RAM (budget tests).
+    pub fn host_memory(mut self, m: jidr_sdk::host::HostMemory) -> Self {
+        self.host_memory = Some(m);
+        self
+    }
+
     pub fn build(self) -> JidrResult<Arc<Daemon>> {
         let idle_timeout = self.config.idle_timeout;
-        let state = State::new(self.config, self.backend)?;
+        let state = State::new(self.config, self.backend, self.host_memory)?;
         let jobs = Arc::new(jobs::JobManager::new());
         let mut registry = Registry::new();
         let core: Arc<dyn CommandProvider> =
@@ -106,6 +114,7 @@ impl Daemon {
             backend,
             providers: Vec::new(),
             version: None,
+            host_memory: None,
         }
     }
 
@@ -156,6 +165,16 @@ impl Daemon {
                 }
             }
         };
+        let sampler = {
+            let state = self.state.clone();
+            tokio::spawn(async move {
+                let mut tick = tokio::time::interval(budget::SAMPLE_EVERY);
+                loop {
+                    tick.tick().await;
+                    state.sample_footprints().await;
+                }
+            })
+        };
         tokio::pin!(shutdown);
         tokio::pin!(idle);
         loop {
@@ -177,6 +196,7 @@ impl Daemon {
                 },
             }
         }
+        sampler.abort();
         let _ = std::fs::remove_file(&path);
         self.closing.send_replace(true);
         Ok(())

@@ -10,7 +10,7 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
     name = "jidr",
     version,
     about = "Android emulators with one-click root, for people, CI and AI agents",
-    after_help = "Exit codes: 0 ok · 1 unexpected · 2 usage · 3 not found · 4 busy · 5 boot timeout · 6 sdk · 7 root failed · 8 daemon stale"
+    after_help = "Exit codes: 0 ok · 1 unexpected · 2 usage · 3 not found · 4 busy · 5 boot timeout · 6 sdk · 7 root failed · 8 daemon stale · 9 resource exhausted"
 )]
 pub struct Cli {
     /// Machine-readable output: {"jidr_json": 1, "ok": …, "result"|"error": …}.
@@ -112,6 +112,8 @@ pub enum Cmd {
         #[command(subcommand)]
         cmd: CacheCmd,
     },
+    /// Host RAM, the device budget and what each running device uses (D42).
+    Budget,
     /// Daemon-wide settings, shared with the desktop app.
     Settings {
         #[command(subcommand)]
@@ -245,6 +247,9 @@ pub enum DeviceCmd {
         /// Give up (and stop the boot) after this many seconds.
         #[arg(long)]
         timeout: Option<u64>,
+        /// Start even past the host RAM budget.
+        #[arg(long)]
+        force: bool,
     },
     /// Stop devices (saves their quick-boot state).
     Stop {
@@ -307,6 +312,9 @@ pub enum SettingsCmd {
         /// Save a quick-boot snapshot when a device stops (from its next start).
         #[arg(long)]
         quick_boot: Option<bool>,
+        /// Share of host RAM running devices may use, 10–100 percent.
+        #[arg(long, value_parser = clap::value_parser!(u8).range(10..=100))]
+        budget_percent: Option<u8>,
     },
 }
 

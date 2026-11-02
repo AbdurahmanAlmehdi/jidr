@@ -7,6 +7,7 @@ const BUILTIN: &[&str] = &[
     include_str!("../../../assets/profiles/phone-6.7-qhd.toml"),
     include_str!("../../../assets/profiles/small-phone-5.toml"),
     include_str!("../../../assets/profiles/tablet-11.toml"),
+    include_str!("../../../assets/profiles/agent-lean.toml"),
 ];
 
 /// The built-in profiles; the first one is the default.
@@ -54,6 +55,20 @@ mod tests {
             "landscape"
         );
         assert!(find("nope").is_err());
+    }
+
+    #[test]
+    fn lean_profile_matches_d42() {
+        let p = find("agent-lean").unwrap();
+        assert_eq!((p.width, p.height, p.density), (720, 1280, 320));
+        assert_eq!((p.ram_mb, p.cpus, p.data_mb), (2048, 2, 4096));
+        assert!(!p.audio);
+        assert_eq!(p.camera_back.as_deref(), Some("none"));
+        assert_eq!(p.camera_front.as_deref(), Some("none"));
+        assert!(
+            find("phone-6.1-fhd").unwrap().audio,
+            "audio stays on by default"
+        );
     }
 
     #[test]

@@ -25,7 +25,7 @@ jidr --json device start Phone --timeout 300 || exit $?
 | Command | What it does |
 |---|---|
 | `device create <name> --image <img> [--profile id] [--ram MB] [--cpus N] [--width px] [--height px] [--density dpi] [--data-mb MB] [--root none\|adb\|magisk] [--agent-owned]` | Create a device. `<img>` is `35`, `35:google_apis`, `35:google_apis_playstore`, `35:google_apis:arm64-v8a` or a full `system-images;…` package. |
-| `device start <names…> \| --all [--cold-boot] [--no-wait] [--timeout s]` | Start and wait for boot. `--timeout` cancels the boot and exits 5. `--no-wait` returns the boot job id. |
+| `device start <names…> \| --all [--cold-boot] [--no-wait] [--timeout s] [--force]` | Start and wait for boot. `--timeout` cancels the boot and exits 5. `--no-wait` returns the boot job id. Past the host RAM budget it exits 9 unless `--force`. |
 | `device stop <names…> \| --all` | Stop, saving quick-boot state (D29). |
 | `device list`, `device details <name>`, `device connect-info <name>` | Status, settings and disk usage; the gRPC endpoint/token and adb serial of a running device. |
 | `device clone <name> <new>`, `device edit <name> [--rename n] [--ram …] [--agent-owned bool]` | Copy or change a stopped device. |
@@ -35,7 +35,8 @@ jidr --json device start Phone --timeout 300 || exit $?
 | `logcat <name> [-n N] [--filter spec…] [-f] [--clear]` | Dump, follow (`-f`) or clear the log. |
 | `flash <name> <zip>` | Not available yet (open research item). |
 | `image list [--installed]`, `image install <img> [--accept-licenses]` | System images. |
-| `profile list` | Built-in hardware profiles (D24). |
+| `profile list` | Built-in hardware profiles (D24). `agent-lean` (720×1280, 2 GB, 2 cores, no audio or cameras) costs ~4 GB of host RAM instead of ~7.6 GB. |
+| `budget` | Host RAM, the device budget (`settings set --budget-percent`, 75% by default) and what each running device is expected to use and uses now (D42). |
 | `sdk status`, `sdk licenses <pkgs…>`, `sdk install <pkgs…> [--accept-licenses]` | The SDK Jidr uses (its private one; Android Studio's is only read, D3). |
 | `root set <name> none\|adb\|magisk`, `root verify <name>`, `root status <name>` | Root modes (provided by the root engine). |
 | `snapshot list\|save\|load\|delete <name> [snapshot]` | Snapshots tagged with their root mode (provided by the widgets provider). |
@@ -75,6 +76,7 @@ Every command prints exactly one JSON line (`logcat -f` prints one per log line)
 | 6 | SDK, emulator, download or license problem |
 | 7 | Root failed |
 | 8 | Daemon stale: a daemon of another version is running (use `--restart-stale`) |
+| 9 | Resource exhausted: starting would go past the host RAM budget (`error.data.devices` lists what uses it; see `jidr budget`) |
 
 ## Environment
 

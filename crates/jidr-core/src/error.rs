@@ -3,7 +3,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// The eight error codes. Each one is also the CLI exit code.
+/// The nine error codes. Each one is also the CLI exit code.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ErrorCode {
@@ -23,10 +23,12 @@ pub enum ErrorCode {
     RootFailed,
     /// The client and the running daemon are different versions. Exit code 8.
     DaemonStale,
+    /// Starting it would go past the host RAM budget (D42). Exit code 9.
+    ResourceExhausted,
 }
 
 impl ErrorCode {
-    pub const ALL: [ErrorCode; 8] = [
+    pub const ALL: [ErrorCode; 9] = [
         Self::Unexpected,
         Self::Usage,
         Self::NotFound,
@@ -35,6 +37,7 @@ impl ErrorCode {
         Self::Sdk,
         Self::RootFailed,
         Self::DaemonStale,
+        Self::ResourceExhausted,
     ];
 
     /// The CLI exit code (0 is success and has no `ErrorCode`).
@@ -48,6 +51,7 @@ impl ErrorCode {
             Self::Sdk => 6,
             Self::RootFailed => 7,
             Self::DaemonStale => 8,
+            Self::ResourceExhausted => 9,
         }
     }
 
@@ -70,6 +74,7 @@ impl ErrorCode {
             Self::Sdk => "sdk",
             Self::RootFailed => "root_failed",
             Self::DaemonStale => "daemon_stale",
+            Self::ResourceExhausted => "resource_exhausted",
         }
     }
 }
@@ -134,6 +139,10 @@ impl JidrError {
     pub fn boot_timeout(message: impl Into<String>) -> Self {
         Self::new(ErrorCode::BootTimeout, message)
     }
+
+    pub fn resource_exhausted(message: impl Into<String>) -> Self {
+        Self::new(ErrorCode::ResourceExhausted, message)
+    }
 }
 
 /// Adds context to foreign errors: `.ctx(ErrorCode::Sdk, "reading config.ini")`.
@@ -154,7 +163,7 @@ mod tests {
     #[test]
     fn exit_codes_match_the_plan() {
         let codes: Vec<u8> = ErrorCode::ALL.iter().map(|c| c.exit_code()).collect();
-        assert_eq!(codes, vec![1, 2, 3, 4, 5, 6, 7, 8]);
+        assert_eq!(codes, vec![1, 2, 3, 4, 5, 6, 7, 8, 9]);
     }
 
     #[test]
@@ -172,7 +181,8 @@ mod tests {
         let mut codes: Vec<i64> = ErrorCode::ALL.iter().map(|c| c.rpc_code()).collect();
         codes.sort_unstable();
         codes.dedup();
-        assert_eq!(codes.len(), 8);
+        assert_eq!(codes.len(), 9);
         assert_eq!(ErrorCode::NotFound.rpc_code(), -32003);
+        assert_eq!(ErrorCode::ResourceExhausted.rpc_code(), -32009);
     }
 }

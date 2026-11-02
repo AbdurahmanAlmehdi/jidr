@@ -10,7 +10,7 @@ use jidr_adb::{Adb, InstallOptions};
 use jidr_core::provider::{
     CallCtx, CommandProvider, CommandSpec, DaemonContext, DeviceParams, NoParams, parse_params,
 };
-use jidr_core::{Device, ImageRef, JidrError, JidrResult, RootMode, RootState};
+use jidr_core::{Device, ImageRef, JidrError, JidrResult, LaunchPrefs, RootMode, RootState};
 use jidr_sdk::{AvdSpec, CatalogFilter, ConsentStore, Fetcher, Repository, profiles, repo};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -79,6 +79,9 @@ pub struct SettingsParams {
     /// Save a quick-boot snapshot on stop (D29); from each device's next start.
     #[serde(default)]
     pub quick_boot: Option<bool>,
+    /// Share of host RAM running devices may use, 10–100 percent (D42).
+    #[serde(default)]
+    pub budget_percent: Option<u8>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -125,6 +128,9 @@ pub struct StartParams {
     /// Ignore the quick-boot snapshot.
     #[serde(default)]
     pub cold_boot: bool,
+    /// Start even past the host RAM budget (`resource_exhausted` otherwise).
+    #[serde(default)]
+    pub force: bool,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -476,6 +482,8 @@ impl CoreProvider {
                 image.tag
             )));
         }
+        let profile_audio = profile.audio;
+        let profile_cameras = (profile.camera_back.clone(), profile.camera_front.clone());
         let avds = self.state.avds();
         let avd = self
             .state
@@ -500,9 +508,15 @@ impl CoreProvider {
             },
             agent_owned: p.agent_owned.unwrap_or(false),
             created_at: chrono::Utc::now(),
-            launch: Default::default(),
+            launch: LaunchPrefs {
+                audio: (!profile_audio).then_some(false),
+                camera_back: profile_cameras.0,
+                camera_front: profile_cameras.1,
+                ..Default::default()
+            },
             status: Default::default(),
             runtime: None,
+            footprint_mb: None,
         };
         if let Err(e) = self.state.with_store(|s| s.insert(device.clone())) {
             let _ = avds.delete(&avd);
@@ -601,6 +615,7 @@ impl CoreProvider {
             root,
             status: Default::default(),
             runtime: None,
+            footprint_mb: src.footprint_mb,
             ..src
         };
         if let Err(e) = self.state.with_store(|s| s.insert(device.clone())) {
@@ -729,6 +744,10 @@ impl CommandProvider for CoreProvider {
                 "Daemon version, uptime and device counts",
             ),
             CommandSpec::new::<NoParams>(
+                "host.budget",
+                "Host RAM, the device budget and what each running device uses",
+            ),
+            CommandSpec::new::<NoParams>(
                 "sdk.status",
                 "Where the SDKs are, emulator version, hypervisor, free disk",
             ),
@@ -819,7 +838,7 @@ impl CommandProvider for CoreProvider {
             ),
             CommandSpec::new::<NoParams>(
                 "settings.get",
-                "Daemon-wide settings: default root mode, quick boot on stop",
+                "Daemon-wide settings: default root mode, quick boot on stop, RAM budget",
             ),
             CommandSpec::new::<SettingsParams>(
                 "settings.set",
@@ -846,6 +865,10 @@ impl CommandProvider for CoreProvider {
             "sdk.status" => {
                 parse_params::<NoParams>(params)?;
                 self.sdk_status().await
+            }
+            "host.budget" => {
+                parse_params::<NoParams>(params)?;
+                json(self.state.budget()?)
             }
             "sdk.licenses" => {
                 let p: PackagesParams = parse_params(params)?;
@@ -884,7 +907,7 @@ impl CommandProvider for CoreProvider {
                 let d = self.state.device(&p.device).await?;
                 json(
                     self.state
-                        .start_device(d.id, p.cold_boot, &ctx.cancel)
+                        .start_admitted(d.id, p.cold_boot, p.force, &ctx.cancel)
                         .await?,
                 )
             }
@@ -906,7 +929,15 @@ impl CommandProvider for CoreProvider {
             }
             "settings.set" => {
                 let p: SettingsParams = parse_params(params)?;
+                if let Some(b) = p.budget_percent
+                    && !(10..=100).contains(&b)
+                {
+                    return Err(JidrError::usage("budget_percent must be 10–100"));
+                }
                 json(self.state.update_settings(|s| {
+                    if let Some(b) = p.budget_percent {
+                        s.budget_percent = b;
+                    }
                     if let Some(m) = p.default_root_mode {
                         s.default_root_mode = m;
                     }

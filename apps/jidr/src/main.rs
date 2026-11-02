@@ -522,6 +522,7 @@ async fn run(cli: Cli, out: Out) -> JidrResult<()> {
                 SettingsCmd::Set {
                     default_root,
                     quick_boot,
+                    budget_percent,
                 } => {
                     let mut p = Map::new();
                     if let Some(r) = default_root {
@@ -530,18 +531,22 @@ async fn run(cli: Cli, out: Out) -> JidrResult<()> {
                     if let Some(q) = quick_boot {
                         p.insert("quick_boot".into(), json!(q));
                     }
+                    if let Some(b) = budget_percent {
+                        p.insert("budget_percent".into(), json!(b));
+                    }
                     c.call("settings.set", Value::Object(p)).await?
                 }
             };
             out.ok(&v, |v| {
                 format!(
-                    "Default root mode: {}\nQuick boot on stop: {}",
+                    "Default root mode: {}\nQuick boot on stop: {}\nRAM budget: {}% of host RAM",
                     v["default_root_mode"].as_str().unwrap_or("?"),
                     if v["quick_boot"].as_bool().unwrap_or(true) {
                         "on"
                     } else {
                         "off"
-                    }
+                    },
+                    v["budget_percent"]
                 )
             });
         }
@@ -658,6 +663,10 @@ async fn run(cli: Cli, out: Out) -> JidrResult<()> {
             let opts = jidr_mcp::McpOptions { allow_destructive };
             return jidr_mcp::serve_stdio(client, opts).await;
         }
+        Cmd::Budget => {
+            let v = c.call("host.budget", json!({})).await?;
+            out.ok(&v, output::budget);
+        }
         Cmd::Commands => {
             let v = c.call("commands.list", json!({})).await?;
             out.ok(&v, output::commands);
@@ -725,6 +734,7 @@ async fn device(c: &Client, out: Out, cmd: DeviceCmd) -> JidrResult<()> {
             cold_boot,
             no_wait,
             timeout,
+            force,
         } => {
             let names = select(c, &sel, |d| matches!(state_of(d), "stopped" | "crashed")).await?;
             let mut results = Vec::new();
@@ -732,7 +742,7 @@ async fn device(c: &Client, out: Out, cmd: DeviceCmd) -> JidrResult<()> {
                 let v = c
                     .call(
                         "device.start",
-                        json!({ "device": name, "cold_boot": cold_boot }),
+                        json!({ "device": name, "cold_boot": cold_boot, "force": force }),
                     )
                     .await?;
                 if no_wait {
