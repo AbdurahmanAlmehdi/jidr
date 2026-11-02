@@ -17,7 +17,7 @@ brew install protobuf                     # protoc, for the gRPC bindings
 curl https://sh.rustup.rs -sSf | sh       # rustup installs the pinned toolchain on first build
 cargo install cargo-nextest --locked      # the test runner
 git clone https://github.com/AbdurahmanAlmehdi/jidr && cd jidr
-cargo xtask ci                            # fmt, clippy, tests, licence check
+cargo xtask ci                            # fmt, clippy, tests, licence check, skills check
 ```
 
 For the emulator tests you need an Android SDK with the emulator and one system image. Android Studio's SDK works and is only read, never modified. The tests use `system-images;android-31;google_apis;arm64-v8a` by default; override it with `JIDR_TEST_SDK`, `JIDR_TEST_IMAGE` and `JIDR_TEST_API`.

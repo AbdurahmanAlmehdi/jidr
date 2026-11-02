@@ -7673,6 +7673,8 @@ name = "xtask"
 version = "0.2.0"
 dependencies = [
  "anyhow",
+ "clap",
+ "clap_complete",
  "serde",
  "serde_json",
 ]
