@@ -1,5 +1,6 @@
 //! Network widget: Wi-Fi on/off (`svc wifi`), mobile data on/off (console
-//! `gsm data`), speed and delay profiles (console `network speed/delay`).
+//! `gsm data`), speed and delay profiles (console `network speed/delay`)
+//! and the global HTTP proxy (`settings global http_proxy`, [`proxy`]).
 //!
 //! Mobile data is switched at the emulated radio, not with Android's own
 //! switch: `svc data` / `cmd phone data` exit 0 and change nothing on the
@@ -15,6 +16,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::device::target;
+
+pub mod proxy;
 
 /// Named profiles (speed + latency pairs from the console's own tables).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -71,6 +74,18 @@ pub fn specs() -> Vec<CommandSpec> {
             "network.set",
             "Turn Wi-Fi or mobile data on/off and set the speed/delay profile",
         ),
+        CommandSpec::new::<DeviceParams>(
+            "network.proxy.get",
+            "The device's global HTTP proxy, or null when there is none",
+        ),
+        CommandSpec::new::<proxy::SetParams>(
+            "network.proxy.set",
+            "Send the device's HTTP(S) traffic through a proxy (10.0.2.2 is this Mac), e.g. Burp or mitmproxy",
+        ),
+        CommandSpec::new::<DeviceParams>(
+            "network.proxy.clear",
+            "Remove the device's global HTTP proxy",
+        ),
     ]
 }
 
@@ -96,6 +111,20 @@ fn radio_took(want: bool, gsm_status: &[String]) -> bool {
 
 pub async fn call(ctx: &CallCtx, method: &str, params: Value) -> JidrResult<Value> {
     match method {
+        "network.proxy.get" => {
+            let p: DeviceParams = parse_params(params)?;
+            proxy::get(&target(ctx, &p.device).await?.adb()).await
+        }
+        "network.proxy.set" => {
+            let p: proxy::SetParams = parse_params(params)?;
+            // Refuse a bad host or port before looking for the device.
+            let host = proxy::check(&p.host, p.port)?;
+            proxy::set(&target(ctx, &p.device).await?.adb(), host, p.port).await
+        }
+        "network.proxy.clear" => {
+            let p: DeviceParams = parse_params(params)?;
+            proxy::clear(&target(ctx, &p.device).await?.adb()).await
+        }
         "network.get" => {
             let p: DeviceParams = parse_params(params)?;
             let t = target(ctx, &p.device).await?;

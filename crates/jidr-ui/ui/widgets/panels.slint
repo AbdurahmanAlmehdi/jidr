@@ -245,6 +245,50 @@ export component NetworkPanel inherits VerticalLayout {
         }
         Hint { height: 15px; text: @tr("Bars shown in Android's status bar."); }
     }
+    // Global HTTP proxy (`network.proxy.*`): Burp or mitmproxy on this Mac.
+    VerticalLayout {
+        spacing: 8px;
+        Cap { text: @tr("HTTP proxy"); }
+        HorizontalLayout {
+            spacing: 6px;
+            TextField {
+                text: root.vm.proxy-host;
+                placeholder: "10.0.2.2";
+                mono: true;
+                edited(t) => { root.action("network.proxy-host", t); }
+                accepted => { root.action("network.proxy.set", ""); }
+            }
+            TextField {
+                width: 72px;
+                text: root.vm.proxy-port;
+                placeholder: "8080";
+                mono: true;
+                edited(t) => { root.action("network.proxy-port", t); }
+                accepted => { root.action("network.proxy.set", ""); }
+            }
+        }
+        HorizontalLayout {
+            spacing: 6px;
+            alignment: Theme.rtl ? LayoutAlignment.end : LayoutAlignment.start;
+            Button {
+                small: true;
+                enabled: root.vm.proxy-port != "";
+                text: root.vm.proxy != "" ? @tr("Change") : @tr("Set proxy");
+                clicked => { root.action("network.proxy.set", ""); }
+            }
+            if root.vm.proxy != "": Button {
+                small: true;
+                kind: ButtonKind.tertiary;
+                text: @tr("Clear");
+                clicked => { root.action("network.proxy.clear", ""); }
+            }
+        }
+        Hint {
+            height: 30px;
+            text: root.vm.proxy != "" ? @tr("HTTP(S) traffic goes through {}.", root.vm.proxy)
+                : @tr("Off. 10.0.2.2 is this Mac; Burp and mitmproxy listen on 8080.");
+        }
+    }
 }
 
 component NumberRow inherits Rectangle {
