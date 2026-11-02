@@ -99,7 +99,7 @@ fn bounds_of(xml: &str, text: &str) -> Option<(f32, f32, f32, f32)> {
         .split('"')
         .next()?;
     let n: Vec<f32> = b
-        .split(|c| c == ',' || c == '[' || c == ']')
+        .split([',', '[', ']'])
         .filter(|s| !s.is_empty())
         .map(|s| s.parse().ok())
         .collect::<Option<_>>()?;
