@@ -27,7 +27,7 @@ Tests named `*_emulator` run on a real emulator: on Linux KVM in CI (API 30, 33,
 | Battery widget | Free | ✅ | `crates/jidr-widgets/tests/widgets_emulator.rs` `widgets_core_commands` (`dumpsys battery`) |
 | GPS widget | Free | ✅ | `crates/jidr-widgets/tests/gps_emulator.rs` `gps_fix_and_route_replay` (`dumpsys location`) |
 | GPS routes (GPX/KML) | Paid | ✅ | `gps_emulator.rs` `gps_fix_and_route_replay` (3-point GPX in order) |
-| Rotation | Free | ✅ | `widgets_core_commands` (`sensor.rotate`, `dumpsys window` rotation) |
+| Rotation | Free | ✅ | `widgets_core_commands` (`sensor.rotate`, `dumpsys window` rotation); player touches in all four rotations: `crates/jidr-ui/tests/player_emulator.rs` `taps_land_under_the_pointer_in_every_rotation` |
 | Motion sensors 3D | Paid | 🚧 | `sensor.set` / `sensor.get` (`crates/jidr-widgets/src/sensors.rs`); rotation and the light sensor are tested in `widgets_core_commands`, accelerometer and gyroscope presets aren't |
 | Phone call / SMS | Free | ✅ | `widgets_core_commands` (`mCallState` ringing and idle, SMS in the inbox) |
 | Baseband gsm signal/data/voice | Paid | ✅ | `widgets_core_commands` (signal level 0 and ≥ 3 on any radio via `phone.gsm`); data and voice registration via `phone.gsm` |

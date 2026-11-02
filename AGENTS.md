@@ -25,6 +25,7 @@ Jidr is an open-source Genymotion Desktop alternative in Rust with one-click roo
 | `apps/jidr` | the `jidr` binary: CLI, `daemon` and `mcp` subcommands | Apache-2.0 |
 | `apps/jidr-gui` | the GUI binary | **GPL-3.0-only** |
 | `xtask` | `ci`, `license-check`, `e2e-mac`, `release` | Apache-2.0 |
+| `skills/` | agent skills (`skills/<name>/SKILL.md`, D43), checked by `cargo xtask skills-check` | Apache-2.0 |
 | `site/` | the jidr.ly site (Astro, not in the Cargo workspace) | Apache-2.0 |
 | `docs/design/` | design tokens (`tokens.json`, the single source for app and site), CSS and component specs | — |
 
@@ -64,17 +65,18 @@ The control protocol is frozen at the tag `protocol-v0.1` ([docs/control-protoco
 
 ## Before you open a pull request
 
-1. `cargo xtask ci` passes: fmt, clippy, tests and the licence check.
+1. `cargo xtask ci` passes: fmt, clippy, tests, the licence check and the skills check.
 2. If you touched a crate with emulator tests, run them for that crate if you have an image.
-3. Docs that describe the change are updated (`docs/cli.md`, `docs/mcp.md`, `docs/root.md`, the protocol changelog).
+3. Docs that describe the change are updated (`docs/cli.md`, `docs/mcp.md`, `docs/root.md`, the protocol changelog, and `skills/` when a command an agent uses changes).
 4. One conventional commit per logical change (`feat(daemon): …`, `fix(widgets): …`, `docs: …`). Release notes are generated from them.
 5. Never push to `main`; open a pull request. Don't push or publish anything without the maintainer asking.
 
 ## Useful commands
 
 ```bash
-cargo xtask ci                                   # fmt, clippy, tests, license-check
+cargo xtask ci                                   # fmt, clippy, tests, license-check, skills-check
 cargo xtask license-check                        # D18 split-licensing guard
+cargo xtask skills-check                         # skills' frontmatter and jidr commands (D43)
 cargo nextest run -p <crate>                     # unit + integration tests
 cargo nextest run -p <crate> --features emulator # needs an emulator image
 cargo xtask e2e-mac                              # release gate on Apple Silicon (D28)
