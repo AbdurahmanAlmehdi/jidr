@@ -2,9 +2,18 @@
 
 Android on your Mac, rooted in a minute.
 
+[![Latest release](https://img.shields.io/github/v/release/AbdurahmanAlmehdi/jidr)](https://github.com/AbdurahmanAlmehdi/jidr/releases/latest)
+![macOS 14+ on Apple Silicon](https://img.shields.io/badge/macOS_14%2B-Apple_Silicon-black)
+
 Jidr creates and runs virtual Android phones and tablets on Apple Silicon Macs. Pick **Full root** and Magisk is patched in and verified for you; pick **Shell root** for `adb root`; or keep the device stock. It's a free, open-source alternative to Genymotion Desktop, written in Rust, with a desktop app, a CLI and an MCP server for AI agents.
 
-**Status:** pre-release. The first release (v0.1.0) is in preparation; until then, build from source. Site: [jidr.ly](https://jidr.ly).
+```bash
+brew install --cask abdurahmanalmehdi/tap/jidr
+```
+
+Or [download the DMG](https://github.com/AbdurahmanAlmehdi/jidr/releases/latest). Site: [jidr.ly](https://jidr.ly).
+
+![Jidr after Full root: the device is rooted with Magisk and su -c id answers uid=0(root)](docs/images/root-success.png)
 
 ## Features
 
@@ -19,20 +28,16 @@ Jidr creates and runs virtual Android phones and tablets on Apple Silicon Macs. 
 
 No accounts, no telemetry, no paid tier.
 
-## Requirements
+![The Jidr player: a running device, its toolbar, and the battery widget](docs/images/player.png)
 
-- macOS 14 or later on Apple Silicon.
-- About 10 GB of free disk space for the SDK and one system image.
+## Install
 
-## Build from source
+You need macOS 14 or later on Apple Silicon, and about 10 GB of free disk space for the SDK and one system image.
 
-```bash
-git clone https://github.com/AbdurahmanAlmehdi/jidr
-cd jidr
-cargo build --release -p jidr -p jidr-gui
-```
+- **Homebrew:** `brew install --cask abdurahmanalmehdi/tap/jidr` installs `Jidr.app` and puts the `jidr` CLI on your `PATH`. Update with `brew upgrade --cask jidr`.
+- **DMG:** download `Jidr-<version>-arm64.dmg` from the [latest release](https://github.com/AbdurahmanAlmehdi/jidr/releases/latest) and drag Jidr to Applications. The CLI is at `/Applications/Jidr.app/Contents/Helpers/jidr`.
 
-You need `rustup` (it installs the toolchain pinned in `rust-toolchain.toml`) and `protoc` (`brew install protobuf`). [CONTRIBUTING.md](CONTRIBUTING.md) has the full setup and how to run the tests.
+On first launch the app finds or downloads the Android SDK and a system image, after you accept Google's license.
 
 ## Quick start (CLI)
 
@@ -43,11 +48,15 @@ jidr device start Phone                   # boot it and wait until it's ready
 jidr root set Phone magisk                # Full root with Magisk, verified
 ```
 
+## Use it from an AI agent
+
 Add Jidr to Claude Code as an MCP server:
 
 ```bash
 claude mcp add jidr -- jidr mcp
 ```
+
+For Claude Desktop, open `jidr-mcp-<version>-darwin-arm64.mcpb` from the [latest release](https://github.com/AbdurahmanAlmehdi/jidr/releases/latest). Jidr is also in the [MCP Registry](https://registry.modelcontextprotocol.io) as `io.github.AbdurahmanAlmehdi/jidr`. [docs/mcp.md](docs/mcp.md) lists the tools.
 
 ## Documentation
 
@@ -59,6 +68,17 @@ claude mcp add jidr -- jidr mcp
 - [Decisions](docs/decisions/log.md) and [architecture decision records](docs/decisions/)
 - [Feature parity with Genymotion Desktop](docs/parity.md)
 - [Clean-room policy](docs/clean-room.md)
+- [Changelog](CHANGELOG.md)
+
+## Build from source
+
+```bash
+git clone https://github.com/AbdurahmanAlmehdi/jidr
+cd jidr
+cargo build --release -p jidr -p jidr-gui
+```
+
+You need `rustup` (it installs the toolchain pinned in `rust-toolchain.toml`) and `protoc` (`brew install protobuf`). [CONTRIBUTING.md](CONTRIBUTING.md) has the full setup and how to run the tests.
 
 ## Licensing
 
