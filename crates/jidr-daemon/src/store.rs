@@ -185,6 +185,7 @@ mod tests {
             status: Default::default(),
             runtime: None,
             footprint_mb: None,
+            auto_hibernate_minutes: None,
         }
     }
 

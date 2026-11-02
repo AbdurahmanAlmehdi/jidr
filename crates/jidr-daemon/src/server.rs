@@ -248,6 +248,12 @@ impl Daemon {
             );
         };
         let (provider, spec) = (provider.clone(), spec.clone());
+        // Any command naming a device is activity on it (auto-hibernate).
+        if let Some(sel) = params.get("device").and_then(Value::as_str)
+            && let Ok(d) = self.state.device(sel).await
+        {
+            self.state.touch(d.id);
+        }
         let result: JidrResult<Value> = async {
             crate::validate::validate(&spec.params, &params)?;
             let (guard, device) = if spec.locks_device {

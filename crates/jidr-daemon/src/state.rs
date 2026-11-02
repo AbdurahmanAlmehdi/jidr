@@ -54,8 +54,8 @@ pub struct State {
     pub(crate) backend: Arc<dyn Backend>,
     store: Mutex<DeviceStore>,
     settings: Mutex<Settings>,
-    instances: Mutex<HashMap<Uuid, InstanceInfo>>,
-    watchers: Mutex<HashMap<Uuid, JoinHandle<()>>>,
+    pub(crate) instances: Mutex<HashMap<Uuid, InstanceInfo>>,
+    pub(crate) watchers: Mutex<HashMap<Uuid, JoinHandle<()>>>,
     pub(crate) locks: DeviceLocks,
     providers: OnceLock<Vec<Arc<dyn CommandProvider>>>,
     events: broadcast::Sender<Event>,
@@ -67,6 +67,8 @@ pub struct State {
     footprints: Mutex<HashMap<Uuid, Footprint>>,
     /// Serialises budget admission so parallel starts can't both slip in.
     budget_gate: Mutex<()>,
+    /// When each running device last saw activity (auto-hibernate).
+    pub(crate) activity: Mutex<HashMap<Uuid, std::time::Instant>>,
 }
 
 /// Latest and peak footprint of a device's current run, in MB.
@@ -84,7 +86,7 @@ impl std::fmt::Debug for State {
     }
 }
 
-fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
+pub(crate) fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
     m.lock().unwrap_or_else(|e| e.into_inner())
 }
 
@@ -137,6 +139,7 @@ impl State {
             host_memory,
             footprints: Mutex::new(HashMap::new()),
             budget_gate: Mutex::new(()),
+            activity: Mutex::new(HashMap::new()),
         }))
     }
 
@@ -198,7 +201,13 @@ impl State {
             let budget = self.budget_except(Some(id))?;
             let need = self.expected_mb(&d);
             if !budget.fits(need) {
-                return Err(budget.refusal(&d.name, need));
+                let mut e = budget.refusal(&d.name, need);
+                if let Some(Value::Object(data)) = e.data.as_mut() {
+                    // The longest-idle running devices first: hibernating
+                    // one frees all of its RAM (D42).
+                    data.insert("hibernate_candidates".into(), json!(self.idle_devices()));
+                }
+                return Err(e);
             }
         }
         self.set_status(id, DeviceStatus::Starting, None);
@@ -247,7 +256,7 @@ impl State {
     }
 
     /// Ends a run's sampling: its peak becomes the device's `footprint_mb`.
-    fn finish_footprint(&self, id: Uuid) {
+    pub(crate) fn finish_footprint(&self, id: Uuid) {
         let Some(f) = lock(&self.footprints).remove(&id) else {
             return;
         };
@@ -313,7 +322,7 @@ impl State {
         lock(&self.instances).len()
     }
 
-    fn set_status(
+    pub(crate) fn set_status(
         &self,
         id: Uuid,
         status: DeviceStatus,
@@ -343,10 +352,11 @@ impl State {
             lock(&self.instances).insert(id, info.clone());
             self.set_status(id, DeviceStatus::Running, Some(Some(info.runtime())));
             self.watch_crash(id, info);
+            self.touch(id);
         }
     }
 
-    fn watch_crash(&self, id: Uuid, info: InstanceInfo) {
+    pub(crate) fn watch_crash(&self, id: Uuid, info: InstanceInfo) {
         let Ok(me) = self.arc() else { return };
         let handle = tokio::spawn(async move {
             let log_dir = me.paths.device_logs(&info.avd);
@@ -496,6 +506,10 @@ impl DaemonContext for State {
             snapshot_save: self.settings().quick_boot && resume.is_none(),
             ..LaunchOptions::default()
         };
+        if opts.snapshot_save {
+            // Without it the headless emulator skips the exit save (13c).
+            self.avds().set_save_on_exit(&device.avd, true)?;
+        }
         self.set_status(id, DeviceStatus::Starting, None);
         let progress = |stage: BootStage| {
             if stage == BootStage::Spawned {
@@ -525,12 +539,18 @@ impl DaemonContext for State {
             })?;
         }
         self.watch_crash(id, info);
+        self.touch(id);
         let device = self.with_store(|s| s.get(id).cloned())?;
         self.run_boot_hooks(&device).await;
         Ok(device)
     }
 
     async fn stop_device(&self, id: Uuid) -> JidrResult<Device> {
+        let current = self.with_store(|s| s.get(id).cloned())?;
+        if matches!(current.status, DeviceStatus::Hibernated) {
+            // Already stopped, with its state saved for the next start.
+            return Ok(current);
+        }
         if let Some(w) = lock(&self.watchers).remove(&id) {
             w.abort();
         }
@@ -545,6 +565,7 @@ impl DaemonContext for State {
             }
         }
         self.finish_footprint(id);
+        crate::state::lock(&self.activity).remove(&id);
         self.set_status(id, DeviceStatus::Stopped, Some(None));
         self.with_store(|s| s.get(id).cloned())
     }

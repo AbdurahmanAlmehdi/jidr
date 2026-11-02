@@ -213,6 +213,11 @@ pub fn parse_windows(text: &str) -> JidrResult<HostMemory> {
 /// footprint (`top`; RSS misses guest RAM mapped through HVF), Linux `VmRSS`
 /// (KVM guest RAM is in QEMU's RSS). `None` when it can't be measured.
 pub fn process_footprint_mb(pid: u32) -> Option<u64> {
+    footprint_of(&process_tree(pid))
+}
+
+/// `pid` and its direct children (the emulator launcher and its QEMU).
+pub fn process_tree(pid: u32) -> Vec<u32> {
     let mut pids = vec![pid];
     if let Ok(out) = Command::new("pgrep")
         .args(["-P", &pid.to_string()])
@@ -224,7 +229,7 @@ pub fn process_footprint_mb(pid: u32) -> Option<u64> {
                 .filter_map(|p| p.parse::<u32>().ok()),
         );
     }
-    footprint_of(&pids)
+    pids
 }
 
 #[cfg(target_os = "macos")]

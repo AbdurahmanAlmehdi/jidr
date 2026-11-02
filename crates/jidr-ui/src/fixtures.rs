@@ -62,6 +62,7 @@ fn device(
         status,
         runtime: None,
         footprint_mb: None,
+        auto_hibernate_minutes: None,
     }
 }
 

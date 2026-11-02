@@ -256,6 +256,12 @@ pub enum DeviceCmd {
         #[command(flatten)]
         sel: Selection,
     },
+    /// Save devices' whole state and stop them; `device start` resumes them
+    /// in seconds. A hibernated device uses no RAM.
+    Hibernate {
+        #[command(flatten)]
+        sel: Selection,
+    },
     /// List devices.
     List,
     /// Settings, status and disk usage of a device.
@@ -295,6 +301,12 @@ pub enum DeviceCmd {
         /// Let AI agents run destructive commands on it.
         #[arg(long)]
         agent_owned: Option<bool>,
+        /// Hibernate it after this many idle minutes (0 = never).
+        #[arg(long, conflicts_with = "auto_hibernate_default")]
+        auto_hibernate: Option<u32>,
+        /// Follow the global auto-hibernate setting again.
+        #[arg(long)]
+        auto_hibernate_default: bool,
     },
     /// gRPC endpoint, token and adb serial of a running device.
     ConnectInfo { device: String },
@@ -322,6 +334,9 @@ pub enum SettingsCmd {
         /// Share of host RAM running devices may use, 10–100 percent.
         #[arg(long, value_parser = clap::value_parser!(u8).range(10..=100))]
         budget_percent: Option<u8>,
+        /// Hibernate running devices idle this many minutes (0 = off).
+        #[arg(long)]
+        auto_hibernate_minutes: Option<u32>,
     },
 }
 

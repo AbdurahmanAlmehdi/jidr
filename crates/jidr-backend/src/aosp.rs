@@ -134,6 +134,13 @@ impl AospBackend {
             .args(&args)
             .env("ANDROID_AVD_HOME", &spec.avd_home)
             .env("ANDROID_SDK_ROOT", &spec.sdk_root)
+            // The emulator kills itself 20 s into a shutdown by default,
+            // mid-way through writing the quick-boot snapshot (an empty
+            // `ram.bin`, Phase 13c). Give it as long as `stop` waits.
+            .env(
+                "ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL",
+                SHUTDOWN_TIMEOUT.as_secs().to_string(),
+            )
             .stdin(Stdio::null())
             .stdout(Stdio::from(log))
             .stderr(Stdio::from(log_err))
@@ -407,6 +414,67 @@ impl Backend for AospBackend {
         self.crash_watch(instance, log_dir).await
     }
 
+    async fn save_snapshot(
+        &self,
+        instance: &InstanceInfo,
+        name: &str,
+        _avd_dir: &Path,
+    ) -> JidrResult<()> {
+        let (_, mut snaps) = grpc::connect(instance).await?;
+        let r = snaps
+            .save_snapshot(jidr_proto::control::SnapshotPackage {
+                snapshot_id: name.to_string(),
+                ..Default::default()
+            })
+            .await
+            .map_err(|s| grpc::status_error("SaveSnapshot", s))?
+            .into_inner();
+        if !r.success {
+            return Err(JidrError::sdk(format!(
+                "saving snapshot {name}: {}",
+                String::from_utf8_lossy(&r.err).trim()
+            )));
+        }
+        Ok(())
+    }
+
+    async fn stop_without_save(&self, instance: &InstanceInfo) -> JidrResult<()> {
+        if let Ok((mut c, _)) = grpc::connect(instance).await {
+            let _ = c
+                .set_vm_state(VmRunState {
+                    state: RunState::Paused as i32,
+                })
+                .await;
+        }
+        // The launcher's QEMU child first: killing only the launcher would
+        // orphan it.
+        kill_tree(instance.pid).await;
+        self.wait_exit(instance, Duration::from_secs(10)).await;
+        self.exits
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(&instance.pid);
+        self.ports.release(instance.ports());
+        Ok(())
+    }
+
+    async fn has_clients(&self, instance: &InstanceInfo) -> bool {
+        let port = instance.grpc_port;
+        let own = jidr_sdk::host::process_tree(instance.pid);
+        let out = Command::new("lsof")
+            .args(["-nP", &format!("-iTCP:{port}"), "-sTCP:ESTABLISHED", "-Fp"])
+            .output()
+            .await;
+        let me = std::process::id();
+        out.map(|o| {
+            String::from_utf8_lossy(&o.stdout)
+                .lines()
+                .filter_map(|l| l.strip_prefix('p')?.parse::<u32>().ok())
+                .any(|p| p != me && !own.contains(&p))
+        })
+        .unwrap_or(false)
+    }
+
     async fn footprint_mb(&self, instance: &InstanceInfo) -> Option<u64> {
         let pid = instance.pid;
         tokio::task::spawn_blocking(move || jidr_sdk::host::process_footprint_mb(pid))
@@ -424,6 +492,13 @@ pub async fn process_alive(pid: u32) -> bool {
         .await
         .map(|s| s.success())
         .unwrap_or(false)
+}
+
+/// SIGKILL to `pid`'s children, then `pid`.
+async fn kill_tree(pid: u32) {
+    for p in jidr_sdk::host::process_tree(pid).into_iter().rev() {
+        kill(p).await;
+    }
 }
 
 async fn kill(pid: u32) {
@@ -564,6 +639,38 @@ mod tests {
         // Ports were released: the same pair is handed out again.
         let again = backend.ports().allocate().unwrap();
         assert_eq!(again.console % 2, 0);
+    }
+
+    /// Regression (Phase 13c): the emulator's default 20 s kill timer cut the
+    /// quick-boot save short; the launch must raise it.
+    #[tokio::test]
+    async fn launch_gives_the_exit_save_time() {
+        let dir = tempfile::tempdir().unwrap();
+        let emu = dir.path().join("emulator");
+        std::fs::write(
+            &emu,
+            "#!/bin/sh\necho \"wait=$ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL\" >&2\nexit 1\n",
+        )
+        .unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&emu, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        let s = LaunchSpec {
+            emulator: emu,
+            log_dir: dir.path().join("logs"),
+            ..spec()
+        };
+        let err = AospBackend::new()
+            .start(&s, &LaunchOptions::default(), &|_| {}, &Cancel::new())
+            .await
+            .unwrap_err();
+        let tail = err.data.unwrap()["tail"].to_string();
+        assert!(
+            tail.contains(&format!("wait={}", SHUTDOWN_TIMEOUT.as_secs())),
+            "{tail}"
+        );
     }
 
     #[tokio::test]

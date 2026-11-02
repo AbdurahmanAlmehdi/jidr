@@ -5,6 +5,8 @@
 pub mod budget;
 pub mod bundle;
 pub mod core_provider;
+pub mod hibernate;
+pub mod idle;
 pub mod jobs;
 pub mod lifecycle;
 pub mod locks;
@@ -175,6 +177,16 @@ impl Daemon {
                 }
             })
         };
+        let hibernator = {
+            let state = self.state.clone();
+            tokio::spawn(async move {
+                let mut tick = tokio::time::interval(idle::CHECK_EVERY);
+                loop {
+                    tick.tick().await;
+                    state.auto_hibernate(std::time::Instant::now()).await;
+                }
+            })
+        };
         tokio::pin!(shutdown);
         tokio::pin!(idle);
         loop {
@@ -197,6 +209,7 @@ impl Daemon {
             }
         }
         sampler.abort();
+        hibernator.abort();
         let _ = std::fs::remove_file(&path);
         self.closing.send_replace(true);
         Ok(())

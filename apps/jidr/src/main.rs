@@ -523,6 +523,7 @@ async fn run(cli: Cli, out: Out) -> JidrResult<()> {
                     default_root,
                     quick_boot,
                     budget_percent,
+                    auto_hibernate_minutes,
                 } => {
                     let mut p = Map::new();
                     if let Some(r) = default_root {
@@ -534,19 +535,26 @@ async fn run(cli: Cli, out: Out) -> JidrResult<()> {
                     if let Some(b) = budget_percent {
                         p.insert("budget_percent".into(), json!(b));
                     }
+                    if let Some(m) = auto_hibernate_minutes {
+                        p.insert("auto_hibernate_minutes".into(), json!(m));
+                    }
                     c.call("settings.set", Value::Object(p)).await?
                 }
             };
             out.ok(&v, |v| {
                 format!(
-                    "Default root mode: {}\nQuick boot on stop: {}\nRAM budget: {}% of host RAM",
+                    "Default root mode: {}\nQuick boot on stop: {}\nRAM budget: {}% of host RAM\nAuto-hibernate: {}",
                     v["default_root_mode"].as_str().unwrap_or("?"),
                     if v["quick_boot"].as_bool().unwrap_or(true) {
                         "on"
                     } else {
                         "off"
                     },
-                    v["budget_percent"]
+                    v["budget_percent"],
+                    match v["auto_hibernate_minutes"].as_u64() {
+                        Some(0) | None => "off".to_string(),
+                        Some(m) => format!("after {m} idle minutes"),
+                    }
                 )
             });
         }
@@ -736,7 +744,10 @@ async fn device(c: &Client, out: Out, cmd: DeviceCmd) -> JidrResult<()> {
             timeout,
             force,
         } => {
-            let names = select(c, &sel, |d| matches!(state_of(d), "stopped" | "crashed")).await?;
+            let names = select(c, &sel, |d| {
+                matches!(state_of(d), "stopped" | "crashed" | "hibernated")
+            })
+            .await?;
             let mut results = Vec::new();
             for name in names {
                 let v = c
@@ -767,10 +778,28 @@ async fn device(c: &Client, out: Out, cmd: DeviceCmd) -> JidrResult<()> {
             });
         }
         DeviceCmd::Stop { sel } => {
-            let names = select(c, &sel, |d| !matches!(state_of(d), "stopped" | "crashed")).await?;
+            let names = select(c, &sel, |d| {
+                !matches!(state_of(d), "stopped" | "crashed" | "hibernated")
+            })
+            .await?;
             let mut results = Vec::new();
             for name in names {
                 results.push(exec(c, out, "device.stop", json!({ "device": name })).await?);
+            }
+            out.ok(&Value::Array(results.clone()), |_| {
+                results
+                    .iter()
+                    .map(output::device)
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            });
+        }
+        DeviceCmd::Hibernate { sel } => {
+            let names = select(c, &sel, |d| state_of(d) == "running").await?;
+            let mut results = Vec::new();
+            for name in names {
+                out.info(&format!("Hibernating {name}…"));
+                results.push(exec(c, out, "device.hibernate", json!({ "device": name })).await?);
             }
             out.ok(&Value::Array(results.clone()), |_| {
                 results
@@ -837,6 +866,8 @@ async fn device(c: &Client, out: Out, cmd: DeviceCmd) -> JidrResult<()> {
             rename,
             hw,
             agent_owned,
+            auto_hibernate,
+            auto_hibernate_default,
         } => {
             let mut p = Map::new();
             p.insert("device".into(), json!(device));
@@ -846,6 +877,11 @@ async fn device(c: &Client, out: Out, cmd: DeviceCmd) -> JidrResult<()> {
             hw_params(&mut p, &hw);
             if let Some(a) = agent_owned {
                 p.insert("agent_owned".into(), json!(a));
+            }
+            if let Some(m) = auto_hibernate {
+                p.insert("auto_hibernate_minutes".into(), json!(m));
+            } else if auto_hibernate_default {
+                p.insert("auto_hibernate_minutes".into(), Value::Null);
             }
             let v = exec(c, out, "device.edit", Value::Object(p)).await?;
             out.ok(&v, output::device);

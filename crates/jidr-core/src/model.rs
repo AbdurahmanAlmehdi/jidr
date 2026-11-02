@@ -194,6 +194,9 @@ pub enum DeviceStatus {
     Booting,
     Running,
     Stopping,
+    /// Stopped after saving its whole state (D42): the next start resumes
+    /// where it was, in seconds. Uses no host RAM.
+    Hibernated,
     /// The emulator exited or stopped answering (D9: no auto-restart).
     Crashed {
         reason: String,
@@ -249,6 +252,10 @@ pub struct Device {
     /// daemon (D42 cost model).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub footprint_mb: Option<u32>,
+    /// Hibernate after this many idle minutes; `0` = never, `None` = the
+    /// `auto_hibernate_minutes` setting.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auto_hibernate_minutes: Option<u32>,
 }
 
 /// Per-device launch settings. The root engine sets `ramdisk` (Magisk) and
@@ -343,6 +350,9 @@ pub struct Settings {
     pub quick_boot: bool,
     /// Share of host RAM running devices may use, in percent (D42).
     pub budget_percent: u8,
+    /// Hibernate running devices idle this many minutes (no Jidr command for
+    /// them and no player attached); `0` = off (the default).
+    pub auto_hibernate_minutes: u32,
 }
 
 impl Default for Settings {
@@ -351,6 +361,7 @@ impl Default for Settings {
             default_root_mode: RootMode::Adb,
             quick_boot: true,
             budget_percent: 75,
+            auto_hibernate_minutes: 0,
         }
     }
 }

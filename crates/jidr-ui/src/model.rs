@@ -152,7 +152,7 @@ fn state_of(info: &DeviceInfo) -> DevState {
         return DevState::Busy;
     }
     match &info.device.status {
-        DeviceStatus::Stopped => DevState::Stopped,
+        DeviceStatus::Stopped | DeviceStatus::Hibernated => DevState::Stopped,
         DeviceStatus::Starting => DevState::Starting,
         DeviceStatus::Booting => DevState::Booting,
         DeviceStatus::Running => DevState::Running,
@@ -168,6 +168,7 @@ pub fn status_label(info: &DeviceInfo, now: DateTime<Utc>) -> String {
     }
     match &info.device.status {
         DeviceStatus::Stopped => "Stopped".into(),
+        DeviceStatus::Hibernated => "Hibernated".into(),
         DeviceStatus::Starting => "Starting…".into(),
         DeviceStatus::Booting => match info.boot_progress {
             Some(p) => format!("Booting Android… {}%", (p * 100.0).round() as i64),
@@ -427,6 +428,7 @@ mod tests {
             status,
             runtime: None,
             footprint_mb: None,
+            auto_hibernate_minutes: None,
         }
     }
 

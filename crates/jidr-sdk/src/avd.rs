@@ -370,6 +370,22 @@ impl AvdManager {
         Ok(out)
     }
 
+    /// Turns the emulator's own quick-boot save on exit on or off in
+    /// `<avd>/AVD.conf` (`[perAvd] set\saveSnapshotOnExit`, 0 = save). The
+    /// headless emulator ignores the exit save without it ("Snapshots have
+    /// been disabled by the user"), which left Jidr devices with an empty
+    /// `default_boot` (Phase 13c). Other keys in the file are kept.
+    pub fn set_save_on_exit(&self, name: &str, save: bool) -> JidrResult<()> {
+        let path = self.require(name)?.join("AVD.conf");
+        let text = std::fs::read_to_string(&path).unwrap_or_default();
+        let next = with_save_on_exit(&text, save);
+        if next != text {
+            std::fs::write(&path, next)
+                .ctx(ErrorCode::Sdk, format!("writing {}", path.display()))?;
+        }
+        Ok(())
+    }
+
     /// True if an emulator process currently holds this AVD.
     pub fn is_running(&self, name: &str) -> bool {
         is_locked(&self.dir(name))
@@ -505,6 +521,43 @@ impl AvdManager {
     pub fn disk_usage(&self, name: &str) -> JidrResult<u64> {
         Ok(disk_usage(&self.require(name)?))
     }
+}
+
+const SAVE_ON_EXIT_KEY: &str = "set\\saveSnapshotOnExit";
+
+/// `AVD.conf` (a Qt settings file) with `saveSnapshotOnExit` set in its
+/// `[perAvd]` section: `0` saves on exit, `1` doesn't.
+pub fn with_save_on_exit(text: &str, save: bool) -> String {
+    let line = format!("{SAVE_ON_EXIT_KEY}={}", if save { 0 } else { 1 });
+    let mut out: Vec<String> = Vec::new();
+    let (mut in_section, mut seen_section, mut done) = (false, false, false);
+    for l in text.lines() {
+        let t = l.trim();
+        if t.starts_with('[') {
+            if in_section && !done {
+                out.push(line.clone());
+                done = true;
+            }
+            in_section = t == "[perAvd]";
+            seen_section |= in_section;
+        } else if in_section && t.split('=').next().map(str::trim) == Some(SAVE_ON_EXIT_KEY) {
+            if !done {
+                out.push(line.clone());
+                done = true;
+            }
+            continue;
+        }
+        out.push(l.to_string());
+    }
+    if !done {
+        if !seen_section {
+            out.push("[perAvd]".into());
+        }
+        out.push(line);
+    }
+    let mut s = out.join("\n");
+    s.push('\n');
+    s
 }
 
 /// A snapshot a clone can resume from: `snapshots/<name>/` with a
@@ -975,6 +1028,36 @@ other.src.avd.like = /h/avd/src.avd.bak/x
                 .code,
             ErrorCode::Busy
         );
+    }
+
+    /// Regression (Phase 13c): Jidr AVDs had no `AVD.conf`, so the headless
+    /// emulator never saved quick-boot state on exit.
+    #[test]
+    fn save_on_exit_setting() {
+        assert_eq!(
+            with_save_on_exit("", true),
+            "[perAvd]\nset\\saveSnapshotOnExit=0\n"
+        );
+        let studio = "[perAvd]\nbattery\\charge_level=100\nset\\saveSnapshotOnExit=1\nset\\pauseAvdWhenMinimized=false\n";
+        assert_eq!(
+            with_save_on_exit(studio, true),
+            "[perAvd]\nbattery\\charge_level=100\nset\\saveSnapshotOnExit=0\nset\\pauseAvdWhenMinimized=false\n"
+        );
+        let other = "[General]\nx=1\n[perAvd]\nloc\\altitude=5\n";
+        assert_eq!(
+            with_save_on_exit(other, false),
+            "[General]\nx=1\n[perAvd]\nloc\\altitude=5\nset\\saveSnapshotOnExit=1\n"
+        );
+        assert_eq!(
+            with_save_on_exit("[General]\nx=1\n", true),
+            "[General]\nx=1\n[perAvd]\nset\\saveSnapshotOnExit=0\n"
+        );
+        let dir = tempfile::tempdir().unwrap();
+        let m = AvdManager::new(dir.path());
+        m.create(&spec("q")).unwrap();
+        m.set_save_on_exit("q", true).unwrap();
+        let conf = std::fs::read_to_string(m.dir("q").join("AVD.conf")).unwrap();
+        assert!(conf.contains("set\\saveSnapshotOnExit=0"), "{conf}");
     }
 
     #[test]

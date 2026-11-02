@@ -75,11 +75,12 @@ Subscribing again replaces the filter. Topics:
 
 | Topic | Data |
 |---|---|
-| `device.status` | `{device, name, status}`: status is `{state: stopped\|starting\|booting\|running\|stopping\|crashed, …}` |
+| `device.status` | `{device, name, status}`: status is `{state: stopped\|starting\|booting\|running\|stopping\|hibernated\|crashed, …}` |
 | `device.boot` | `{device, stage: spawned\|grpc_ready\|adb_online\|booted, progress}` |
 | `device.boot_failed` | `{device, error}` |
 | `device.crashed` | `{device, report: {kind, reason, exit_code, log, …}}`; never restarted (D9) |
 | `device.created`, `device.deleted`, `device.updated` | `{device, name}` |
+| `device.hibernated` | `{device, name}`: saved and stopped by `device.hibernate` or auto-hibernate |
 | `device.hook_failed` | `{device, provider, error}`: a provider's after-boot hook failed |
 | `job.started` | `{job, kind, device}` |
 | `job.progress` | `{job, progress, message}` |
@@ -319,6 +320,15 @@ Rename a device or change its hardware (stopped) · locks the device
 | `height` | integer |  | Screen height in pixels (overrides the profile). |
 | `density` | integer |  | Screen density in dpi (overrides the profile). |
 | `agent_owned` | boolean |  |  |
+| `auto_hibernate_minutes` | integer |  | Hibernate this device after so many idle minutes (0 = never); `null` follows the `auto_hibernate_minutes` setting. |
+
+#### `device.hibernate`
+
+Save a running device's whole state and stop it; device.start resumes it in seconds · long-running (job) · locks the device
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes | Device name or id. |
 
 #### `device.list`
 
@@ -782,7 +792,7 @@ Set a motion or environment sensor value
 
 #### `settings.get`
 
-Daemon-wide settings: default root mode, quick boot on stop, RAM budget
+Daemon-wide settings: default root mode, quick boot on stop, RAM budget, auto-hibernate
 
 No params.
 
@@ -795,6 +805,7 @@ Change daemon-wide settings (only the fields given)
 | `default_root_mode` | `none` \| `adb` \| `magisk` |  | Root mode for `device.create` without `root_mode`. |
 | `quick_boot` | boolean |  | Save a quick-boot snapshot on stop (D29); from each device's next start. |
 | `budget_percent` | integer |  | Share of host RAM running devices may use, 10–100 percent (D42). |
+| `auto_hibernate_minutes` | integer |  | Hibernate running devices idle this many minutes; 0 = off. |
 
 ### `snapshot.*`
 
@@ -846,3 +857,4 @@ Save a snapshot of a running device · long-running (job) · locks the device
 | 0.1 (additive) | Phase 9f: `device.props.get`, `device.props.set` (a Full-root device's build props, from the root provider). No existing command changed. |
 | 0.1 (additive) | Phase 13a (D42): new error code `resource_exhausted` (-32009, CLI exit 9) from `device.start` past the host RAM budget; `device.start` gains `force`. New `host.budget` → `{total_mb, available_mb, budget_percent, budget_mb, used_mb, devices: [{id, name, expected_mb, measured_mb?}]}`. `settings` gains `budget_percent` (default 75, 10–100). `Device` gains `footprint_mb` (peak of its last run); `HardwareProfile` gains `audio`, `camera_back`, `camera_front`; `LaunchPrefs` gains `audio`. New profile `agent-lean`. No existing field changed meaning. |
 | 0.1 (additive) | Phase 13b (D42): `device.clone` gains `keep_snapshot` (a snapshot name or id with a non-empty `ram.bin`): a copy-on-write clone that keeps only that snapshot (and its root-mode tag), drops `default_boot` and the locks, and rewrites the AVD name and folder in its ini files. `LaunchPrefs` gains `resume_snapshot`: the next start launches with `-snapshot <id>` (and no exit save into it), then it is cleared. Without `keep_snapshot`, `device.clone` is unchanged. |
+| 0.1 (additive) | Phase 13c (D42): new device state `hibernated` (not active; uses no RAM) and event `device.hibernated`. New `device.hibernate` (long-running, locks the device): a named snapshot `jidr-hibernate` via SnapshotService, refused with `sdk` (the device keeps running) when its `ram.bin` is empty, then an exit without the quick-boot save; `device.start` resumes it (`-snapshot jidr-hibernate`) and the snapshot's root tag is kept (D29); `device.stop` leaves it hibernated, `device.reset` discards it. `settings` gains `auto_hibernate_minutes` (0 = off, the default); `Device` and `device.edit` gain `auto_hibernate_minutes` (`0` = never, `null` = the setting). `resource_exhausted` details gain `hibernate_candidates: [{id, name, idle_s}]`, the longest-idle running devices first. |

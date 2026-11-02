@@ -82,6 +82,9 @@ pub struct SettingsParams {
     /// Share of host RAM running devices may use, 10–100 percent (D42).
     #[serde(default)]
     pub budget_percent: Option<u8>,
+    /// Hibernate running devices idle this many minutes; 0 = off.
+    #[serde(default)]
+    pub auto_hibernate_minutes: Option<u32>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -109,6 +112,15 @@ pub struct EditParams {
     pub density: Option<u32>,
     #[serde(default)]
     pub agent_owned: Option<bool>,
+    /// Hibernate this device after so many idle minutes (0 = never); `null`
+    /// follows the `auto_hibernate_minutes` setting.
+    #[serde(default, deserialize_with = "some_or_null")]
+    pub auto_hibernate_minutes: Option<Option<u32>>,
+}
+
+/// `Some(None)` for an explicit `null`, so it can clear a value.
+fn some_or_null<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<Option<u32>>, D::Error> {
+    Option::<u32>::deserialize(d).map(Some)
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -536,6 +548,7 @@ impl CoreProvider {
             status: Default::default(),
             runtime: None,
             footprint_mb: None,
+            auto_hibernate_minutes: None,
         };
         if let Err(e) = self.state.with_store(|s| s.insert(device.clone())) {
             let _ = avds.delete(&avd);
@@ -572,7 +585,7 @@ impl CoreProvider {
                 &BTreeMap::from([("avd.ini.displayname".into(), Some(name.clone()))]),
             )?;
         }
-        let (name, agent_owned) = (p.name, p.agent_owned);
+        let (name, agent_owned, auto) = (p.name, p.agent_owned, p.auto_hibernate_minutes);
         let d = self
             .state
             .update_device(
@@ -583,6 +596,9 @@ impl CoreProvider {
                     }
                     if let Some(a) = agent_owned {
                         d.agent_owned = a;
+                    }
+                    if let Some(m) = auto {
+                        d.auto_hibernate_minutes = m;
                     }
                 }),
             )
@@ -668,7 +684,17 @@ impl CoreProvider {
         self.state.avds().factory_reset(&d.avd)?;
         let d = self
             .state
-            .update_device(d.id, Box::new(|d| d.launch.force_cold_boot = true))
+            .update_device(
+                d.id,
+                Box::new(|d| {
+                    d.launch.force_cold_boot = true;
+                    // The wipe took the hibernate snapshot with it.
+                    d.launch.resume_snapshot = None;
+                    if matches!(d.status, jidr_core::DeviceStatus::Hibernated) {
+                        d.status = jidr_core::DeviceStatus::Stopped;
+                    }
+                }),
+            )
             .await?;
         json(d)
     }
@@ -830,6 +856,12 @@ impl CommandProvider for CoreProvider {
                 "Stop a device, saving its quick-boot state",
             )
             .locks_device(),
+            CommandSpec::new::<DeviceParams>(
+                "device.hibernate",
+                "Save a running device's whole state and stop it; device.start resumes it in seconds",
+            )
+            .long_running()
+            .locks_device(),
             CommandSpec::new::<DeviceParams>("device.reset", "Factory reset: wipe all user data")
                 .destructive()
                 .locks_device(),
@@ -869,7 +901,7 @@ impl CommandProvider for CoreProvider {
             ),
             CommandSpec::new::<NoParams>(
                 "settings.get",
-                "Daemon-wide settings: default root mode, quick boot on stop, RAM budget",
+                "Daemon-wide settings: default root mode, quick boot on stop, RAM budget, auto-hibernate",
             ),
             CommandSpec::new::<SettingsParams>(
                 "settings.set",
@@ -947,6 +979,12 @@ impl CommandProvider for CoreProvider {
                 let d = self.state.device(&p.device).await?;
                 json(self.state.stop_device(d.id).await?)
             }
+            "device.hibernate" => {
+                let p: DeviceParams = parse_params(params)?;
+                let d = self.state.device(&p.device).await?;
+                ctx.report(None, "Saving memory and disk");
+                json(self.state.hibernate(d.id).await?)
+            }
             "device.reset" => self.reset(parse_params(params)?).await,
             "device.delete" => self.delete(parse_params(params)?).await,
             "device.list" => {
@@ -968,6 +1006,9 @@ impl CommandProvider for CoreProvider {
                 json(self.state.update_settings(|s| {
                     if let Some(b) = p.budget_percent {
                         s.budget_percent = b;
+                    }
+                    if let Some(m) = p.auto_hibernate_minutes {
+                        s.auto_hibernate_minutes = m;
                     }
                     if let Some(m) = p.default_root_mode {
                         s.default_root_mode = m;
