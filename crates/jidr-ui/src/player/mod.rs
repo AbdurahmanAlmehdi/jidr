@@ -9,6 +9,7 @@ pub mod session;
 
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use jidr_core::{ConnectInfo, DeviceStatus, RootMode};
@@ -180,8 +181,8 @@ pub fn wire(ctx: &Rc<Ctx>) {
         }
         let g = p.gesture;
         let Some(s) = p.session.as_ref() else { return };
-        let screen = current_screen(s);
-        let pts = input::fingers(g, screen, screen.to_px(nx, ny));
+        let quarter = s.stats.quarter.load(Ordering::Relaxed);
+        let pts = input::panel_touches(g, s.native, current_screen(s), quarter, (nx, ny));
         s.send(input::touch_event(&pts, kind != 2), kind != 2);
     });
 
@@ -383,7 +384,6 @@ fn toggle_overlay(ctx: &Rc<Ctx>) {
             let p = c.player.borrow();
             match p.session.as_ref() {
                 Some(s) => {
-                    use std::sync::atomic::Ordering;
                     let st = &s.stats;
                     let (r, sh) = (st.received.load(Ordering::Relaxed), st.shown.load(Ordering::Relaxed));
                     let dt = last.0.elapsed().as_secs_f32().max(0.001);
