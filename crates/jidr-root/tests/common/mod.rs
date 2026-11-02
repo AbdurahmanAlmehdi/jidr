@@ -28,7 +28,9 @@ case "$1" in
   root) echo 0 > "$state"; echo "restarting adbd as root";;
   unroot) echo 2000 > "$state"; echo "restarting adbd as non root";;
   devices) printf 'List of devices attached\nemulator-5556\tdevice\nemulator-5558\tdevice\nemulator-5560\tdevice\n';;
-  push) echo "pushed";;
+  push)
+    # Keep what was pushed: the CA certificate scripts read it back.
+    rm -rf "$dir/pushed"; cp -R "$2" "$dir/pushed"; echo "pushed";;
   install) echo "Success";;
   uninstall) echo "Success";;
   logcat) echo 'I/fake: hello';;
@@ -59,6 +61,18 @@ case "$1" in
         else
           exit 1
         fi;;
+      # root.cacert.*: apply.sh copies certificates into (or deletes them
+      # from) Jidr's module; the fake module is $dir/cacerts and the store
+      # always has what the module has.
+      "su -c 'sh /data/local/tmp/jidr-cacerts/apply.sh'")
+        mkdir -p "$dir/cacerts"
+        grep '^cp /data/local/tmp/jidr-cacerts/[0-9a-f]*\.[0-9]* ' "$dir/pushed/apply.sh" | while read -r _ src _; do cp "$dir/pushed/${src##*/}" "$dir/cacerts/"; done
+        grep '^rm -f ' "$dir/pushed/apply.sh" | while read -r _ _ f; do rm -f "$dir/cacerts/${f##*/}"; done
+        echo 1 >> "$dir/cacert-applied";;
+      "su -c 'sh /data/local/tmp/jidr-cacerts/state.sh'")
+        echo "store /apex/com.android.conscrypt/cacerts"
+        for f in "$dir"/cacerts/*; do [ -f "$f" ] || continue; echo "cert ${f##*/} 1"; cat "$f"; done;;
+      "su -c 'sh /data/local/tmp/jidr-cacerts/check.sh'") echo absent;;
       "am force-stop com.topjohnwu.magisk")
         echo 1 >> "$dir/force-stopped"; echo "ok";;
       *"su_auto_response"*)
@@ -252,6 +266,25 @@ impl Env {
     /// How many times the fake adb force-stopped the Magisk app.
     pub fn force_stop_count(&self) -> usize {
         std::fs::read_to_string(self.studio.join("platform-tools/force-stopped"))
+            .map(|s| s.lines().count())
+            .unwrap_or(0)
+    }
+
+    /// The CA certificate files in the fake device's Jidr module.
+    pub fn cacert_files(&self) -> Vec<String> {
+        let mut v: Vec<String> = std::fs::read_dir(self.studio.join("platform-tools/cacerts"))
+            .map(|d| {
+                d.filter_map(|e| e.ok()?.file_name().into_string().ok())
+                    .collect()
+            })
+            .unwrap_or_default();
+        v.sort();
+        v
+    }
+
+    /// How many times the fake device ran the module change script.
+    pub fn cacert_applied(&self) -> usize {
+        std::fs::read_to_string(self.studio.join("platform-tools/cacert-applied"))
             .map(|s| s.lines().count())
             .unwrap_or(0)
     }

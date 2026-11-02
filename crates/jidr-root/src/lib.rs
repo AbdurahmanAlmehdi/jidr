@@ -6,13 +6,16 @@
 //! - `root.set`: switches the mode, live when the device is running;
 //! - `root.module.install`: installs a Magisk module zip on a Magisk device;
 //! - `device.props.get` / `device.props.set`: a Full-root device's build
-//!   props (Phase 9f, [`props`]).
+//!   props (Phase 9f, [`props`]);
+//! - `root.cacert.install` / `.list` / `.verify` / `.remove`: CA
+//!   certificates in a Full-root device's system store ([`cacerts`]).
 //!
 //! adb-mode devices get `adb root` after every boot through
 //! [`CommandProvider::on_booted`]; Magisk devices get a re-patch check.
 
 mod adb_mode;
 mod adb_ready;
+pub mod cacerts;
 mod magisk;
 pub mod props;
 mod verify;
@@ -113,6 +116,27 @@ impl CommandProvider for RootProvider {
                 "Set a Full-root device's build props; the next start (a cold boot) applies them",
             )
             .locks_device(),
+            CommandSpec::new::<cacerts::InstallParams>(
+                "root.cacert.install",
+                "Trust a CA certificate (PEM or DER, e.g. Burp's) as a system cert on a running Full-root device; restarts it",
+            )
+            .locks_device()
+            .long_running(),
+            CommandSpec::new::<DeviceParams>(
+                "root.cacert.list",
+                "The CA certificates Jidr added to a running Full-root device and whether each is trusted",
+            ),
+            CommandSpec::new::<DeviceParams>(
+                "root.cacert.verify",
+                "Check that every CA certificate Jidr added is in the system store apps read",
+            )
+            .locks_device(),
+            CommandSpec::new::<cacerts::RemoveParams>(
+                "root.cacert.remove",
+                "Remove a CA certificate Jidr added (or all of them); restarts the device",
+            )
+            .locks_device()
+            .long_running(),
         ]
     }
 
@@ -141,6 +165,14 @@ impl CommandProvider for RootProvider {
                 props::get(ctx, &parse_params::<DeviceParams>(params)?.device).await
             }
             "device.props.set" => props::set(ctx, parse_params(params)?).await,
+            "root.cacert.install" => cacerts::install(ctx, parse_params(params)?).await,
+            "root.cacert.list" => {
+                cacerts::list(ctx, &parse_params::<DeviceParams>(params)?.device).await
+            }
+            "root.cacert.verify" => {
+                cacerts::verify(ctx, &parse_params::<DeviceParams>(params)?.device).await
+            }
+            "root.cacert.remove" => cacerts::remove(ctx, parse_params(params)?).await,
             other => Err(JidrError::not_found(format!("unknown method {other}"))),
         }
     }
@@ -174,7 +206,7 @@ fn is_running(device: &Device) -> bool {
     matches!(device.status, DeviceStatus::Running)
 }
 
-fn ensure_running(device: &Device) -> JidrResult<()> {
+pub(crate) fn ensure_running(device: &Device) -> JidrResult<()> {
     if is_running(device) {
         Ok(())
     } else {
