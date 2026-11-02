@@ -261,7 +261,14 @@ pub enum DeviceCmd {
     /// Settings, status and disk usage of a device.
     Details { device: String },
     /// Copy a stopped device.
-    Clone { device: String, name: String },
+    Clone {
+        device: String,
+        name: String,
+        /// Keep this snapshot: an instant copy-on-write clone whose first
+        /// start resumes it (otherwise the copy cold-boots).
+        #[arg(long)]
+        keep_snapshot: Option<String>,
+    },
     /// Factory reset: wipe all user data.
     Reset {
         device: String,

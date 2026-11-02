@@ -118,6 +118,10 @@ pub struct CloneParams {
     pub device: String,
     /// Name of the copy.
     pub name: String,
+    /// Keep this snapshot (name or id): a copy-on-write clone whose first
+    /// start resumes it, in seconds (D42). Without it the copy cold-boots.
+    #[serde(default)]
+    pub keep_snapshot: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -267,6 +271,21 @@ fn default_root(setting: RootMode, image: &ImageRef) -> RootMode {
     } else {
         setting
     }
+}
+
+/// The folder id of the snapshot a user named: a tag's label in
+/// `<avd>/jidr/snapshots.json` (the snapshot manager's tags), else the name.
+fn snapshot_id_for(avd_dir: &std::path::Path, sel: &str) -> String {
+    let sel = sel.trim();
+    std::fs::read_to_string(avd_dir.join("jidr").join("snapshots.json"))
+        .ok()
+        .and_then(|t| serde_json::from_str::<serde_json::Map<String, Value>>(&t).ok())
+        .and_then(|tags| {
+            tags.iter()
+                .find(|(_, t)| t.get("label").and_then(Value::as_str) == Some(sel))
+                .map(|(id, _)| id.clone())
+        })
+        .unwrap_or_else(|| sel.to_string())
 }
 
 /// Parses an image selector; the ABI defaults to the host's.
@@ -590,8 +609,19 @@ impl CoreProvider {
         let avd = self
             .state
             .with_store(|s| s.avd_id_for(&name, |id| avds.exists(id)));
-        avds.clone_avd(&src.avd, &avd, &name)?;
-        let (src_dir, dst_dir) = (avds.dir(&src.avd), avds.dir(&avd));
+        let src_dir = avds.dir(&src.avd);
+        let kept = match &p.keep_snapshot {
+            Some(sel) => {
+                let id = snapshot_id_for(&src_dir, sel);
+                avds.clone_with_snapshot(&src.avd, &avd, &name, &id)?;
+                Some(id)
+            }
+            None => {
+                avds.clone_avd(&src.avd, &avd, &name)?;
+                None
+            }
+        };
+        let dst_dir = avds.dir(&avd);
         let mut launch = src.launch.clone();
         // Per-device files (e.g. a patched ramdisk) move with the copy.
         if let Some(r) = &launch.ramdisk
@@ -605,7 +635,8 @@ impl CoreProvider {
         {
             root.patched_ramdisk_path = Some(dst_dir.join(rel));
         }
-        launch.force_cold_boot = true;
+        launch.force_cold_boot = kept.is_none();
+        launch.resume_snapshot = kept;
         let device = Device {
             id: Uuid::new_v4(),
             name,
@@ -785,7 +816,7 @@ impl CommandProvider for CoreProvider {
             .locks_device(),
             CommandSpec::new::<CloneParams>(
                 "device.clone",
-                "Copy a stopped device under a new name",
+                "Copy a stopped device under a new name; keep_snapshot makes a copy-on-write clone that resumes that snapshot",
             )
             .locks_device(),
             CommandSpec::new::<StartParams>(

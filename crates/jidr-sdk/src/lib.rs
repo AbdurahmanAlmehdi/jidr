@@ -4,6 +4,7 @@
 pub mod avd;
 pub mod cache;
 pub mod catalog;
+pub mod cow;
 pub mod host;
 pub mod install;
 pub mod license;
@@ -14,6 +15,7 @@ pub mod sdk;
 pub use avd::{AvdInfo, AvdManager, AvdSpec, ConfigIni};
 pub use cache::{CacheEntry, DownloadCache, PruneReport};
 pub use catalog::{CatalogFilter, image_catalog, pristine_ramdisk_sha256};
+pub use cow::{CopyMethod, cow_copy};
 pub use install::{Fetcher, Phase, Progress, install};
 pub use jidr_core::Cancel;
 pub use license::{ConsentStore, PendingLicense};

@@ -476,6 +476,11 @@ impl DaemonContext for State {
                 )));
             }
         }
+        let resume = device
+            .launch
+            .resume_snapshot
+            .clone()
+            .filter(|_| !cold_boot && !device.launch.force_cold_boot);
         let opts = LaunchOptions {
             ramdisk: device.launch.ramdisk.clone(),
             camera_back: device.launch.camera_back.clone(),
@@ -484,8 +489,11 @@ impl DaemonContext for State {
             gpu: device.launch.gpu.clone(),
             audio: device.launch.audio.unwrap_or(true),
             cold_boot: cold_boot || device.launch.force_cold_boot,
-            // D29 / gap B4: save a quick-boot snapshot on stop unless off.
-            snapshot_save: self.settings().quick_boot,
+            snapshot: resume.clone(),
+            // D29 / gap B4: save a quick-boot snapshot on stop unless off. A
+            // resumed run doesn't: the exit save would go into the named
+            // snapshot, not `default_boot`.
+            snapshot_save: self.settings().quick_boot && resume.is_none(),
             ..LaunchOptions::default()
         };
         self.set_status(id, DeviceStatus::Starting, None);
@@ -508,8 +516,13 @@ impl DaemonContext for State {
         };
         lock(&self.instances).insert(id, info.clone());
         self.set_status(id, DeviceStatus::Running, Some(Some(info.runtime())));
-        if device.launch.force_cold_boot {
-            self.with_store(|s| s.update(id, |d| d.launch.force_cold_boot = false))?;
+        if device.launch.force_cold_boot || device.launch.resume_snapshot.is_some() {
+            self.with_store(|s| {
+                s.update(id, |d| {
+                    d.launch.force_cold_boot = false;
+                    d.launch.resume_snapshot = None;
+                })
+            })?;
         }
         self.watch_crash(id, info);
         let device = self.with_store(|s| s.get(id).cloned())?;

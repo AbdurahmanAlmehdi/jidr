@@ -276,6 +276,10 @@ pub struct LaunchPrefs {
     /// Guest audio; `Some(false)` adds `-no-audio` (lean profile). `None` = on.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub audio: Option<bool>,
+    /// The next start resumes this snapshot (`-snapshot <id>`, D42): a clone's
+    /// kept snapshot. Cleared after that boot.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resume_snapshot: Option<String>,
 }
 
 /// How to reach a running device directly (the player streams frames from

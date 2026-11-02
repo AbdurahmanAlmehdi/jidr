@@ -28,7 +28,7 @@ jidr --json device start Phone --timeout 300 || exit $?
 | `device start <names…> \| --all [--cold-boot] [--no-wait] [--timeout s] [--force]` | Start and wait for boot. `--timeout` cancels the boot and exits 5. `--no-wait` returns the boot job id. Past the host RAM budget it exits 9 unless `--force`. |
 | `device stop <names…> \| --all` | Stop, saving quick-boot state (D29). |
 | `device list`, `device details <name>`, `device connect-info <name>` | Status, settings and disk usage; the gRPC endpoint/token and adb serial of a running device. |
-| `device clone <name> <new>`, `device edit <name> [--rename n] [--ram …] [--agent-owned bool]` | Copy or change a stopped device. |
+| `device clone <name> <new> [--keep-snapshot snap]`, `device edit <name> [--rename n] [--ram …] [--agent-owned bool]` | Copy or change a stopped device. With `--keep-snapshot` the copy is a copy-on-write clone (APFS / reflink; a full copy after a disk check elsewhere) that keeps that snapshot and resumes it on its first start, in seconds (D42); without it the copy cold-boots. |
 | `device reset <name> --yes`, `device delete <names…> \| --all --yes` | Destructive: wipe data, or delete. Without `--yes` they ask on a terminal and refuse otherwise. |
 | `install <name> <apk> [--no-replace] [--grant] [--downgrade]` | Install an APK. A signature mismatch fails with `details.signature_mismatch = true`. |
 | `push <name> <local> [remote]`, `pull <name> <remote> <local>` | Copy files (push defaults to `/sdcard/Download/`). |

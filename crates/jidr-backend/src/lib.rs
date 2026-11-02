@@ -55,6 +55,8 @@ pub struct LaunchOptions {
     pub ramdisk: Option<PathBuf>,
     /// `-no-snapshot-load`: ignore the quick-boot snapshot.
     pub cold_boot: bool,
+    /// `-snapshot <name>`: resume this snapshot instead of the quick-boot one.
+    pub snapshot: Option<String>,
     /// `-wipe-data`.
     pub wipe: bool,
     /// `-gpu` mode; `None` = `host` on macOS (ADR-0001), `swiftshader_indirect` elsewhere.
@@ -78,6 +80,7 @@ impl Default for LaunchOptions {
             camera_back: None,
             camera_front: None,
             cold_boot: false,
+            snapshot: None,
             wipe: false,
             gpu: None,
             audio: true,

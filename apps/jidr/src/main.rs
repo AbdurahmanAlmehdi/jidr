@@ -798,14 +798,18 @@ async fn device(c: &Client, out: Out, cmd: DeviceCmd) -> JidrResult<()> {
                 )
             });
         }
-        DeviceCmd::Clone { device, name } => {
-            let v = exec(
-                c,
-                out,
-                "device.clone",
-                json!({ "device": device, "name": name }),
-            )
-            .await?;
+        DeviceCmd::Clone {
+            device,
+            name,
+            keep_snapshot,
+        } => {
+            let mut p = Map::new();
+            p.insert("device".into(), json!(device));
+            p.insert("name".into(), json!(name));
+            if let Some(k) = keep_snapshot {
+                p.insert("keep_snapshot".into(), json!(k));
+            }
+            let v = exec(c, out, "device.clone", Value::Object(p)).await?;
             out.ok(&v, |v| format!("Created {}", output::device(v)));
         }
         DeviceCmd::Reset { device, yes } => {

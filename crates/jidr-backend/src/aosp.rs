@@ -80,6 +80,8 @@ impl AospBackend {
         ]);
         if opts.cold_boot {
             a.push("-no-snapshot-load".into());
+        } else if let Some(name) = &opts.snapshot {
+            a.extend(["-snapshot".into(), name.clone()]);
         }
         if !opts.snapshot_save {
             a.push("-no-snapshot-save".into());
@@ -480,6 +482,7 @@ mod tests {
             extra_args: vec!["-feature".into(), "-SystemAsRoot".into()],
             ramdisk: Some(PathBuf::from("/avd/dev1.avd/jidr/ramdisk.magisk-27.img")),
             cold_boot: true,
+            snapshot: None,
             wipe: true,
             gpu: Some("swiftshader_indirect".into()),
             audio: false,
@@ -502,6 +505,18 @@ mod tests {
             assert!(all.contains(want), "missing {want}: {all}");
         }
         assert!(all.ends_with("-feature -SystemAsRoot"), "extra args last");
+        assert!(!all.contains("-snapshot "), "a cold boot never resumes");
+
+        let resume = LaunchOptions {
+            snapshot: Some("jidr-base".into()),
+            snapshot_save: false,
+            ..LaunchOptions::default()
+        };
+        let r = AospBackend::args(&spec(), &resume, ports).join(" ");
+        assert!(
+            r.contains("-snapshot jidr-base") && r.contains("-no-snapshot-save"),
+            "{r}"
+        );
     }
 
     #[test]
