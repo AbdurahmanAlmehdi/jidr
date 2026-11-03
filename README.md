@@ -13,7 +13,7 @@ brew install --cask abdurahmanalmehdi/tap/jidr
 
 Or [download the DMG](https://github.com/AbdurahmanAlmehdi/jidr/releases/latest). Site: [jidr.ly](https://jidr.ly).
 
-![Jidr after Full root: the device is rooted with Magisk and su -c id answers uid=0(root)](docs/images/root-success.png)
+![Jidr in 25 seconds: create an API 35 device with Full root, watch Magisk 30.7 get patched and verified, then su -c id and frida-ps from the terminal](docs/images/demo.gif)
 
 ## Features
 
