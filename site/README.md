@@ -1,6 +1,6 @@
 # jidr.ly
 
-The Jidr landing page: Astro (static) for Cloudflare Pages (D16), built to the Workbench design (D41). English at `/`, Arabic (RTL) at `/ar/` (D33). Deployed to Cloudflare Pages (project `jidr`) at https://jidr.ly.
+The Jidr landing page: Astro (static) for Cloudflare Pages (D16), built to the Workbench design (D41). English at `/`, Arabic (RTL) at `/ar/` (D33). Deployed to Cloudflare Pages (project `jidr`) at https://jidr.ly. Cloudflare builds it from `main` on every push, and `release.yml` triggers a rebuild through the project's deploy hook once a release's DMG is uploaded. The download version, size and SHA-256 come from the newest complete GitHub release at build time (`scripts/release.mjs`); set `GITHUB_TOKEN` in the Pages build settings to avoid GitHub's rate limit.
 
 ```bash
 npm ci

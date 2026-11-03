@@ -13,7 +13,7 @@
     "prebuild": "node scripts/build-styles.mjs",
     "build": "astro build",
     "preview": "astro preview",
-    "test": "node --test scripts/",
+    "test": "node --test \"scripts/*.test.mjs\"",
     "lighthouse": "lhci autorun --collect.staticDistDir=dist --assert.preset=lighthouse:recommended"
   },
   "dependencies": {
