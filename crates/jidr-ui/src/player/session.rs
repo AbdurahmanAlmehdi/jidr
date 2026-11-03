@@ -4,7 +4,7 @@
 //! `streamInputEvent`, unary calls for keys, rotation and clipboard.
 
 use std::collections::VecDeque;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
@@ -39,6 +39,8 @@ pub struct Stats {
     pub touch_sent: Mutex<Option<Instant>>,
     /// Last frame size in pixels as received.
     pub frame: Mutex<(u32, u32)>,
+    /// Display rotation of the last frame, in quarter turns.
+    pub quarter: AtomicU32,
 }
 
 impl Stats {
@@ -367,6 +369,8 @@ async fn stream_frames(
                         Stats::push(&stats.latencies, now.duration_since(t).as_secs_f32() * 1000.0, 200);
                     }
                     *lock(&stats.frame) = (f.width, f.height);
+                    let quarter = f.rotation.map_or(0, |r| r.rotation.rem_euclid(4) as u32);
+                    stats.quarter.store(quarter, Ordering::Relaxed);
                     *lock(&latest) = Some(Frame {
                         width: f.width,
                         height: f.height,

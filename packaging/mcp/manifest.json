@@ -38,7 +38,10 @@
     { "name": "type_text", "description": "Type text into the focused field" },
     { "name": "press_key", "description": "Press Home, Back, Enter, volume, arrows and other keys" },
     { "name": "ui_dump", "description": "The uiautomator UI tree: text, ids and bounds" },
-    { "name": "logcat_tail", "description": "Recent log lines, optionally filtered" }
+    { "name": "logcat_tail", "description": "Recent log lines, optionally filtered" },
+    { "name": "proxy_set", "description": "Send the device's HTTP(S) traffic through Burp or mitmproxy on this Mac" },
+    { "name": "proxy_clear", "description": "Remove the device's HTTP proxy" },
+    { "name": "ca_cert_install", "description": "Trust Burp's or mitmproxy's CA as a system certificate on a Full-root device" }
   ],
   "compatibility": {
     "platforms": ["darwin"]

@@ -4,6 +4,7 @@
 //! "auto-grant all" toggle (D22). The Slint side is `root.slint`; B's code
 //! calls [`wire`], [`sync`] and [`start`] (gap B8).
 
+pub mod cacerts;
 pub mod goldens;
 pub mod props;
 pub mod steps;
@@ -78,9 +79,11 @@ pub fn wire(ctx: &Rc<Ctx>) {
     ui.on_tools_action(move |a, v| tools_action(&c, a.as_str(), v.as_str()));
 
     props::wire(ctx);
+    cacerts::wire(ctx);
 
-    // G15 and 9f: `root.auto_grant` and `device.props.set` arrive with a
-    // newer daemon; find out whether this one has them.
+    // G15, 9f and CA certificates: `root.auto_grant`, `device.props.set` and
+    // `root.cacert.install` arrive with a newer daemon; find out whether this
+    // one has them.
     let w = ctx.app.as_weak();
     ctx.bridge.call("commands.list", json!({}), move |r| {
         let list = r.ok();
@@ -90,12 +93,16 @@ pub fn wire(ctx: &Rc<Ctx>) {
         let props = list
             .as_ref()
             .is_some_and(|v| lists_command(v, "device.props.set"));
+        let certs = list
+            .as_ref()
+            .is_some_and(|v| lists_command(v, "root.cacert.install"));
         let _ = slint::invoke_from_event_loop(move || {
             AUTO_GRANT.with(|g| g.set(has));
             if let Some(app) = w.upgrade() {
                 let ui = app.global::<RootUi>();
                 ui.set_tools_auto_grant_supported(has);
                 ui.set_props_supported(props);
+                ui.set_certs_supported(certs);
             }
             if let Some(c) = crate::app::ctx() {
                 sync(&c);
@@ -742,6 +749,7 @@ pub fn sync(ctx: &Rc<Ctx>) {
     ui.set_tools_auto_grant(vm.auto_grant);
     ui.set_tools_auto_grant_supported(AUTO_GRANT.with(Cell::get));
     props::sync(ctx, info.as_ref());
+    cacerts::sync(ctx, info.as_ref());
 }
 
 /// The dev-tools root section for one device.

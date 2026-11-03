@@ -2,7 +2,7 @@
 
 > Jidr is a free, open-source Android emulator manager for Apple Silicon Macs, written in Rust: an open-source alternative to Genymotion Desktop. It creates and runs virtual Android phones and tablets from Google's emulator images, roots them in one click (Shell root with `adb root`, or Full root with Magisk, verified with `su -c id`), and ships a desktop app, a CLI with JSON output and an MCP server for AI agents. No accounts, no telemetry, no paid tier.
 
-Status: early releases (0.x). Download the DMG from https://jidr.ly or https://github.com/AbdurahmanAlmehdi/jidr/releases/latest, or install with `brew install --cask abdurahmanalmehdi/tap/jidr`. Jidr is not affiliated with Google or Genymotion.
+Jidr is not affiliated with Google or Genymotion.
 
 ## What it does
 
@@ -23,14 +23,17 @@ Full comparison: https://jidr.ly/vs/genymotion/
 - Mac only for now (macOS 14 or later on Apple Silicon); no Windows or Linux builds yet.
 - Some Genymotion features are planned but not built yet, such as operator and SIM identity, IMEI changes, disk speed limits and gamepad passthrough.
 
-## Requirements
+## Install
 
-- macOS 14 or later on Apple Silicon
-- About 10 GB of free disk space for the SDK and one system image
+Requirements: macOS 14 or later on Apple Silicon, and about 10 GB of free disk space for the SDK and one system image.
+
+- Homebrew: `brew install --cask abdurahmanalmehdi/tap/jidr` installs Jidr.app and puts the `jidr` CLI on your PATH. Update with `brew upgrade --cask jidr`.
+- DMG: download `Jidr-<version>-arm64.dmg` from the latest release (https://github.com/AbdurahmanAlmehdi/jidr/releases/latest) and drag Jidr to Applications. The CLI is at `/Applications/Jidr.app/Contents/Helpers/jidr`.
+- MCP: `claude mcp add jidr -- jidr mcp` for Claude Code; for Claude Desktop, open the `.mcpb` from the latest release. Jidr is in the MCP Registry as `io.github.AbdurahmanAlmehdi/jidr`.
 
 ## Docs
 
-- [README](https://github.com/AbdurahmanAlmehdi/jidr#readme): overview, build from source, quick start
+- [README](https://github.com/AbdurahmanAlmehdi/jidr#readme): overview, install, quick start, build from source
 - [CLI reference](https://github.com/AbdurahmanAlmehdi/jidr/blob/main/docs/cli.md)
 - [MCP tools](https://github.com/AbdurahmanAlmehdi/jidr/blob/main/docs/mcp.md)
 - [Root modes](https://github.com/AbdurahmanAlmehdi/jidr/blob/main/docs/root.md)

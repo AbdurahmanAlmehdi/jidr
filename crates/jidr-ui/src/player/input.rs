@@ -17,6 +17,39 @@ impl Screen {
         let y = (ny.clamp(0.0, 1.0) * self.height as f32).min(self.height.saturating_sub(1) as f32);
         (x as i32, y as i32)
     }
+
+    /// A pixel of the screen as shown, turned `quarter` quarter turns (the
+    /// frame's `ImageFormat.rotation`) → the same pixel on this, the
+    /// unrotated panel. Frames come rotated to how the device is held, but
+    /// the emulator reads touches in panel pixels.
+    pub fn unrotate(&self, quarter: u32, (x, y): (i32, i32)) -> (i32, i32) {
+        let (r, b) = (self.width as i32 - 1, self.height as i32 - 1);
+        match quarter % 4 {
+            1 => (r - y, x),
+            2 => (r - x, b - y),
+            3 => (y, b - x),
+            _ => (x, y),
+        }
+    }
+}
+
+/// Panel touch points (id, x, y) for a pointer at normalized (`nx`, `ny`)
+/// of the shown frame: `shown` is the screen as the frame shows it, `panel`
+/// the device's own pixels, `quarter` the frame's rotation.
+pub fn panel_touches(
+    g: Gesture,
+    panel: Screen,
+    shown: Screen,
+    quarter: u32,
+    (nx, ny): (f32, f32),
+) -> Vec<(i32, i32, i32)> {
+    fingers(g, shown, shown.to_px(nx, ny))
+        .into_iter()
+        .map(|(id, x, y)| {
+            let (x, y) = panel.unrotate(quarter, (x, y));
+            (id, x, y)
+        })
+        .collect()
 }
 
 /// Multi-touch with modifiers (our own bindings; Genymotion's aren't public).
@@ -183,6 +216,98 @@ mod tests {
         assert_eq!(S.to_px(0.5, 0.5), (540, 1200));
         assert_eq!(S.to_px(-1.0, 2.0), (0, 2399));
         assert_eq!(S.to_px(1.0, 1.0), (1079, 2399));
+    }
+
+    const TABLET: Screen = Screen {
+        width: 1600,
+        height: 2560,
+    };
+
+    /// The panel as a frame turned `quarter` quarter turns shows it.
+    fn turned(panel: Screen, quarter: u32) -> Screen {
+        if quarter % 2 == 1 {
+            Screen {
+                width: panel.height,
+                height: panel.width,
+            }
+        } else {
+            panel
+        }
+    }
+
+    #[test]
+    fn shown_corners_map_to_panel_corners_in_every_rotation() {
+        for panel in [S, TABLET] {
+            let (r, b) = (panel.width as i32 - 1, panel.height as i32 - 1);
+            // Clockwise from the top left.
+            let panel_corners = [(0, 0), (r, 0), (r, b), (0, b)];
+            for q in 0..4 {
+                let shown = turned(panel, q);
+                let (sr, sb) = (shown.width as i32 - 1, shown.height as i32 - 1);
+                let shown_corners = [(0, 0), (sr, 0), (sr, sb), (0, sb)];
+                for (i, c) in shown_corners.into_iter().enumerate() {
+                    assert_eq!(
+                        panel.unrotate(q, c),
+                        panel_corners[(i + q as usize) % 4],
+                        "{panel:?}, {q} quarter turns, shown corner {c:?}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn touches_stay_on_the_panel_in_every_rotation() {
+        // Regression for #51: in landscape the player sent x up to 2559 on
+        // a 1600-wide tablet panel, so taps landed elsewhere or nowhere.
+        for panel in [S, TABLET] {
+            for q in 0..4 {
+                let shown = turned(panel, q);
+                for i in 0..=10 {
+                    for j in 0..=10 {
+                        let n = (i as f32 / 10.0, j as f32 / 10.0);
+                        for g in [Gesture::Single, Gesture::Pinch, Gesture::Pan] {
+                            for (_, x, y) in panel_touches(g, panel, shown, q, n) {
+                                assert!(
+                                    (0..panel.width as i32).contains(&x)
+                                        && (0..panel.height as i32).contains(&y),
+                                    "{panel:?}, {q} quarter turns, {n:?}: ({x}, {y})"
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn landscape_tablet_taps_land_under_the_pointer() {
+        // Measured on a Tablet 11″ AVD with pointer location on (#51):
+        // (quarter turns, panel touch sent, where the device showed it).
+        // Mapping the shown point back must give the panel point.
+        for (q, sent, seen) in [
+            (1, (640, 200), (200, 960)),
+            (2, (400, 320), (1200, 2240)),
+            (3, (640, 200), (2360, 640)),
+        ] {
+            let (x, y) = TABLET.unrotate(q, seen);
+            assert!(
+                (x - sent.0).abs() <= 1 && (y - sent.1).abs() <= 1,
+                "{q} quarter turns: ({x}, {y}), want {sent:?}"
+            );
+        }
+        // A quarter of the way across and an eighth down a landscape frame.
+        let shown = turned(TABLET, 1);
+        assert_eq!(
+            panel_touches(Gesture::Single, TABLET, shown, 1, (0.25, 0.125)),
+            vec![(1, 1399, 640)]
+        );
+        // Upright, nothing changes.
+        assert_eq!(
+            panel_touches(Gesture::Single, S, S, 0, (0.5, 0.5)),
+            vec![(1, 540, 1200)]
+        );
     }
 
     #[test]

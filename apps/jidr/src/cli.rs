@@ -107,6 +107,16 @@ pub enum Cmd {
         #[command(subcommand)]
         cmd: SnapshotCmd,
     },
+    /// CA certificates in a Full-root device's system store (Burp, mitmproxy, …).
+    Cert {
+        #[command(subcommand)]
+        cmd: CertCmd,
+    },
+    /// The device's global HTTP proxy (Burp, mitmproxy, …).
+    Proxy {
+        #[command(subcommand)]
+        cmd: ProxyCmd,
+    },
     /// The download cache (Magisk APKs and other pinned files, by SHA-256).
     Cache {
         #[command(subcommand)]
@@ -390,6 +400,35 @@ pub enum SnapshotCmd {
     Save { device: String, name: String },
     Load { device: String, name: String },
     Delete { device: String, name: String },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum CertCmd {
+    /// Trust a CA certificate (PEM or DER) as a system cert; restarts the device.
+    Install { device: String, file: PathBuf },
+    /// The CA certificates Jidr added and whether each is trusted.
+    List { device: String },
+    /// Check that every one of them is in the system store apps read.
+    Verify { device: String },
+    /// Remove one (by file name, subject hash or SHA-256) or `--all`; restarts the device.
+    Remove {
+        device: String,
+        #[arg(required_unless_present = "all", conflicts_with = "all")]
+        cert: Option<String>,
+        #[arg(long)]
+        all: bool,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum ProxyCmd {
+    /// Send the device's HTTP(S) traffic through `[host:]port`; the host
+    /// defaults to 10.0.2.2, this Mac as the emulator sees it.
+    Set { device: String, proxy: String },
+    /// Remove the proxy.
+    Clear { device: String },
+    /// The current proxy.
+    Show { device: String },
 }
 
 #[derive(Debug, Subcommand)]

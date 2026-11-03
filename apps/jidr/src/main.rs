@@ -11,8 +11,8 @@ use std::time::Duration;
 
 use clap::{CommandFactory, Parser};
 use cli::{
-    CacheCmd, Cli, Cmd, DaemonCmd, DeviceCmd, Hardware, ImageCmd, JobsCmd, ProfileCmd, RootCmd,
-    SdkCmd, Selection, SettingsCmd, SnapshotCmd,
+    CacheCmd, CertCmd, Cli, Cmd, DaemonCmd, DeviceCmd, Hardware, ImageCmd, JobsCmd, ProfileCmd,
+    ProxyCmd, RootCmd, SdkCmd, Selection, SettingsCmd, SnapshotCmd,
 };
 use jidr_client::{Client, SpawnOptions};
 use jidr_core::{ErrorCode, JidrError, JidrPaths, JidrResult, Job, JobState};
@@ -283,6 +283,21 @@ fn dirs_home() -> JidrResult<std::path::PathBuf> {
 
 fn parse_job(s: &str) -> JidrResult<Uuid> {
     Uuid::parse_str(s).map_err(|_| JidrError::usage(format!("{s:?} is not a job id")))
+}
+
+/// `jidr proxy set`'s `[host:]port`; the host defaults to the Mac as the
+/// emulator sees it.
+fn proxy_target(s: &str) -> JidrResult<(String, u16)> {
+    let (host, port) = match s.rsplit_once(':') {
+        Some((h, p)) => (h.trim(), p),
+        None => (jidr_widgets::network::proxy::HOST_LOOPBACK, s),
+    };
+    match port.trim().parse::<u16>() {
+        Ok(port) if port != 0 && !host.is_empty() => Ok((host.to_string(), port)),
+        _ => Err(JidrError::usage(format!(
+            "{s:?} isn't [host:]port, e.g. 8080 or 10.0.2.2:8080"
+        ))),
+    }
 }
 
 async fn run(cli: Cli, out: Out) -> JidrResult<()> {
@@ -632,6 +647,43 @@ async fn run(cli: Cli, out: Out) -> JidrResult<()> {
             let v = exec(c, out, method, params).await?;
             out.ok(&v, output::pretty);
         }
+        Cmd::Cert { cmd } => {
+            let (method, params) = match cmd {
+                CertCmd::Install { device, file } => {
+                    let file = std::path::absolute(&file).unwrap_or(file);
+                    (
+                        "root.cacert.install",
+                        json!({ "device": device, "path": file }),
+                    )
+                }
+                CertCmd::List { device } => ("root.cacert.list", json!({ "device": device })),
+                CertCmd::Verify { device } => ("root.cacert.verify", json!({ "device": device })),
+                CertCmd::Remove { device, cert, all } => (
+                    "root.cacert.remove",
+                    json!({ "device": device, "cert": cert, "all": all }),
+                ),
+            };
+            let v = exec(c, out, method, params).await?;
+            out.ok(&v, output::certs);
+        }
+        Cmd::Proxy { cmd } => {
+            let (method, params) = match cmd {
+                ProxyCmd::Set { device, proxy } => {
+                    let (host, port) = proxy_target(&proxy)?;
+                    (
+                        "network.proxy.set",
+                        json!({ "device": device, "host": host, "port": port }),
+                    )
+                }
+                ProxyCmd::Clear { device } => ("network.proxy.clear", json!({ "device": device })),
+                ProxyCmd::Show { device } => ("network.proxy.get", json!({ "device": device })),
+            };
+            let v = c.call(method, params).await?;
+            out.ok(&v, |v| match v["proxy"].as_str() {
+                Some(p) => format!("HTTP proxy: {p}"),
+                None => "No HTTP proxy.".to_string(),
+            });
+        }
         Cmd::Jobs {
             cmd: JobsCmd::List { all },
         } => {
@@ -924,6 +976,18 @@ async fn shutdown_signal() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn proxy_targets_default_to_the_mac() {
+        assert_eq!(proxy_target("8080").unwrap(), ("10.0.2.2".into(), 8080));
+        assert_eq!(
+            proxy_target("192.168.1.5:3128").unwrap(),
+            ("192.168.1.5".into(), 3128)
+        );
+        for bad in ["", "x", ":8080", "h:0", "h:70000"] {
+            assert!(proxy_target(bad).is_err(), "{bad}");
+        }
+    }
 
     // G6/G7: without the widgets and root providers, the CLI and MCP reject
     // every widget and root command.

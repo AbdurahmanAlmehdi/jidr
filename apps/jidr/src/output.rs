@@ -266,6 +266,60 @@ pub fn commands(v: &Value) -> String {
 }
 
 /// Pretty JSON for results without a dedicated view.
+/// Any `root.cacert.*` result: install, list/verify or remove.
+pub fn certs(v: &Value) -> String {
+    let s = |v: &Value| v.as_str().unwrap_or("?").to_string();
+    if let Some(c) = v.get("cert") {
+        return if v["changed"] == false {
+            format!(
+                "{} ({}) is already a trusted system certificate.",
+                s(&c["subject"]),
+                s(&c["file"])
+            )
+        } else {
+            format!(
+                "{} ({}) is now a trusted system certificate.",
+                s(&c["subject"]),
+                s(&c["file"])
+            )
+        };
+    }
+    if let Some(removed) = v.get("removed").and_then(Value::as_array) {
+        let files: Vec<String> = removed.iter().map(|c| s(&c["file"])).collect();
+        return if files.is_empty() {
+            "No Jidr CA certificate to remove.".into()
+        } else {
+            format!("Removed {}.", files.join(", "))
+        };
+    }
+    let certs = v["certs"].as_array().cloned().unwrap_or_default();
+    if certs.is_empty() {
+        return format!(
+            "No CA certificates added (system store: {}).",
+            s(&v["store"])
+        );
+    }
+    let rows = certs
+        .iter()
+        .map(|c| {
+            vec![
+                s(&c["file"]),
+                s(&c["subject"]),
+                if c["trusted"] == true {
+                    "yes".into()
+                } else {
+                    "after restart".into()
+                },
+            ]
+        })
+        .collect();
+    format!(
+        "{}\nSystem store: {}",
+        table(&["FILE", "SUBJECT", "TRUSTED"], rows),
+        s(&v["store"])
+    )
+}
+
 pub fn pretty(v: &Value) -> String {
     serde_json::to_string_pretty(v).unwrap_or_default()
 }
@@ -281,6 +335,17 @@ mod tests {
             vec![vec!["xyz".into(), "1".into()], vec!["q".into(), "".into()]],
         );
         assert_eq!(t, "A    LONGER\nxyz  1\nq");
+    }
+
+    #[test]
+    fn cert_results() {
+        let c = json!({ "file": "a4ac454c.0", "subject": "Jidr Test CA", "trusted": true });
+        assert!(certs(&json!({ "cert": c, "changed": true })).contains("is now a trusted"));
+        assert!(certs(&json!({ "cert": c, "changed": false })).contains("already"));
+        assert_eq!(certs(&json!({ "removed": [c] })), "Removed a4ac454c.0.");
+        let t = certs(&json!({ "store": "/apex/x", "certs": [c] }));
+        assert!(t.contains("Jidr Test CA") && t.contains("yes") && t.ends_with("/apex/x"));
+        assert!(certs(&json!({ "store": "/apex/x", "certs": [] })).starts_with("No CA"));
     }
 
     #[test]

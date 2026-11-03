@@ -3,7 +3,8 @@
 //! Generic tools cover every protocol command (`command_list`,
 //! `command_run`, `jobs_*`); typed tools cover the hot paths of driving a
 //! device (`screenshot`, `tap`, `swipe`, `type_text`, `press_key`, `ui_dump`,
-//! `logcat_tail`). Destructive commands follow D5.
+//! `logcat_tail`) and of a proxy for security testing (`proxy_set`,
+//! `proxy_clear`, `ca_cert_install`). Destructive commands follow D5.
 
 pub mod device;
 
@@ -36,6 +37,8 @@ const NOT_CALLABLE: &[&str] = &[
 ];
 const DEFAULT_RUN_TIMEOUT_S: u64 = 900;
 const UI_DUMP_LIMIT: usize = 400_000;
+/// The Mac as the emulator sees it: where Burp or mitmproxy listens.
+const PROXY_HOST: &str = "10.0.2.2";
 
 #[derive(Debug, Clone, Default)]
 pub struct McpOptions {
@@ -183,6 +186,27 @@ struct LogcatArgs {
     filter: Vec<String>,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct ProxyArgs {
+    device: String,
+    /// Proxy host as the device sees it (default `10.0.2.2`, this Mac).
+    #[serde(default)]
+    host: Option<String>,
+    /// Proxy port, e.g. 8080 for Burp.
+    port: u16,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct CaCertArgs {
+    /// A running Full-root (Magisk) device.
+    device: String,
+    /// Path on this Mac to the CA certificate, PEM or DER (Burp's
+    /// `cacert.der`, `~/.mitmproxy/mitmproxy-ca-cert.pem`).
+    path: String,
+}
+
 fn schema<T: JsonSchema>() -> JsonObject {
     let mut v = serde_json::to_value(schemars::schema_for!(T))
         .unwrap_or_else(|_| json!({ "type": "object" }));
@@ -213,6 +237,14 @@ fn interacts() -> ToolAnnotations {
         .read_only(false)
         .destructive(false)
         .idempotent(false)
+        .open_world(false)
+}
+
+fn idempotent() -> ToolAnnotations {
+    ToolAnnotations::new()
+        .read_only(false)
+        .destructive(false)
+        .idempotent(true)
         .open_world(false)
 }
 
@@ -309,6 +341,21 @@ impl JidrMcp {
                 "logcat_tail",
                 "Recent device log lines, optionally filtered.",
                 read_only(),
+            ),
+            tool::<ProxyArgs>(
+                "proxy_set",
+                "Send a running device's HTTP(S) traffic through a proxy on this Mac (Burp, mitmproxy): host defaults to 10.0.2.2.",
+                idempotent(),
+            ),
+            tool::<DeviceArgs>(
+                "proxy_clear",
+                "Remove a running device's HTTP proxy.",
+                idempotent(),
+            ),
+            tool::<CaCertArgs>(
+                "ca_cert_install",
+                "Trust a CA certificate (Burp, mitmproxy) as a system cert on a running Full-root device, so apps accept the proxy. Restarts the device (about a minute) and verifies; root.cacert.list / .remove through command_run.",
+                idempotent(),
             ),
         ]
     }
@@ -513,6 +560,37 @@ impl JidrMcp {
                 Ok(CallToolResult::success(vec![ContentBlock::text(
                     v["text"].as_str().unwrap_or_default(),
                 )]))
+            }
+            "proxy_set" => {
+                let a: ProxyArgs = parse(args)?;
+                let host = a.host.as_deref().unwrap_or(PROXY_HOST);
+                Ok(ok_json(
+                    self.client
+                        .call(
+                            "network.proxy.set",
+                            json!({ "device": a.device, "host": host, "port": a.port }),
+                        )
+                        .await?,
+                ))
+            }
+            "proxy_clear" => {
+                let a: DeviceArgs = parse(args)?;
+                Ok(ok_json(
+                    self.client
+                        .call("network.proxy.clear", json!({ "device": a.device }))
+                        .await?,
+                ))
+            }
+            "ca_cert_install" => {
+                let a: CaCertArgs = parse(args)?;
+                Ok(ok_json(
+                    self.command_run(CommandRunArgs {
+                        command: "root.cacert.install".into(),
+                        params: Some(json!({ "device": a.device, "path": a.path })),
+                        timeout_s: None,
+                    })
+                    .await?,
+                ))
             }
             other => Err(JidrError::usage(format!("unknown tool {other}"))),
         }

@@ -39,6 +39,8 @@ jidr --json device start Phone --timeout 300 || exit $?
 | `sdk status`, `sdk licenses <pkgs…>`, `sdk install <pkgs…> [--accept-licenses]` | The SDK Jidr uses (its private one; Android Studio's is only read, D3). |
 | `root set <name> none\|adb\|magisk`, `root verify <name>`, `root status <name>` | Root modes (provided by the root engine). |
 | `snapshot list\|save\|load\|delete <name> [snapshot]` | Snapshots tagged with their root mode (provided by the widgets provider). |
+| `cert install <name> <file>`, `cert list <name>`, `cert verify <name>`, `cert remove <name> <cert>\|--all` | CA certificates in a Full-root device's system store (root engine, `root.cacert.*`); install and remove restart the device. See docs/root.md. |
+| `proxy set <name> [host:]port`, `proxy clear <name>`, `proxy show <name>` | The device's global HTTP proxy (widgets provider, `network.proxy.*`). The host defaults to `10.0.2.2`, this Mac. |
 | `jobs list [--all]`, `jobs wait <job>`, `jobs cancel <job>` | Long-running operations. |
 | `commands` | Every protocol command (what the GUI and MCP see). |
 | `call <method> [params-json]` | Call any protocol command directly, e.g. `jidr call device.start '{"device":"Phone","cold_boot":true}'`. Follows jobs. |
@@ -46,6 +48,32 @@ jidr --json device start Phone --timeout 300 || exit $?
 | `completions <shell>` | Shell completions. |
 
 Global flags: `--json`, `-q/--quiet` (no progress), `--restart-stale` (or `JIDR_RESTART_STALE=1`).
+
+## HTTP proxy
+
+Point a running device at Burp, mitmproxy or any HTTP proxy on your Mac:
+
+```bash
+jidr proxy set Phone 8080             # 10.0.2.2:8080, the Mac's port 8080
+jidr proxy set Phone 192.168.1.5:3128 # a proxy elsewhere on the network
+jidr proxy show Phone
+jidr proxy clear Phone
+```
+
+Inside the emulator `10.0.2.2` is the Mac's `127.0.0.1`, so Burp's default listener (`127.0.0.1:8080`) works as it is; `127.0.0.1` on the device is the device itself. The proxy is Android's global `http_proxy` setting: apps that use the system proxy (most HTTP stacks, WebView, Chrome) send their traffic through it, on Wi-Fi and mobile data. It takes effect at once and stays across restarts and snapshots until you clear it. To read HTTPS, apps must also trust the proxy's CA as a system certificate: `jidr cert install` on a Full-root device (see [CA certificates](#ca-certificates)).
+
+## CA certificates
+
+To read HTTPS from apps, trust the proxy's CA as a system certificate on a Full-root (Magisk) device:
+
+```bash
+jidr root set Phone magisk                   # once
+jidr cert install Phone ~/Downloads/cacert.der   # Burp's CA (PEM or DER); restarts the device
+jidr cert list Phone
+jidr cert remove Phone a4ac454c.0            # or --all
+```
+
+`install` restarts the device and fails with exit code 7 (root failed) unless the certificate ends up in the store apps read. How it works on each Android version is in docs/root.md.
 
 ## Licenses (D8)
 
