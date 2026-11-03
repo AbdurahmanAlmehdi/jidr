@@ -126,9 +126,16 @@ jobs:
       - name: Install emulator and x86_64 image (CI test context only)
         # CI runners are a test context: licenses are accepted here for the
         # ephemeral runner only. The product never pipes `yes` into sdkmanager (D8).
+        # Twelve shard jobs download in parallel and Google's servers drop the
+        # odd download ("Premature EOF"), so retry before failing the job.
         run: |
           yes | sdkmanager --licenses > /dev/null
-          sdkmanager "platform-tools" "emulator" "system-images;android-${{ matrix.api }};google_apis;x86_64"
+          for attempt in 1 2 3; do
+            sdkmanager "platform-tools" "emulator" "system-images;android-${{ matrix.api }};google_apis;x86_64" && exit 0
+            echo "::warning::sdkmanager download failed (attempt $attempt of 3), retrying"
+            sleep $((attempt * 20))
+          done
+          exit 1
       - name: Emulator tests
         # Only this shard's tests, all of which boot a device; the check job
         # already runs the offline tests. `--no-fail-fast` so one flaky test
