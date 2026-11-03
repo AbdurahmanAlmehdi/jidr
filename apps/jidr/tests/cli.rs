@@ -168,3 +168,42 @@ fn settings_set_the_default_root_mode() {
     let d = e.ok(&["device", "create", "Plain", "--image", "35"]);
     assert_eq!(d["root"]["mode"], "none");
 }
+
+/// D42: base → pool get (2 h TTL by default) → ls → release; the budget,
+/// hibernate and an over-budget start exit 9 without --force.
+#[test]
+fn pool_base_budget_and_hibernate() {
+    let e = Env::new();
+    e.ok(&[
+        "device",
+        "create",
+        "Src",
+        "--image",
+        "35",
+        "--profile",
+        "agent-lean",
+    ]);
+    e.ok(&["device", "start", "Src"]);
+    let b = e.ok(&["base", "create", "Src", "Base"]);
+    assert_eq!(b["base"], true);
+    assert_eq!(e.ok(&["base", "ls"])[0]["name"], "Base");
+    let got = e.ok(&["pool", "get", "Base"]);
+    assert_eq!(got["lease"]["holder"]["kind"], "ttl", "{got}");
+    assert!(got["lease"]["expires_at"].is_string());
+    let name = got["device"]["name"].as_str().unwrap().to_string();
+    assert_eq!(e.ok(&["pool", "ls"])[0]["device"], name.as_str());
+    let lease = got["lease"]["id"].as_str().unwrap().to_string();
+    e.ok(&["pool", "renew", &lease, "--ttl", "30m"]);
+    e.ok(&["pool", "release", &name]);
+    assert_eq!(e.ok(&["pool", "ls"]), serde_json::json!([]));
+    e.fail(&["pool", "get", "Base", "--ttl", "soon"], 2);
+    e.ok(&["base", "rm", "Base", "--yes"]);
+
+    let b = e.ok(&["budget"]);
+    assert!(b["budget_mb"].as_u64().unwrap() > 0, "{b}");
+    e.ok(&["device", "start", "Src"]);
+    let h = e.ok(&["device", "hibernate", "Src"]);
+    assert_eq!(h[0]["status"]["state"], "hibernated", "{h}");
+    let s = e.ok(&["device", "start", "Src"]);
+    assert_eq!(s[0]["status"]["state"], "running");
+}

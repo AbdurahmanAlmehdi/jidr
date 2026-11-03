@@ -11,8 +11,8 @@ use std::time::Duration;
 
 use clap::{CommandFactory, Parser};
 use cli::{
-    CacheCmd, Cli, Cmd, DaemonCmd, DeviceCmd, Hardware, ImageCmd, JobsCmd, ProfileCmd, RootCmd,
-    SdkCmd, Selection, SettingsCmd, SnapshotCmd,
+    BaseCmd, CacheCmd, Cli, Cmd, DaemonCmd, DeviceCmd, Hardware, ImageCmd, JobsCmd, PoolCmd,
+    ProfileCmd, RootCmd, SdkCmd, Selection, SettingsCmd, SnapshotCmd,
 };
 use jidr_client::{Client, SpawnOptions};
 use jidr_core::{ErrorCode, JidrError, JidrPaths, JidrResult, Job, JobState};
@@ -282,7 +282,7 @@ fn dirs_home() -> JidrResult<std::path::PathBuf> {
 }
 
 fn parse_job(s: &str) -> JidrResult<Uuid> {
-    Uuid::parse_str(s).map_err(|_| JidrError::usage(format!("{s:?} is not a job id")))
+    Uuid::parse_str(s).map_err(|_| JidrError::usage(format!("{s:?} is not an id")))
 }
 
 async fn run(cli: Cli, out: Out) -> JidrResult<()> {
@@ -671,6 +671,8 @@ async fn run(cli: Cli, out: Out) -> JidrResult<()> {
             let opts = jidr_mcp::McpOptions { allow_destructive };
             return jidr_mcp::serve_stdio(client, opts).await;
         }
+        Cmd::Pool { cmd } => pool(c, out, cmd).await?,
+        Cmd::Base { cmd } => base(c, out, cmd).await?,
         Cmd::Budget => {
             let v = c.call("host.budget", json!({})).await?;
             out.ok(&v, output::budget);
@@ -908,6 +910,153 @@ async fn device(c: &Client, out: Out, cmd: DeviceCmd) -> JidrResult<()> {
                 .call("device.connect_info", json!({ "device": device }))
                 .await?;
             out.ok(&v, output::pretty);
+        }
+    }
+    Ok(())
+}
+
+fn ttl_s(ttl: &str) -> JidrResult<u64> {
+    cli::parse_duration(ttl).map_err(JidrError::usage)
+}
+
+async fn pool(c: &Client, out: Out, cmd: PoolCmd) -> JidrResult<()> {
+    match cmd {
+        PoolCmd::Get { base, ttl, timeout } => {
+            let mut p = Map::new();
+            p.insert("base".into(), json!(base));
+            p.insert("ttl_s".into(), json!(ttl_s(&ttl)?));
+            if let Some(t) = timeout {
+                p.insert("timeout_s".into(), json!(t));
+            }
+            out.info(&format!("Leasing a clone of {base}…"));
+            let v = exec(c, out, "pool.get", Value::Object(p)).await?;
+            out.ok(&v, |v| {
+                format!(
+                    "{}  serial {}\nLease {} (expires {}); `jidr pool release {}` when done.",
+                    v["device"]["name"].as_str().unwrap_or("?"),
+                    v["serial"].as_str().unwrap_or("?"),
+                    v["lease"]["id"].as_str().unwrap_or("?"),
+                    v["lease"]["expires_at"]
+                        .as_str()
+                        .unwrap_or("with this connection"),
+                    v["device"]["name"].as_str().unwrap_or("?"),
+                )
+            });
+        }
+        PoolCmd::Release { lease_or_device } => {
+            let by_lease = Uuid::parse_str(&lease_or_device)
+                .ok()
+                .map(|l| json!({ "lease": l }));
+            let v = match by_lease {
+                Some(p) => match c.call("pool.release", p).await {
+                    Err(e) if e.code == jidr_core::ErrorCode::NotFound => {
+                        c.call("pool.release", json!({ "device": lease_or_device }))
+                            .await?
+                    }
+                    r => r?,
+                },
+                None => {
+                    c.call("pool.release", json!({ "device": lease_or_device }))
+                        .await?
+                }
+            };
+            out.ok(&v, |v| {
+                format!("Released {}.", v["name"].as_str().unwrap_or("?"))
+            });
+        }
+        PoolCmd::Renew { lease, ttl } => {
+            let v = c
+                .call(
+                    "pool.renew",
+                    json!({ "lease": parse_job(&lease)?, "ttl_s": ttl_s(&ttl)? }),
+                )
+                .await?;
+            out.ok(&v, |v| {
+                format!(
+                    "Lease {} expires {}.",
+                    v["id"].as_str().unwrap_or("?"),
+                    v["expires_at"].as_str().unwrap_or("with its connection")
+                )
+            });
+        }
+        PoolCmd::Ls => {
+            let v = c.call("pool.list", json!({})).await?;
+            out.ok(&v, |v| {
+                let rows: Vec<Vec<String>> = v
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .map(|r| {
+                        vec![
+                            r["device"].as_str().unwrap_or("?").to_string(),
+                            r["base"].as_str().unwrap_or("?").to_string(),
+                            r["serial"].as_str().unwrap_or("-").to_string(),
+                            r["lease"]["expires_at"]
+                                .as_str()
+                                .unwrap_or("with its connection")
+                                .to_string(),
+                            r["lease"]["id"].as_str().unwrap_or("?").to_string(),
+                        ]
+                    })
+                    .collect();
+                if rows.is_empty() {
+                    "No leases.".into()
+                } else {
+                    output::table(&["DEVICE", "BASE", "SERIAL", "EXPIRES", "LEASE"], rows)
+                }
+            });
+        }
+    }
+    Ok(())
+}
+
+async fn base(c: &Client, out: Out, cmd: BaseCmd) -> JidrResult<()> {
+    match cmd {
+        BaseCmd::Create { device, name } => {
+            out.info(&format!("Saving {device} as base {name}…"));
+            let v = exec(
+                c,
+                out,
+                "base.create",
+                json!({ "from_device": device, "name": name }),
+            )
+            .await?;
+            out.ok(&v, |v| format!("Created base {}", output::device(v)));
+        }
+        BaseCmd::Ls => {
+            let v = c.call("base.list", json!({})).await?;
+            out.ok(&v, |v| {
+                let rows: Vec<Vec<String>> = v
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .map(|b| {
+                        vec![
+                            b["name"].as_str().unwrap_or("?").to_string(),
+                            format!(
+                                "{}:{}",
+                                b["image"]["api"],
+                                b["image"]["tag"].as_str().unwrap_or("")
+                            ),
+                            b["profile"].as_str().unwrap_or("?").to_string(),
+                            b["root"].as_str().unwrap_or("?").to_string(),
+                            b["leases"].to_string(),
+                        ]
+                    })
+                    .collect();
+                if rows.is_empty() {
+                    "No bases. Save one with `jidr base create <device> <name>`.".into()
+                } else {
+                    output::table(&["BASE", "IMAGE", "PROFILE", "ROOT", "LEASED"], rows)
+                }
+            });
+        }
+        BaseCmd::Rm { base, yes } => {
+            confirm(out, yes, &format!("Delete base {base}"))?;
+            let v = c.call("base.delete", json!({ "base": base })).await?;
+            out.ok(&v, |v| {
+                format!("Deleted base {}.", v["name"].as_str().unwrap_or("?"))
+            });
         }
     }
     Ok(())

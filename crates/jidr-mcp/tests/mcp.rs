@@ -245,3 +245,48 @@ fn mcpb_manifest_lists_every_tool() {
     served.sort_unstable();
     assert_eq!(listed, served);
 }
+
+/// pool_get leases a clone for the MCP session (its daemon connection) and
+/// pool_release gives it back; D5 lets the agent release its own clone.
+#[tokio::test]
+async fn pool_tools_lease_for_the_session() {
+    let (_t, d, human, mcp) = setup(McpOptions::default()).await;
+    human
+        .call(
+            "device.create",
+            json!({ "name": "Src", "image": "35", "profile": "agent-lean" }),
+        )
+        .await
+        .unwrap();
+    let job = human
+        .call("device.start", json!({ "device": "Src" }))
+        .await
+        .unwrap();
+    human
+        .wait_job(jidr_client::pending_job(&job).unwrap(), None)
+        .await
+        .unwrap();
+    let job = human
+        .call(
+            "base.create",
+            json!({ "from_device": "Src", "name": "Base" }),
+        )
+        .await
+        .unwrap();
+    let base = human
+        .wait_job(jidr_client::pending_job(&job).unwrap(), None)
+        .await
+        .unwrap();
+    assert_eq!(base.state, jidr_core::JobState::Succeeded, "{base:?}");
+
+    let got = mcp.ok("pool_get", json!({ "base": "Base" })).await;
+    assert_eq!(got["lease"]["holder"]["kind"], "connection", "{got}");
+    assert!(got["serial"].as_str().unwrap().starts_with("emulator-"));
+    let name = got["device"]["name"].as_str().unwrap().to_string();
+    mcp.ok("pool_release", json!({ "device": name })).await;
+    let leases = human.call("pool.list", json!({})).await.unwrap();
+    assert_eq!(leases, json!([]));
+    let e = mcp.err("pool_release", json!({})).await;
+    assert_eq!(e["code"], "usage", "{e}");
+    d.stop().await;
+}

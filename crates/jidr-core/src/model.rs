@@ -256,6 +256,13 @@ pub struct Device {
     /// `auto_hibernate_minutes` setting.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub auto_hibernate_minutes: Option<u32>,
+    /// A read-only base that pool clones are made from (D42): never started
+    /// itself.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub base: bool,
+    /// The base this throwaway pool clone was made from (`pool.get`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pool_base: Option<Uuid>,
 }
 
 /// Per-device launch settings. The root engine sets `ramdisk` (Magisk) and

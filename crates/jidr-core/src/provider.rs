@@ -100,6 +100,9 @@ pub struct CallCtx {
     pub progress: ProgressFn,
     pub bytes: BytesFn,
     pub cancel: Cancel,
+    /// The client connection the call came on (`None` for the daemon's own
+    /// calls). Pool leases are tied to it (D42).
+    pub connection: Option<u64>,
 }
 
 impl std::fmt::Debug for CallCtx {
@@ -117,7 +120,14 @@ impl CallCtx {
             progress: Arc::new(|_, _| {}),
             bytes: Arc::new(|_, _, _, _| {}),
             cancel: Cancel::new(),
+            connection: None,
         }
+    }
+
+    /// The same context, for a call made on client connection `id`.
+    pub fn on_connection(mut self, id: u64) -> Self {
+        self.connection = Some(id);
+        self
     }
 
     pub fn report(&self, fraction: Option<f32>, message: &str) {

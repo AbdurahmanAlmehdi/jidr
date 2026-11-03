@@ -30,6 +30,8 @@
   "tools": [
     { "name": "command_list", "description": "Every Jidr command with its params schema and flags" },
     { "name": "command_run", "description": "Run any Jidr command; long-running ones are waited for or returned as a job" },
+    { "name": "pool_get", "description": "Lease a throwaway clone of a base device, booted from its snapshot in seconds" },
+    { "name": "pool_release", "description": "Give a leased device back: it is stopped and deleted" },
     { "name": "jobs_list", "description": "List long-running operations" },
     { "name": "jobs_cancel", "description": "Cancel a long-running operation" },
     { "name": "screenshot", "description": "PNG of the device screen, with its size and scale" },

@@ -95,6 +95,31 @@ struct CommandRunArgs {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
+struct PoolGetArgs {
+    /// Base name or id (`command_run base.list`).
+    base: String,
+    /// Lease lifetime in seconds. Without it the device is yours until this
+    /// MCP session ends (plus 2 minutes).
+    #[serde(default)]
+    ttl_s: Option<u64>,
+    /// How long to wait for room when the machine is full (default 120 s).
+    #[serde(default)]
+    timeout_s: Option<u64>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct PoolReleaseArgs {
+    /// The lease id from pool_get.
+    #[serde(default)]
+    lease: Option<String>,
+    /// Or the pool device's name.
+    #[serde(default)]
+    device: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 struct JobsListArgs {
     /// Include finished jobs.
     #[serde(default)]
@@ -265,6 +290,24 @@ impl JidrMcp {
                     .idempotent(false)
                     .open_world(false),
             ),
+            tool::<PoolGetArgs>(
+                "pool_get",
+                "Get your own throwaway Android device: a fresh clone of a base, booted in seconds. Returns its serial; use that device, never the user's (e.g. not emulator-5554). Call pool_release when done.",
+                ToolAnnotations::new()
+                    .read_only(false)
+                    .destructive(false)
+                    .idempotent(false)
+                    .open_world(false),
+            ),
+            tool::<PoolReleaseArgs>(
+                "pool_release",
+                "Give back a device from pool_get: it is stopped and deleted.",
+                ToolAnnotations::new()
+                    .read_only(false)
+                    .destructive(true)
+                    .idempotent(true)
+                    .open_world(false),
+            ),
             tool::<JobsListArgs>(
                 "jobs_list",
                 "Long-running operations (boots, installs) and their progress.",
@@ -424,6 +467,36 @@ impl JidrMcp {
                 Ok(ok_json(json!({ "commands": specs })))
             }
             "command_run" => Ok(ok_json(self.command_run(parse(args)?).await?)),
+            "pool_get" => {
+                let a: PoolGetArgs = parse(args)?;
+                let mut params = json!({ "base": a.base });
+                if let Some(t) = a.ttl_s {
+                    params["ttl_s"] = json!(t);
+                }
+                if let Some(t) = a.timeout_s {
+                    params["timeout_s"] = json!(t);
+                }
+                let run = CommandRunArgs {
+                    command: "pool.get".into(),
+                    params: Some(params),
+                    timeout_s: a.timeout_s.map(|t| t + 300),
+                };
+                Ok(ok_json(self.command_run(run).await?))
+            }
+            "pool_release" => {
+                let a: PoolReleaseArgs = parse(args)?;
+                let params = match (a.lease, a.device) {
+                    (Some(l), None) => json!({ "lease": l }),
+                    (None, Some(d)) => json!({ "device": d }),
+                    _ => return Err(JidrError::usage("give either lease or device")),
+                };
+                let run = CommandRunArgs {
+                    command: "pool.release".into(),
+                    params: Some(params),
+                    timeout_s: None,
+                };
+                Ok(ok_json(self.command_run(run).await?))
+            }
             "jobs_list" => {
                 let a: JobsListArgs = parse(args)?;
                 Ok(ok_json(
@@ -524,9 +597,13 @@ impl ServerHandler for JidrMcp {
         ServerConfig::new(ServerCapabilities::builder().enable_tools().build())
             .with_server_info(Implementation::new("jidr", env!("CARGO_PKG_VERSION")))
             .with_instructions(
-                "Jidr runs Android emulators (optionally rooted). Typical loop: command_run device.list / \
-                 device.create {name, image: \"35\"} / device.start, then screenshot → tap/swipe/type_text → \
-                 ui_dump to find elements. command_list shows every command. Devices you create are yours to delete.",
+                "Jidr runs Android emulators (optionally rooted). For a device of your own, call pool_get \
+                 {base} (command_run base.list shows the bases): it returns a throwaway device and its serial in \
+                 seconds; use that serial, never the user's devices, and call pool_release when done. For a device \
+                 that must persist, use command_run device.create {name, image: \"35\", profile: \"agent-lean\"} / \
+                 device.start. Then screenshot → tap/swipe/type_text → ui_dump to find elements. If a start fails \
+                 with resource_exhausted the machine is full: wait, release or hibernate devices you own \
+                 (device.hibernate). command_list shows every command. Devices you create are yours to delete.",
             )
     }
 

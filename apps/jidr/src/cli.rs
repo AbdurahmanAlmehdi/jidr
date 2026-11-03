@@ -114,6 +114,17 @@ pub enum Cmd {
     },
     /// Host RAM, the device budget and what each running device uses (D42).
     Budget,
+    /// Throwaway clones of a base for agents and CI: lease one, use its
+    /// serial, release it (D42).
+    Pool {
+        #[command(subcommand)]
+        cmd: PoolCmd,
+    },
+    /// Read-only bases that pool clones are made from.
+    Base {
+        #[command(subcommand)]
+        cmd: BaseCmd,
+    },
     /// Daemon-wide settings, shared with the desktop app.
     Settings {
         #[command(subcommand)]
@@ -320,6 +331,65 @@ pub enum DeviceCmd {
 }
 
 #[derive(Debug, Subcommand)]
+pub enum PoolCmd {
+    /// Lease a clone of a base and boot it from the base's snapshot; prints
+    /// its serial.
+    Get {
+        base: String,
+        /// Lease lifetime: `90s`, `30m`, `2h`.
+        #[arg(long, default_value = "2h")]
+        ttl: String,
+        /// Wait this many seconds for room in the RAM budget.
+        #[arg(long)]
+        timeout: Option<u64>,
+    },
+    /// Give a clone back (by lease id or device name): it is stopped and deleted.
+    Release { lease_or_device: String },
+    /// Extend a lease.
+    Renew {
+        lease: String,
+        /// New lifetime from now: `90s`, `30m`, `2h`.
+        #[arg(long, default_value = "2h")]
+        ttl: String,
+    },
+    /// Current leases.
+    Ls,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum BaseCmd {
+    /// Save a running device (root none or adb) as a base: snapshot
+    /// `jidr-base` with animations off. The device is stopped.
+    Create { device: String, name: String },
+    /// Bases and their leased clones.
+    Ls,
+    /// Delete a base (no clone of it may be leased).
+    Rm {
+        base: String,
+        /// Don't ask for confirmation.
+        #[arg(long, short)]
+        yes: bool,
+    },
+}
+
+/// `90s`, `30m`, `2h`, `1d` or plain seconds, in seconds.
+pub fn parse_duration(s: &str) -> Result<u64, String> {
+    let s = s.trim();
+    let (num, mult) = match s.char_indices().last() {
+        Some((i, 's')) => (&s[..i], 1),
+        Some((i, 'm')) => (&s[..i], 60),
+        Some((i, 'h')) => (&s[..i], 3600),
+        Some((i, 'd')) => (&s[..i], 86_400),
+        _ => (s, 1),
+    };
+    num.parse::<u64>()
+        .ok()
+        .filter(|n| *n > 0)
+        .map(|n| n * mult)
+        .ok_or_else(|| format!("not a duration: {s:?} (use e.g. 90s, 30m, 2h)"))
+}
+
+#[derive(Debug, Subcommand)]
 pub enum SettingsCmd {
     /// Show the settings.
     Get,
@@ -446,5 +516,17 @@ mod tests {
     #[test]
     fn cli_definition_is_valid() {
         Cli::command().debug_assert();
+    }
+
+    #[test]
+    fn durations() {
+        assert_eq!(parse_duration("2h"), Ok(7200));
+        assert_eq!(parse_duration("30m"), Ok(1800));
+        assert_eq!(parse_duration("90s"), Ok(90));
+        assert_eq!(parse_duration("45"), Ok(45));
+        assert_eq!(parse_duration("1d"), Ok(86_400));
+        for bad in ["", "h", "0m", "-1h", "2 hours"] {
+            assert!(parse_duration(bad).is_err(), "{bad:?}");
+        }
     }
 }

@@ -30,6 +30,8 @@ Each release also publishes Jidr to the [MCP Registry](https://registry.modelcon
 |---|---|---|
 | `command_list {prefix?}` | read-only | Every Jidr command with its params schema and flags |
 | `command_run {command, params, timeout_s?}` | may be destructive | Runs any command; long-running ones (boot, image install) are waited for, up to `timeout_s` (900 s), then returned as a job |
+| `pool_get {base, ttl_s?, timeout_s?}` | interacts | A throwaway device of your own: a copy-on-write clone of a base, resumed from its snapshot in seconds. Returns `{lease, device, serial, connect}`. Without `ttl_s` the lease lasts as long as this MCP session, plus 2 minutes |
+| `pool_release {lease \| device}` | destructive (your clone only) | Gives the clone back: it is stopped and deleted |
 | `jobs_list {all?}`, `jobs_cancel {job}` | read-only / idempotent | Long-running operations |
 | `screenshot {device}` | read-only | PNG of the screen fitted in 1024×1024, plus the screen size and scale |
 | `tap {device, x, y, coords?}` | interacts | Tap; coordinates are in the screenshot image unless `coords: "device"` |
@@ -40,6 +42,14 @@ Each release also publishes Jidr to the [MCP Registry](https://registry.modelcon
 | `logcat_tail {device, lines?, filter?}` | read-only | Recent log lines (the last N lines that match the filter) |
 
 Every tool carries `readOnlyHint`, `destructiveHint`, `idempotentHint` and `openWorldHint` annotations. Jidr errors come back as tool results with `isError: true` and structured `{code, message, data}` (codes as in docs/control-protocol.md), so an agent can recover, e.g. start a stopped device after `not_found`.
+
+## Devices for agents (D42)
+
+Use a device of your own, never the user's (for example not `emulator-5554`):
+
+- **Throwaway:** `pool_get {base}` (bases: `command_run base.list`; a person makes one with `jidr base create <device> <name>`). Use the returned `serial` with adb, Flutter or Gradle, and call `pool_release` when done. If the session ends without it, the daemon deletes the clone 2 minutes later. For long tasks pass `ttl_s` and extend it with `command_run pool.renew`.
+- **Persistent:** `command_run device.create {name, image, profile: "agent-lean"}` (about 4 GB of host RAM instead of ~7.6 GB) and `device.start`; hibernate it with `device.hibernate` when idle.
+- **Full machine:** `pool_get` waits up to `timeout_s` (120 s) for room in the host RAM budget, then fails with `resource_exhausted`. `device.start` fails with it at once; its `data.devices` says what uses the RAM and `data.hibernate_candidates` which running devices are idle longest. Hibernate or release your own devices, or wait; don't hibernate the user's.
 
 ## Safety policy (D5)
 

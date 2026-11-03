@@ -63,6 +63,8 @@ fn device(
         runtime: None,
         footprint_mb: None,
         auto_hibernate_minutes: None,
+        base: false,
+        pool_base: None,
     }
 }
 

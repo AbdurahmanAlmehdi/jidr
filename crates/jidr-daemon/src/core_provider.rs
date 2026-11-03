@@ -352,7 +352,7 @@ pub fn tail_lines(text: &str, n: usize) -> String {
     out
 }
 
-fn validate_device_name(name: &str) -> JidrResult<()> {
+pub(crate) fn validate_device_name(name: &str) -> JidrResult<()> {
     let name = name.trim();
     if name.is_empty() || name.len() > 64 || name.contains(['/', '\n', '\r']) {
         return Err(JidrError::usage(
@@ -549,6 +549,8 @@ impl CoreProvider {
             runtime: None,
             footprint_mb: None,
             auto_hibernate_minutes: None,
+            base: false,
+            pool_base: None,
         };
         if let Err(e) = self.state.with_store(|s| s.insert(device.clone())) {
             let _ = avds.delete(&avd);
@@ -663,6 +665,8 @@ impl CoreProvider {
             status: Default::default(),
             runtime: None,
             footprint_mb: src.footprint_mb,
+            base: false,
+            pool_base: None,
             ..src
         };
         if let Err(e) = self.state.with_store(|s| s.insert(device.clone())) {

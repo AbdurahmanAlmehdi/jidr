@@ -69,6 +69,8 @@ pub struct State {
     budget_gate: Mutex<()>,
     /// When each running device last saw activity (auto-hibernate).
     pub(crate) activity: Mutex<HashMap<Uuid, std::time::Instant>>,
+    /// Pool leases (D42, Phase 13d).
+    pub(crate) leases: Mutex<crate::leases::Leases>,
 }
 
 /// Latest and peak footprint of a device's current run, in MB.
@@ -140,7 +142,9 @@ impl State {
             footprints: Mutex::new(HashMap::new()),
             budget_gate: Mutex::new(()),
             activity: Mutex::new(HashMap::new()),
+            leases: Mutex::new(crate::leases::Leases::default()),
         }))
+        .inspect(|s| s.adopt_pool_clones())
     }
 
     pub fn host_memory(&self) -> JidrResult<HostMemory> {
@@ -223,6 +227,13 @@ impl State {
         force: bool,
         cancel: &Cancel,
     ) -> JidrResult<Device> {
+        let d = self.with_store(|s| s.get(id).cloned())?;
+        if d.base {
+            return Err(JidrError::usage(format!(
+                "{} is a base (read-only); lease a clone of it with pool.get",
+                d.name
+            )));
+        }
         self.admit(id, force)?;
         let r = self.start_device(id, cold_boot, cancel).await;
         if r.is_err() && self.instance(id).is_none() {

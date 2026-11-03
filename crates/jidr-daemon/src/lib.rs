@@ -8,8 +8,10 @@ pub mod core_provider;
 pub mod hibernate;
 pub mod idle;
 pub mod jobs;
+pub mod leases;
 pub mod lifecycle;
 pub mod locks;
+pub mod pool;
 pub mod protocol_doc;
 pub mod registry;
 pub use jidr_core::rpc;
@@ -21,7 +23,7 @@ pub mod validate;
 
 use std::future::Future;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
 use jidr_backend::Backend;
 use jidr_core::JidrResult;
@@ -45,6 +47,7 @@ pub struct Daemon {
     pub(crate) registry: Registry,
     pub(crate) version: String,
     clients: AtomicUsize,
+    next_conn: AtomicU64,
 }
 
 impl std::fmt::Debug for Daemon {
@@ -92,6 +95,7 @@ impl DaemonBuilder {
             Arc::new(core_provider::CoreProvider::new(state.clone()));
         registry.register(core)?;
         registry.register(Arc::new(jobs::JobsProvider::new(jobs.clone())))?;
+        registry.register(Arc::new(pool::PoolProvider::new(state.clone())))?;
         for p in self.providers {
             registry.register(p)?;
         }
@@ -105,6 +109,7 @@ impl DaemonBuilder {
             registry,
             version: self.version.unwrap_or_else(|| VERSION.to_string()),
             clients: AtomicUsize::new(0),
+            next_conn: AtomicU64::new(0),
         }))
     }
 }
@@ -128,12 +133,16 @@ impl Daemon {
         &self.registry
     }
 
-    pub(crate) fn client_connected(&self) {
+    /// Counts a new client connection and returns its id.
+    pub(crate) fn client_connected(&self) -> u64 {
         self.clients.fetch_add(1, Ordering::Relaxed);
+        self.next_conn.fetch_add(1, Ordering::Relaxed) + 1
     }
 
-    pub(crate) fn client_disconnected(&self) {
+    /// The connection's pool leases start their grace period (D42).
+    pub(crate) fn client_disconnected(&self, conn: u64) {
         self.clients.fetch_sub(1, Ordering::Relaxed);
+        self.state.connection_closed(conn);
     }
 
     pub fn client_count(&self) -> usize {
@@ -144,9 +153,13 @@ impl Daemon {
         &self.jobs
     }
 
-    /// No running devices, no connected clients, no active jobs (D4).
+    /// No running devices, no connected clients, no active jobs and no pool
+    /// leases (D4).
     pub fn is_idle(&self) -> bool {
-        self.state.running_count() == 0 && self.client_count() == 0 && self.jobs.active() == 0
+        self.state.running_count() == 0
+            && self.client_count() == 0
+            && self.jobs.active() == 0
+            && self.state.lease_count() == 0
     }
 
     /// Binds the socket, re-adopts running emulators and serves until
@@ -187,6 +200,16 @@ impl Daemon {
                 }
             })
         };
+        let reaper = {
+            let state = self.state.clone();
+            tokio::spawn(async move {
+                let mut tick = tokio::time::interval(leases::REAP_EVERY);
+                loop {
+                    tick.tick().await;
+                    state.reap(chrono::Utc::now()).await;
+                }
+            })
+        };
         tokio::pin!(shutdown);
         tokio::pin!(idle);
         loop {
@@ -210,6 +233,7 @@ impl Daemon {
         }
         sampler.abort();
         hibernator.abort();
+        reaper.abort();
         let _ = std::fs::remove_file(&path);
         self.closing.send_replace(true);
         Ok(())
