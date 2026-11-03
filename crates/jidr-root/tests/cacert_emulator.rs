@@ -53,8 +53,9 @@ async fn call(daemon: &Arc<Daemon>, ctx: &CallCtx, method: &str, params: Value) 
 
 /// `su -c <cmd>` in Zygote's mount namespace: what every app sees.
 async fn as_zygote(adb: &Adb, cmd: &str) -> String {
+    // `pidof` may print several pids (API 30): use the first.
     adb.shell(&format!(
-        "su -c 'nsenter -t $(pidof -s zygote64 || pidof -s zygote) -m -- {cmd}'"
+        "su -c 'Z=$(pidof zygote64); [ -n \"$Z\" ] || Z=$(pidof zygote); nsenter -t ${{Z%% *}} -m -- {cmd}'"
     ))
     .await
     .unwrap_or_else(|e| e.message)
@@ -165,7 +166,7 @@ async fn cacert_install_verify_and_remove() {
     // An app process sees it too, not just Zygote.
     let app = a
         .shell(&format!(
-            "su -c 'nsenter -t $(pidof -s com.android.systemui) -m -- ls {store}/a4ac454c.0'"
+            "su -c 'P=$(pidof com.android.systemui); nsenter -t ${{P%% *}} -m -- ls {store}/a4ac454c.0'"
         ))
         .await
         .unwrap_or_else(|e| e.message);

@@ -154,18 +154,27 @@ fn apply_script(add: Option<&str>, remove: &[String]) -> String {
     s.join("\n") + "\n"
 }
 
+/// Sets `Z` to Zygote's pid (the 64-bit one on images with both), or exits
+/// with an error. `pidof` can print several pids: on API 30
+/// `$(pidof -s zygote64 || pidof -s zygote)` expanded to two (CI run
+/// 41492998228), so only the first is kept.
+const FIND_ZYGOTE: &str = r#"Z=$(pidof zygote64)
+[ -n "$Z" ] || Z=$(pidof zygote)
+Z=${Z%% *}
+[ -n "$Z" ] || { echo "no zygote is running"; exit 1; }"#;
+
 /// Prints the store apps read and, per Jidr certificate, `cert <file> <0|1>`
 /// (whether Zygote's view of the store has the same bytes) and its PEM.
 fn state_script() -> String {
     format!(
         r#"if [ -d {APEX_STORE} ]; then S={APEX_STORE}; else S={SYSTEM_STORE}; fi
 echo "store $S"
-Z=$(pidof -s zygote64 || pidof -s zygote)
+{FIND_ZYGOTE}
 [ -d {CERTS} ] || exit 0
 for f in {CERTS}/*; do
   [ -f "$f" ] || continue
   n=${{f##*/}}
-  if [ -n "$Z" ] && nsenter -t "$Z" -m -- cmp -s "$S/$n" "$f"; then t=1; else t=0; fi
+  if nsenter -t "$Z" -m -- cmp -s "$S/$n" "$f"; then t=1; else t=0; fi
   echo "cert $n $t"
   cat "$f"
 done
@@ -436,7 +445,7 @@ pub async fn verify(ctx: &CallCtx, selector: &str) -> JidrResult<Value> {
 /// Whether Zygote's view of `store` still has `file`.
 async fn still_in_store(adb: &Adb, store: &str, file: &str) -> JidrResult<bool> {
     let script = format!(
-        "Z=$(pidof -s zygote64 || pidof -s zygote)\nnsenter -t \"$Z\" -m -- ls {store}/{file} >/dev/null 2>&1 && echo present || echo absent\n"
+        "{FIND_ZYGOTE}\nnsenter -t \"$Z\" -m -- ls {store}/{file} >/dev/null 2>&1 && echo present || echo absent\n"
     );
     let out = run_as_root(adb, &[("check.sh", script.as_bytes())], "check.sh").await?;
     Ok(out.contains("present"))
@@ -564,6 +573,42 @@ mod tests {
                 .message
                 .contains("a4ac454c.0")
         );
+    }
+
+    /// Regression (API 30 CI run 41492998228): `pidof` printed two pids and
+    /// `nsenter -t $(…)` took the second for the command to run.
+    #[cfg(unix)]
+    #[test]
+    fn finds_one_zygote_when_pidof_prints_several() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!("jidr-pidof-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let pidof = dir.join("pidof");
+        let run = |fake: &str| {
+            std::fs::write(&pidof, format!("#!/bin/sh\n{fake}\n")).unwrap();
+            std::fs::set_permissions(&pidof, std::fs::Permissions::from_mode(0o755)).unwrap();
+            let out = std::process::Command::new("/bin/sh")
+                .arg("-c")
+                .arg(format!("{FIND_ZYGOTE}\necho \"[$Z]\""))
+                .env("PATH", format!("{}:/usr/bin:/bin", dir.display()))
+                .output()
+                .unwrap();
+            (
+                out.status.success(),
+                String::from_utf8_lossy(&out.stdout).trim().to_string(),
+            )
+        };
+        assert_eq!(
+            run(r#"[ "$1" = zygote64 ] && echo "3726 3727""#),
+            (true, "[3726]".into())
+        );
+        assert_eq!(
+            run(r#"[ "$1" = zygote ] && echo 412 || exit 1"#),
+            (true, "[412]".into()),
+            "32-bit only"
+        );
+        assert_eq!(run("exit 1"), (false, "no zygote is running".into()));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
