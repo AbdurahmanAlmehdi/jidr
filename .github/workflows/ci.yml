@@ -140,3 +140,26 @@ jobs:
         run: >-
           cargo nextest run --workspace --features emulator --no-tests=pass --test-threads 1
           --no-fail-fast -E '${{ matrix.shard.filter }}'
+
+  emulator-gate:
+    # Branch protection requires one "emulator tests (Linux KVM, API N)" check
+    # per API level. The emulator job is sharded (its checks carry a shard
+    # suffix), so these report the result of all of its shards under the
+    # required names. A matrix job's result covers every shard and API, so a
+    # failure anywhere fails all three. Skipped emulator tests (docs-only
+    # changes) pass.
+    name: emulator tests (Linux KVM, API ${{ matrix.api }})
+    needs: emulator
+    if: always()
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        api: [30, 33, 35]
+    steps:
+      - name: Emulator shards passed or were skipped
+        run: |
+          echo "emulator shards: ${{ needs.emulator.result }}"
+          case "${{ needs.emulator.result }}" in
+            success|skipped) exit 0 ;;
+            *) exit 1 ;;
+          esac
