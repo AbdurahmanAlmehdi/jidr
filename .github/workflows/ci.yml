@@ -113,11 +113,12 @@ jobs:
           sdkmanager "platform-tools" "emulator" "system-images;android-${{ matrix.api }};google_apis;x86_64"
       - name: Emulator tests
         # Only the tests that boot a device (the nextest `emulator` group); the
-        # check job already runs the offline tests.
+        # check job already runs the offline tests. `--no-fail-fast` so one
+        # flaky test doesn't hide the result of the ones after it.
         env:
           JIDR_TEST_SDK: ${{ env.ANDROID_SDK_ROOT }}
           JIDR_TEST_IMAGE: system-images;android-${{ matrix.api }};google_apis;x86_64
           JIDR_TEST_API: ${{ matrix.api }}
         run: >-
           cargo nextest run --workspace --features emulator --no-tests=pass --test-threads 1
-          -E 'binary(~_emulator) | binary(agent_tasks)'
+          --no-fail-fast -E 'binary(~_emulator) | binary(agent_tasks)'
