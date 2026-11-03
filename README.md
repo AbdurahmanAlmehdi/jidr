@@ -11,7 +11,7 @@ Jidr creates and runs virtual Android phones and tablets on Apple Silicon Macs. 
 brew install --cask abdurahmanalmehdi/tap/jidr
 ```
 
-Or [download the DMG](https://github.com/AbdurahmanAlmehdi/jidr/releases/latest). Site: [jidr.ly](https://jidr.ly).
+Or [download the DMG](https://github.com/AbdurahmanAlmehdi/jidr/releases/latest). Site: [jidr.ly](https://jidr.ly). News: [@Jidr_ly on X](https://x.com/Jidr_ly).
 
 ![Jidr in 25 seconds: create an API 35 device with Full root, watch Magisk 30.7 get patched and verified, then su -c id and frida-ps from the terminal](docs/images/demo.gif)
 
