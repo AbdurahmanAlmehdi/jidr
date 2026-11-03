@@ -13,11 +13,12 @@ const checked = "14 October 2026";
 const issue = (n: number) => `${links.repo}/issues/${n}`;
 
 type Status = { kind: "yes" | "partly" | "planned" | "no"; note?: string; issue?: number };
-const rows: { feature: string; genymotion: string; jidr: Status }[] = [
+// `source`: the Genymotion page that shows that tier, for rows people dispute.
+const rows: { feature: string; genymotion: string; source?: string; jidr: Status }[] = [
   { feature: "Create, clone and delete devices", genymotion: "Free", jidr: { kind: "yes" } },
   { feature: "Quick boot", genymotion: "Paid plan", jidr: { kind: "yes" } },
   { feature: "CLI automation", genymotion: "Paid plan", jidr: { kind: "yes", note: "every action, with --json" } },
-  { feature: "Root toggle (Android 12+)", genymotion: "Paid plan", jidr: { kind: "yes", note: "Shell root (adb root)" } },
+  { feature: "Root toggle (Android 12+)", genymotion: "Paid plan", source: "https://docs.genymotion.com/features/root/", jidr: { kind: "yes", note: "Shell root (adb root)" } },
   { feature: "Full root with Magisk, verified", genymotion: "Not offered", jidr: { kind: "yes", note: "one click, revertible" } },
   { feature: "GPS and GPX/KML route replay", genymotion: "Paid plan (routes)", jidr: { kind: "yes" } },
   { feature: "Network speed and delay profiles", genymotion: "Paid plan", jidr: { kind: "yes" } },
@@ -96,7 +97,10 @@ const description =
                 {rows.map((r) => (
                   <tr>
                     <td>{r.feature}</td>
-                    <td><span class="paid">{r.genymotion}</span></td>
+                    <td>
+                      <span class="paid">{r.genymotion}</span>
+                      {r.source && <a class="doc-link" href={r.source}> · source</a>}
+                    </td>
                     <td>
                       {r.jidr.kind === "yes"
                         ? <span class="yes"><Icon name="check" class="ic i14" />{label.yes}</span>
