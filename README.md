@@ -58,7 +58,7 @@ claude mcp add jidr -- jidr mcp
 
 For Claude Desktop, open `jidr-mcp-<version>-darwin-arm64.mcpb` from the [latest release](https://github.com/AbdurahmanAlmehdi/jidr/releases/latest). Jidr is also in the [MCP Registry](https://registry.modelcontextprotocol.io) as `io.github.AbdurahmanAlmehdi/jidr`. [docs/mcp.md](docs/mcp.md) lists the tools.
 
-Agent skills teach Claude Code, Cursor, Codex and other agents to create and drive Jidr devices with the CLI (`jidr`) and to test an app on them (`jidr-app-testing`). Install them with the open [skills](https://skills.sh) CLI:
+Agent skills teach Claude Code, Cursor, Codex and other agents to create and drive Jidr devices with the CLI (`jidr`), to test an app on them (`jidr-app-testing`) and to get devices of their own without crowding the machine (`jidr-agent-devices`). Install them with the open [skills](https://skills.sh) CLI:
 
 ```bash
 npx skills add AbdurahmanAlmehdi/jidr

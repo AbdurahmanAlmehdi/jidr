@@ -16,7 +16,7 @@ If `jidr` isn't on the `PATH`, ask the user to install Jidr (https://jidr.ly, or
 ```bash
 jidr device list                 # NAME, STATUS, IMAGE, ROOT, SERIAL (the adb serial while running)
 jidr --json device list          # the same as JSON
-jidr profile list                # phone-6.1-fhd, phone-6.7-qhd, small-phone-5, tablet-11
+jidr profile list                # phone-6.1-fhd, phone-6.7-qhd, small-phone-5, tablet-11, agent-lean
 jidr image list --installed      # images already downloaded (works offline)
 ```
 
@@ -66,7 +66,7 @@ If the Jidr MCP server is connected (Claude Code: `claude mcp add jidr -- jidr m
 
 ## Exit codes (with `--json`)
 
-0 ok · 1 unexpected · 2 usage (bad params, missing `--yes`) · 3 not found or not running (start it) · 4 busy (another job holds the device) · 5 boot timeout · 6 SDK, download or license · 7 root failed · 8 stale daemon (rerun with `--restart-stale`).
+0 ok · 1 unexpected · 2 usage (bad params, missing `--yes`) · 3 not found or not running (start it) · 4 busy (another job holds the device) · 5 boot timeout · 6 SDK, download or license · 7 root failed · 8 stale daemon (rerun with `--restart-stale`) · 9 resource exhausted (the machine's RAM budget is full; see jidr-agent-devices).
 
 ## Don't
 
