@@ -7,11 +7,12 @@ import { latestRelease } from "../scripts/release.mjs";
 // is the 11b page with the download, agent, CLI and docs sections.
 export const phase: "soon" | "launch" = "launch";
 
-// Public links (D1, D25, D26). `sponsors` stays null
+// Public links (D1, D25, D26) and the X account. `sponsors` stays null
 // until a GitHub Sponsors profile exists: the Sponsor buttons and section are
 // hidden while it's null.
 const repo = "https://github.com/AbdurahmanAlmehdi/jidr";
 const sponsors: string | null = null;
+const x = "https://x.com/Jidr_ly";
 
 // The release the Download buttons point at: the newest complete GitHub
 // release, looked up when the site builds (scripts/release.mjs). A failed
@@ -37,6 +38,8 @@ export const release = {
 export const links = {
   repo,
   sponsors,
+  x,
+  xHandle: "@Jidr_ly",
   releases: `${repo}/releases`,
   dmg: release.dmg,
   doc: (path: string) => `${repo}/blob/main/${path}`,

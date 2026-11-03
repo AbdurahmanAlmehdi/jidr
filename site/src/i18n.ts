@@ -127,6 +127,7 @@ const en = {
   footer: {
     licences: "App: GPL-3.0; CLI and daemon: Apache-2.0",
     source: "Source on GitHub",
+    x: "On X:",
     blog: "Blog",
     copyright: "© 2026 Jidr contributors",
     downloaded: "Downloaded on your Mac",
@@ -264,6 +265,7 @@ const ar: Strings = {
   footer: {
     licences: "التطبيق: GPL-3.0؛ سطر الأوامر والخدمة الخلفية: Apache-2.0",
     source: "المصدر على GitHub",
+    x: "على X:",
     blog: "المدونة (بالإنجليزية)",
     copyright: "© 2026 مساهمو جذر",
     downloaded: "يُنزَّل على جهازك",
