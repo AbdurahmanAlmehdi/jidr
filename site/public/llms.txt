@@ -43,6 +43,7 @@ Requirements: macOS 14 or later on Apple Silicon, and about 10 GB of free disk s
 ## Guides
 
 - [How to root the Android emulator on an Apple Silicon Mac](https://jidr.ly/blog/root-android-emulator-apple-silicon/): adb root, Magisk in the ramdisk, verify and revert
+- [Frida and Burp Suite on an Android emulator on Apple Silicon (M1–M4), rooted with Magisk](https://jidr.ly/blog/frida-burp-android-emulator-apple-silicon/): frida-server, the HTTP proxy, Burp's CA as a system certificate on Android 14+, SSL pinning, snapshots
 - [Driving an Android emulator from an AI agent over MCP](https://jidr.ly/blog/drive-android-from-an-ai-agent-mcp/): setup for Claude Code and Claude Desktop, the tools, a sample session, safety
 
 ## Optional
