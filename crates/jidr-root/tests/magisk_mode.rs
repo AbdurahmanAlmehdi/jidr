@@ -35,7 +35,9 @@ async fn magisk_flow_roots_and_verifies_a_device() {
     assert_eq!(r["applied"], "live");
     assert_eq!(r["verification"]["uid"], 0, "{r}");
     assert_eq!(r["verification"]["command"], "su -c id");
-    assert_eq!(r["verification"]["magisk_version"], "30.7:MAGISK:R");
+    // The fake adb prints `magisk -v` as `30.7:MAGISK:R`; only the version is kept.
+    assert_eq!(r["verification"]["magisk_version"], "30.7");
+    assert_eq!(r["magisk_version"], "30.7");
     assert!(
         r["play_integrity"]
             .as_str()

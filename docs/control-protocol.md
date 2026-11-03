@@ -895,3 +895,4 @@ Save a snapshot of a running device · long-running (job) · locks the device
 | 0.1 (additive) | Phase 9f: `device.props.get`, `device.props.set` (a Full-root device's build props, from the root provider). No existing command changed. |
 | 0.1 (additive) | `network.proxy.get`, `network.proxy.set {host, port}`, `network.proxy.clear` (the device's global HTTP proxy, from the widgets provider). No existing command changed. |
 | 0.1 (additive) | `root.cacert.install {path}`, `root.cacert.list`, `root.cacert.verify`, `root.cacert.remove {cert?, all?}` (CA certificates in a Full-root device's system store, from the root provider). No existing command changed. |
+| 0.1 (fix) | `root.set` (mode `magisk`) and `root.verify`: `magisk_version` is now the version alone (`30.7`), not the raw `magisk -v` output (`30.7:MAGISK:R`). The field and its type are unchanged. |
