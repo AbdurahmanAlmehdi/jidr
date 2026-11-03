@@ -11,12 +11,14 @@ use jidr_core::provider::{CallCtx, CommandProvider, DaemonContext, DeviceUpdate}
 use jidr_core::{
     Cancel, ConnectInfo, Device, DeviceStatus, JidrError, JidrPaths, JidrResult, Settings,
 };
+use jidr_sdk::host::HostMemory;
 use jidr_sdk::{AvdManager, Sdk, SdkSet};
 use serde_json::{Value, json};
 use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
 use uuid::Uuid;
 
+use crate::budget::{Budget, DeviceUse};
 use crate::locks::DeviceLocks;
 use crate::store::DeviceStore;
 use jidr_core::rpc::Event;
@@ -52,13 +54,33 @@ pub struct State {
     pub(crate) backend: Arc<dyn Backend>,
     store: Mutex<DeviceStore>,
     settings: Mutex<Settings>,
-    instances: Mutex<HashMap<Uuid, InstanceInfo>>,
-    watchers: Mutex<HashMap<Uuid, JoinHandle<()>>>,
+    pub(crate) instances: Mutex<HashMap<Uuid, InstanceInfo>>,
+    pub(crate) watchers: Mutex<HashMap<Uuid, JoinHandle<()>>>,
     pub(crate) locks: DeviceLocks,
     providers: OnceLock<Vec<Arc<dyn CommandProvider>>>,
     events: broadcast::Sender<Event>,
     me: Weak<State>,
     pub(crate) started_at: std::time::Instant,
+    /// Host RAM override (tests); `None` probes the host.
+    host_memory: Option<HostMemory>,
+    /// Footprint samples of running devices (D42 cost model).
+    footprints: Mutex<HashMap<Uuid, Footprint>>,
+    /// Serialises budget admission so parallel starts can't both slip in.
+    budget_gate: Mutex<()>,
+    /// When each running device last saw activity (auto-hibernate).
+    pub(crate) activity: Mutex<HashMap<Uuid, std::time::Instant>>,
+    /// Pool leases (D42, Phase 13d).
+    pub(crate) leases: Mutex<crate::leases::Leases>,
+    /// Running devices launched from a named snapshot (`-no-snapshot-save`):
+    /// their stop saves `default_boot` explicitly.
+    resumed: Mutex<std::collections::HashSet<Uuid>>,
+}
+
+/// Latest and peak footprint of a device's current run, in MB.
+#[derive(Debug, Clone, Copy, Default)]
+struct Footprint {
+    current: u64,
+    peak: u64,
 }
 
 impl std::fmt::Debug for State {
@@ -69,7 +91,7 @@ impl std::fmt::Debug for State {
     }
 }
 
-fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
+pub(crate) fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
     m.lock().unwrap_or_else(|e| e.into_inner())
 }
 
@@ -97,7 +119,11 @@ fn save_settings(path: &std::path::Path, s: &Settings) -> JidrResult<()> {
 }
 
 impl State {
-    pub fn new(config: DaemonConfig, backend: Arc<dyn Backend>) -> JidrResult<Arc<Self>> {
+    pub fn new(
+        config: DaemonConfig,
+        backend: Arc<dyn Backend>,
+        host_memory: Option<HostMemory>,
+    ) -> JidrResult<Arc<Self>> {
         let store = DeviceStore::load(config.paths.devices_file())?;
         let settings = load_settings(&config.paths.settings_file());
         let (events, _) = broadcast::channel(1024);
@@ -115,7 +141,144 @@ impl State {
             events,
             me: me.clone(),
             started_at: std::time::Instant::now(),
+            host_memory,
+            footprints: Mutex::new(HashMap::new()),
+            budget_gate: Mutex::new(()),
+            activity: Mutex::new(HashMap::new()),
+            leases: Mutex::new(crate::leases::Leases::default()),
+            resumed: Mutex::new(std::collections::HashSet::new()),
         }))
+        .inspect(|s| s.adopt_pool_clones())
+    }
+
+    pub fn host_memory(&self) -> JidrResult<HostMemory> {
+        match self.host_memory {
+            Some(m) => Ok(m),
+            None => jidr_sdk::host::memory(),
+        }
+    }
+
+    /// Guest RAM of a device: `hw.ramSize` in its `config.ini`, else its
+    /// profile's.
+    fn ram_mb(&self, d: &Device) -> u32 {
+        self.avds()
+            .config(&d.avd)
+            .ok()
+            .and_then(|c| c.get("hw.ramSize").and_then(|v| v.trim().parse().ok()))
+            .or_else(|| jidr_sdk::profiles::find(&d.profile).ok().map(|p| p.ram_mb))
+            .unwrap_or(4096)
+    }
+
+    pub fn expected_mb(&self, d: &Device) -> u64 {
+        crate::budget::expected_mb(self.ram_mb(d), d.footprint_mb)
+    }
+
+    /// The budget with every active device except `except` counted.
+    fn budget_except(&self, except: Option<Uuid>) -> JidrResult<Budget> {
+        let mem = self.host_memory()?;
+        let devices = self.with_store(|s| s.all().to_vec());
+        let samples = lock(&self.footprints).clone();
+        let used = devices
+            .iter()
+            .filter(|d| d.status.is_active() && Some(d.id) != except)
+            .map(|d| DeviceUse {
+                id: d.id,
+                name: d.name.clone(),
+                expected_mb: self.expected_mb(d),
+                measured_mb: samples.get(&d.id).map(|f| f.current).filter(|m| *m > 0),
+            })
+            .collect();
+        Ok(Budget::new(mem, self.settings().budget_percent, used))
+    }
+
+    /// `host.budget`.
+    pub fn budget(&self) -> JidrResult<Budget> {
+        self.budget_except(None)
+    }
+
+    /// Admits a start: past the budget it fails with `resource_exhausted`
+    /// unless `force`. Marks the device `starting` under the gate, so it
+    /// counts for the next admission at once.
+    pub fn admit(&self, id: Uuid, force: bool) -> JidrResult<()> {
+        let _gate = lock(&self.budget_gate);
+        let d = self.with_store(|s| s.get(id).cloned())?;
+        if d.status.is_active() {
+            return Ok(());
+        }
+        if !force {
+            let budget = self.budget_except(Some(id))?;
+            let need = self.expected_mb(&d);
+            if !budget.fits(need) {
+                let mut e = budget.refusal(&d.name, need);
+                if let Some(Value::Object(data)) = e.data.as_mut() {
+                    // The longest-idle running devices first: hibernating
+                    // one frees all of its RAM (D42).
+                    data.insert("hibernate_candidates".into(), json!(self.idle_devices()));
+                }
+                return Err(e);
+            }
+        }
+        self.set_status(id, DeviceStatus::Starting, None);
+        Ok(())
+    }
+
+    /// [`admit`](Self::admit), then start. A start that fails before the
+    /// emulator runs puts the device back to `stopped`.
+    pub async fn start_admitted(
+        &self,
+        id: Uuid,
+        cold_boot: bool,
+        force: bool,
+        cancel: &Cancel,
+    ) -> JidrResult<Device> {
+        let d = self.with_store(|s| s.get(id).cloned())?;
+        if d.base {
+            return Err(JidrError::usage(format!(
+                "{} is a base (read-only); lease a clone of it with pool.get",
+                d.name
+            )));
+        }
+        self.admit(id, force)?;
+        let r = self.start_device(id, cold_boot, cancel).await;
+        if r.is_err() && self.instance(id).is_none() {
+            let starting = self.with_store(|s| {
+                s.get(id)
+                    .is_ok_and(|d| matches!(d.status, DeviceStatus::Starting))
+            });
+            if starting {
+                self.set_status(id, DeviceStatus::Stopped, Some(None));
+            }
+        }
+        r
+    }
+
+    /// Samples every running device's footprint (the daemon does this every
+    /// 30 s while serving).
+    pub async fn sample_footprints(&self) {
+        let running: Vec<(Uuid, InstanceInfo)> = lock(&self.instances)
+            .iter()
+            .map(|(id, i)| (*id, i.clone()))
+            .collect();
+        for (id, info) in running {
+            let Some(mb) = self.backend.footprint_mb(&info).await else {
+                continue;
+            };
+            let mut f = lock(&self.footprints);
+            let e = f.entry(id).or_default();
+            e.current = mb;
+            e.peak = e.peak.max(mb);
+        }
+    }
+
+    /// Ends a run's sampling: its peak becomes the device's `footprint_mb`.
+    pub(crate) fn finish_footprint(&self, id: Uuid) {
+        let Some(f) = lock(&self.footprints).remove(&id) else {
+            return;
+        };
+        if f.peak > 0 {
+            let peak = u32::try_from(f.peak).unwrap_or(u32::MAX);
+            let _ = self.with_store(|s| s.update(id, |d| d.footprint_mb = Some(peak)));
+        }
     }
 
     /// Daemon-wide settings (gap B4).
@@ -174,7 +337,7 @@ impl State {
         lock(&self.instances).len()
     }
 
-    fn set_status(
+    pub(crate) fn set_status(
         &self,
         id: Uuid,
         status: DeviceStatus,
@@ -204,10 +367,11 @@ impl State {
             lock(&self.instances).insert(id, info.clone());
             self.set_status(id, DeviceStatus::Running, Some(Some(info.runtime())));
             self.watch_crash(id, info);
+            self.touch(id);
         }
     }
 
-    fn watch_crash(&self, id: Uuid, info: InstanceInfo) {
+    pub(crate) fn watch_crash(&self, id: Uuid, info: InstanceInfo) {
         let Ok(me) = self.arc() else { return };
         let handle = tokio::spawn(async move {
             let log_dir = me.paths.device_logs(&info.avd);
@@ -220,6 +384,7 @@ impl State {
             }
             lock(&me.instances).remove(&id);
             lock(&me.watchers).remove(&id);
+            me.finish_footprint(id);
             // Releases ports; the process is already gone.
             let _ = me.backend.stop(&info).await;
             me.set_status(
@@ -336,17 +501,30 @@ impl DaemonContext for State {
                 )));
             }
         }
+        let resume = device
+            .launch
+            .resume_snapshot
+            .clone()
+            .filter(|_| !cold_boot && !device.launch.force_cold_boot);
         let opts = LaunchOptions {
             ramdisk: device.launch.ramdisk.clone(),
             camera_back: device.launch.camera_back.clone(),
             camera_front: device.launch.camera_front.clone(),
             extra_args: device.launch.extra_args.clone(),
             gpu: device.launch.gpu.clone(),
+            audio: device.launch.audio.unwrap_or(true),
             cold_boot: cold_boot || device.launch.force_cold_boot,
-            // D29 / gap B4: save a quick-boot snapshot on stop unless off.
-            snapshot_save: self.settings().quick_boot,
+            snapshot: resume.clone(),
+            // D29 / gap B4: save a quick-boot snapshot on stop unless off. A
+            // resumed run doesn't: the exit save would go into the named
+            // snapshot, not `default_boot`.
+            snapshot_save: self.settings().quick_boot && resume.is_none(),
             ..LaunchOptions::default()
         };
+        if opts.snapshot_save {
+            // Without it the headless emulator skips the exit save (13c).
+            self.avds().set_save_on_exit(&device.avd, true)?;
+        }
         self.set_status(id, DeviceStatus::Starting, None);
         let progress = |stage: BootStage| {
             if stage == BootStage::Spawned {
@@ -367,22 +545,51 @@ impl DaemonContext for State {
         };
         lock(&self.instances).insert(id, info.clone());
         self.set_status(id, DeviceStatus::Running, Some(Some(info.runtime())));
-        if device.launch.force_cold_boot {
-            self.with_store(|s| s.update(id, |d| d.launch.force_cold_boot = false))?;
+        if device.launch.force_cold_boot || device.launch.resume_snapshot.is_some() {
+            self.with_store(|s| {
+                s.update(id, |d| {
+                    d.launch.force_cold_boot = false;
+                    d.launch.resume_snapshot = None;
+                })
+            })?;
         }
         self.watch_crash(id, info);
+        self.touch(id);
+        if resume.is_some() {
+            lock(&self.resumed).insert(id);
+        } else {
+            lock(&self.resumed).remove(&id);
+        }
         let device = self.with_store(|s| s.get(id).cloned())?;
         self.run_boot_hooks(&device).await;
         Ok(device)
     }
 
     async fn stop_device(&self, id: Uuid) -> JidrResult<Device> {
+        let current = self.with_store(|s| s.get(id).cloned())?;
+        if matches!(current.status, DeviceStatus::Hibernated) {
+            // Already stopped, with its state saved for the next start.
+            return Ok(current);
+        }
         if let Some(w) = lock(&self.watchers).remove(&id) {
             w.abort();
         }
         let info = lock(&self.instances).remove(&id);
         if let Some(info) = info {
             self.set_status(id, DeviceStatus::Stopping, None);
+            let resumed = lock(&self.resumed).remove(&id);
+            if resumed && self.settings().quick_boot && current.pool_base.is_none() {
+                // This run started from a named snapshot with no exit save:
+                // save the quick-boot state explicitly (best effort).
+                let dir = self.avds().dir(&current.avd);
+                if let Err(e) = self
+                    .backend
+                    .save_snapshot(&info, "default_boot", &dir)
+                    .await
+                {
+                    tracing::warn!(device = %current.name, "quick-boot save after a resume failed: {e}");
+                }
+            }
             if let Err(e) = self.backend.stop(&info).await {
                 // Put it back: we don't know its state.
                 lock(&self.instances).insert(id, info.clone());
@@ -390,6 +597,8 @@ impl DaemonContext for State {
                 return Err(e);
             }
         }
+        self.finish_footprint(id);
+        crate::state::lock(&self.activity).remove(&id);
         self.set_status(id, DeviceStatus::Stopped, Some(None));
         self.with_store(|s| s.get(id).cloned())
     }

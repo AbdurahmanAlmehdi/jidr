@@ -11,8 +11,8 @@ use std::time::Duration;
 
 use clap::{CommandFactory, Parser};
 use cli::{
-    CacheCmd, CertCmd, Cli, Cmd, DaemonCmd, DeviceCmd, Hardware, ImageCmd, JobsCmd, ProfileCmd,
-    ProxyCmd, RootCmd, SdkCmd, Selection, SettingsCmd, SnapshotCmd,
+    BaseCmd, CacheCmd, CertCmd, Cli, Cmd, DaemonCmd, DeviceCmd, Hardware, ImageCmd, JobsCmd,
+    PoolCmd, ProfileCmd, ProxyCmd, RootCmd, SdkCmd, Selection, SettingsCmd, SnapshotCmd,
 };
 use jidr_client::{Client, SpawnOptions};
 use jidr_core::{ErrorCode, JidrError, JidrPaths, JidrResult, Job, JobState};
@@ -282,7 +282,7 @@ fn dirs_home() -> JidrResult<std::path::PathBuf> {
 }
 
 fn parse_job(s: &str) -> JidrResult<Uuid> {
-    Uuid::parse_str(s).map_err(|_| JidrError::usage(format!("{s:?} is not a job id")))
+    Uuid::parse_str(s).map_err(|_| JidrError::usage(format!("{s:?} is not an id")))
 }
 
 /// `jidr proxy set`'s `[host:]port`; the host defaults to the Mac as the
@@ -537,6 +537,8 @@ async fn run(cli: Cli, out: Out) -> JidrResult<()> {
                 SettingsCmd::Set {
                     default_root,
                     quick_boot,
+                    budget_percent,
+                    auto_hibernate_minutes,
                 } => {
                     let mut p = Map::new();
                     if let Some(r) = default_root {
@@ -545,17 +547,28 @@ async fn run(cli: Cli, out: Out) -> JidrResult<()> {
                     if let Some(q) = quick_boot {
                         p.insert("quick_boot".into(), json!(q));
                     }
+                    if let Some(b) = budget_percent {
+                        p.insert("budget_percent".into(), json!(b));
+                    }
+                    if let Some(m) = auto_hibernate_minutes {
+                        p.insert("auto_hibernate_minutes".into(), json!(m));
+                    }
                     c.call("settings.set", Value::Object(p)).await?
                 }
             };
             out.ok(&v, |v| {
                 format!(
-                    "Default root mode: {}\nQuick boot on stop: {}",
+                    "Default root mode: {}\nQuick boot on stop: {}\nRAM budget: {}% of host RAM\nAuto-hibernate: {}",
                     v["default_root_mode"].as_str().unwrap_or("?"),
                     if v["quick_boot"].as_bool().unwrap_or(true) {
                         "on"
                     } else {
                         "off"
+                    },
+                    v["budget_percent"],
+                    match v["auto_hibernate_minutes"].as_u64() {
+                        Some(0) | None => "off".to_string(),
+                        Some(m) => format!("after {m} idle minutes"),
                     }
                 )
             });
@@ -710,6 +723,12 @@ async fn run(cli: Cli, out: Out) -> JidrResult<()> {
             let opts = jidr_mcp::McpOptions { allow_destructive };
             return jidr_mcp::serve_stdio(client, opts).await;
         }
+        Cmd::Pool { cmd } => pool(c, out, cmd).await?,
+        Cmd::Base { cmd } => base(c, out, cmd).await?,
+        Cmd::Budget => {
+            let v = c.call("host.budget", json!({})).await?;
+            out.ok(&v, output::budget);
+        }
         Cmd::Commands => {
             let v = c.call("commands.list", json!({})).await?;
             out.ok(&v, output::commands);
@@ -777,14 +796,18 @@ async fn device(c: &Client, out: Out, cmd: DeviceCmd) -> JidrResult<()> {
             cold_boot,
             no_wait,
             timeout,
+            force,
         } => {
-            let names = select(c, &sel, |d| matches!(state_of(d), "stopped" | "crashed")).await?;
+            let names = select(c, &sel, |d| {
+                matches!(state_of(d), "stopped" | "crashed" | "hibernated")
+            })
+            .await?;
             let mut results = Vec::new();
             for name in names {
                 let v = c
                     .call(
                         "device.start",
-                        json!({ "device": name, "cold_boot": cold_boot }),
+                        json!({ "device": name, "cold_boot": cold_boot, "force": force }),
                     )
                     .await?;
                 if no_wait {
@@ -809,10 +832,28 @@ async fn device(c: &Client, out: Out, cmd: DeviceCmd) -> JidrResult<()> {
             });
         }
         DeviceCmd::Stop { sel } => {
-            let names = select(c, &sel, |d| !matches!(state_of(d), "stopped" | "crashed")).await?;
+            let names = select(c, &sel, |d| {
+                !matches!(state_of(d), "stopped" | "crashed" | "hibernated")
+            })
+            .await?;
             let mut results = Vec::new();
             for name in names {
                 results.push(exec(c, out, "device.stop", json!({ "device": name })).await?);
+            }
+            out.ok(&Value::Array(results.clone()), |_| {
+                results
+                    .iter()
+                    .map(output::device)
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            });
+        }
+        DeviceCmd::Hibernate { sel } => {
+            let names = select(c, &sel, |d| state_of(d) == "running").await?;
+            let mut results = Vec::new();
+            for name in names {
+                out.info(&format!("Hibernating {name}…"));
+                results.push(exec(c, out, "device.hibernate", json!({ "device": name })).await?);
             }
             out.ok(&Value::Array(results.clone()), |_| {
                 results
@@ -840,14 +881,18 @@ async fn device(c: &Client, out: Out, cmd: DeviceCmd) -> JidrResult<()> {
                 )
             });
         }
-        DeviceCmd::Clone { device, name } => {
-            let v = exec(
-                c,
-                out,
-                "device.clone",
-                json!({ "device": device, "name": name }),
-            )
-            .await?;
+        DeviceCmd::Clone {
+            device,
+            name,
+            keep_snapshot,
+        } => {
+            let mut p = Map::new();
+            p.insert("device".into(), json!(device));
+            p.insert("name".into(), json!(name));
+            if let Some(k) = keep_snapshot {
+                p.insert("keep_snapshot".into(), json!(k));
+            }
+            let v = exec(c, out, "device.clone", Value::Object(p)).await?;
             out.ok(&v, |v| format!("Created {}", output::device(v)));
         }
         DeviceCmd::Reset { device, yes } => {
@@ -875,6 +920,8 @@ async fn device(c: &Client, out: Out, cmd: DeviceCmd) -> JidrResult<()> {
             rename,
             hw,
             agent_owned,
+            auto_hibernate,
+            auto_hibernate_default,
         } => {
             let mut p = Map::new();
             p.insert("device".into(), json!(device));
@@ -884,6 +931,11 @@ async fn device(c: &Client, out: Out, cmd: DeviceCmd) -> JidrResult<()> {
             hw_params(&mut p, &hw);
             if let Some(a) = agent_owned {
                 p.insert("agent_owned".into(), json!(a));
+            }
+            if let Some(m) = auto_hibernate {
+                p.insert("auto_hibernate_minutes".into(), json!(m));
+            } else if auto_hibernate_default {
+                p.insert("auto_hibernate_minutes".into(), Value::Null);
             }
             let v = exec(c, out, "device.edit", Value::Object(p)).await?;
             out.ok(&v, output::device);
@@ -910,6 +962,153 @@ async fn device(c: &Client, out: Out, cmd: DeviceCmd) -> JidrResult<()> {
                 .call("device.connect_info", json!({ "device": device }))
                 .await?;
             out.ok(&v, output::pretty);
+        }
+    }
+    Ok(())
+}
+
+fn ttl_s(ttl: &str) -> JidrResult<u64> {
+    cli::parse_duration(ttl).map_err(JidrError::usage)
+}
+
+async fn pool(c: &Client, out: Out, cmd: PoolCmd) -> JidrResult<()> {
+    match cmd {
+        PoolCmd::Get { base, ttl, timeout } => {
+            let mut p = Map::new();
+            p.insert("base".into(), json!(base));
+            p.insert("ttl_s".into(), json!(ttl_s(&ttl)?));
+            if let Some(t) = timeout {
+                p.insert("timeout_s".into(), json!(t));
+            }
+            out.info(&format!("Leasing a clone of {base}…"));
+            let v = exec(c, out, "pool.get", Value::Object(p)).await?;
+            out.ok(&v, |v| {
+                format!(
+                    "{}  serial {}\nLease {} (expires {}); `jidr pool release {}` when done.",
+                    v["device"]["name"].as_str().unwrap_or("?"),
+                    v["serial"].as_str().unwrap_or("?"),
+                    v["lease"]["id"].as_str().unwrap_or("?"),
+                    v["lease"]["expires_at"]
+                        .as_str()
+                        .unwrap_or("with this connection"),
+                    v["device"]["name"].as_str().unwrap_or("?"),
+                )
+            });
+        }
+        PoolCmd::Release { lease_or_device } => {
+            let by_lease = Uuid::parse_str(&lease_or_device)
+                .ok()
+                .map(|l| json!({ "lease": l }));
+            let v = match by_lease {
+                Some(p) => match c.call("pool.release", p).await {
+                    Err(e) if e.code == jidr_core::ErrorCode::NotFound => {
+                        c.call("pool.release", json!({ "device": lease_or_device }))
+                            .await?
+                    }
+                    r => r?,
+                },
+                None => {
+                    c.call("pool.release", json!({ "device": lease_or_device }))
+                        .await?
+                }
+            };
+            out.ok(&v, |v| {
+                format!("Released {}.", v["name"].as_str().unwrap_or("?"))
+            });
+        }
+        PoolCmd::Renew { lease, ttl } => {
+            let v = c
+                .call(
+                    "pool.renew",
+                    json!({ "lease": parse_job(&lease)?, "ttl_s": ttl_s(&ttl)? }),
+                )
+                .await?;
+            out.ok(&v, |v| {
+                format!(
+                    "Lease {} expires {}.",
+                    v["id"].as_str().unwrap_or("?"),
+                    v["expires_at"].as_str().unwrap_or("with its connection")
+                )
+            });
+        }
+        PoolCmd::Ls => {
+            let v = c.call("pool.list", json!({})).await?;
+            out.ok(&v, |v| {
+                let rows: Vec<Vec<String>> = v
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .map(|r| {
+                        vec![
+                            r["device"].as_str().unwrap_or("?").to_string(),
+                            r["base"].as_str().unwrap_or("?").to_string(),
+                            r["serial"].as_str().unwrap_or("-").to_string(),
+                            r["lease"]["expires_at"]
+                                .as_str()
+                                .unwrap_or("with its connection")
+                                .to_string(),
+                            r["lease"]["id"].as_str().unwrap_or("?").to_string(),
+                        ]
+                    })
+                    .collect();
+                if rows.is_empty() {
+                    "No leases.".into()
+                } else {
+                    output::table(&["DEVICE", "BASE", "SERIAL", "EXPIRES", "LEASE"], rows)
+                }
+            });
+        }
+    }
+    Ok(())
+}
+
+async fn base(c: &Client, out: Out, cmd: BaseCmd) -> JidrResult<()> {
+    match cmd {
+        BaseCmd::Create { device, name } => {
+            out.info(&format!("Saving {device} as base {name}…"));
+            let v = exec(
+                c,
+                out,
+                "base.create",
+                json!({ "from_device": device, "name": name }),
+            )
+            .await?;
+            out.ok(&v, |v| format!("Created base {}", output::device(v)));
+        }
+        BaseCmd::Ls => {
+            let v = c.call("base.list", json!({})).await?;
+            out.ok(&v, |v| {
+                let rows: Vec<Vec<String>> = v
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .map(|b| {
+                        vec![
+                            b["name"].as_str().unwrap_or("?").to_string(),
+                            format!(
+                                "{}:{}",
+                                b["image"]["api"],
+                                b["image"]["tag"].as_str().unwrap_or("")
+                            ),
+                            b["profile"].as_str().unwrap_or("?").to_string(),
+                            b["root"].as_str().unwrap_or("?").to_string(),
+                            b["leases"].to_string(),
+                        ]
+                    })
+                    .collect();
+                if rows.is_empty() {
+                    "No bases. Save one with `jidr base create <device> <name>`.".into()
+                } else {
+                    output::table(&["BASE", "IMAGE", "PROFILE", "ROOT", "LEASED"], rows)
+                }
+            });
+        }
+        BaseCmd::Rm { base, yes } => {
+            confirm(out, yes, &format!("Delete base {base}"))?;
+            let v = c.call("base.delete", json!({ "base": base })).await?;
+            out.ok(&v, |v| {
+                format!("Deleted base {}.", v["name"].as_str().unwrap_or("?"))
+            });
         }
     }
     Ok(())

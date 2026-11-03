@@ -23,6 +23,14 @@ struct FakeState {
     launches: Vec<(String, LaunchOptions)>,
     specs: Vec<LaunchSpec>,
     fail_next: Option<JidrError>,
+    footprints: HashMap<String, u64>,
+    /// Snapshots saved: (AVD, name).
+    saves: Vec<(String, String)>,
+    /// `save_snapshot` writes an empty `ram.bin` (a failed save).
+    empty_saves: bool,
+    /// Instances stopped without the exit save.
+    unsaved_stops: Vec<String>,
+    clients: HashMap<String, bool>,
 }
 
 #[derive(Debug, Default)]
@@ -73,6 +81,31 @@ impl FakeBackend {
 
     pub fn running(&self) -> Vec<u32> {
         self.lock().running.keys().copied().collect()
+    }
+
+    /// From now on `save_snapshot` leaves an empty `ram.bin`.
+    pub fn fail_saves(&self) {
+        self.lock().empty_saves = true;
+    }
+
+    /// Every `save_snapshot` so far: (AVD, snapshot name).
+    pub fn saves(&self) -> Vec<(String, String)> {
+        self.lock().saves.clone()
+    }
+
+    /// AVDs stopped with `stop_without_save`.
+    pub fn unsaved_stops(&self) -> Vec<String> {
+        self.lock().unsaved_stops.clone()
+    }
+
+    /// Pretends a player is attached to AVD `avd` (idle detection).
+    pub fn set_clients(&self, avd: &str, attached: bool) {
+        self.lock().clients.insert(avd.to_string(), attached);
+    }
+
+    /// What [`Backend::footprint_mb`] reports for AVD `avd` while it runs.
+    pub fn set_footprint(&self, avd: &str, mb: u64) {
+        self.lock().footprints.insert(avd.to_string(), mb);
     }
 }
 
@@ -147,6 +180,51 @@ impl Backend for FakeBackend {
 
     async fn adopt(&self, _avd_home: &Path) -> Vec<InstanceInfo> {
         Vec::new()
+    }
+
+    async fn save_snapshot(
+        &self,
+        instance: &InstanceInfo,
+        name: &str,
+        avd_dir: &Path,
+    ) -> JidrResult<()> {
+        let empty = {
+            let mut s = self.lock();
+            if !s.running.contains_key(&instance.pid) {
+                return Err(JidrError::not_found("not running"));
+            }
+            s.saves.push((instance.avd.clone(), name.to_string()));
+            s.empty_saves
+        };
+        let dir = avd_dir.join("snapshots").join(name);
+        let ram: &[u8] = if empty { b"" } else { b"fake ram" };
+        std::fs::create_dir_all(&dir)
+            .and_then(|()| std::fs::write(dir.join("snapshot.pb"), b"pb"))
+            .and_then(|()| std::fs::write(dir.join("ram.bin"), ram))
+            .map_err(|e| JidrError::unexpected(format!("fake snapshot: {e}")))
+    }
+
+    async fn stop_without_save(&self, instance: &InstanceInfo) -> JidrResult<()> {
+        let mut s = self.lock();
+        s.running.remove(&instance.pid);
+        s.unsaved_stops.push(instance.avd.clone());
+        Ok(())
+    }
+
+    async fn has_clients(&self, instance: &InstanceInfo) -> bool {
+        self.lock()
+            .clients
+            .get(&instance.avd)
+            .copied()
+            .unwrap_or(false)
+    }
+
+    async fn footprint_mb(&self, instance: &InstanceInfo) -> Option<u64> {
+        let s = self.lock();
+        s.running
+            .contains_key(&instance.pid)
+            .then(|| s.footprints.get(&instance.avd).copied())
+            .flatten()
     }
 
     async fn wait_for_crash(&self, instance: &InstanceInfo, _log_dir: &Path) -> CrashReport {

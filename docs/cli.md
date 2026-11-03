@@ -25,20 +25,24 @@ jidr --json device start Phone --timeout 300 || exit $?
 | Command | What it does |
 |---|---|
 | `device create <name> --image <img> [--profile id] [--ram MB] [--cpus N] [--width px] [--height px] [--density dpi] [--data-mb MB] [--root none\|adb\|magisk] [--agent-owned]` | Create a device. `<img>` is `35`, `35:google_apis`, `35:google_apis_playstore`, `35:google_apis:arm64-v8a` or a full `system-images;…` package. |
-| `device start <names…> \| --all [--cold-boot] [--no-wait] [--timeout s]` | Start and wait for boot. `--timeout` cancels the boot and exits 5. `--no-wait` returns the boot job id. |
+| `device start <names…> \| --all [--cold-boot] [--no-wait] [--timeout s] [--force]` | Start and wait for boot. `--timeout` cancels the boot and exits 5. `--no-wait` returns the boot job id. Past the host RAM budget it exits 9 unless `--force`. |
 | `device stop <names…> \| --all` | Stop, saving quick-boot state (D29). |
+| `device hibernate <names…> \| --all` | Save each running device's whole state under the snapshot `jidr-hibernate`, check it holds memory, then stop it without the quick-boot save (D42). It uses no RAM; `device start` resumes it in seconds. `device stop` leaves it hibernated; `device reset` discards the state. Auto-hibernate after idle minutes: `settings set --auto-hibernate-minutes N` (off by default) or per device `device edit <name> --auto-hibernate N` (`0` = never, `--auto-hibernate-default` follows the setting). Idle means no Jidr command for the device and no player attached. |
 | `device list`, `device details <name>`, `device connect-info <name>` | Status, settings and disk usage; the gRPC endpoint/token and adb serial of a running device. |
-| `device clone <name> <new>`, `device edit <name> [--rename n] [--ram …] [--agent-owned bool]` | Copy or change a stopped device. |
+| `device clone <name> <new> [--keep-snapshot snap]`, `device edit <name> [--rename n] [--ram …] [--agent-owned bool] [--auto-hibernate N \| --auto-hibernate-default]` | Copy or change a stopped device. With `--keep-snapshot` the copy is a copy-on-write clone (APFS / reflink; a full copy after a disk check elsewhere) that keeps that snapshot and resumes it on its first start, in seconds (D42); without it the copy cold-boots. |
 | `device reset <name> --yes`, `device delete <names…> \| --all --yes` | Destructive: wipe data, or delete. Without `--yes` they ask on a terminal and refuse otherwise. |
 | `install <name> <apk> [--no-replace] [--grant] [--downgrade]` | Install an APK. A signature mismatch fails with `details.signature_mismatch = true`. |
 | `push <name> <local> [remote]`, `pull <name> <remote> <local>` | Copy files (push defaults to `/sdcard/Download/`). |
 | `logcat <name> [-n N] [--filter spec…] [-f] [--clear]` | Dump, follow (`-f`) or clear the log. |
 | `flash <name> <zip>` | Not available yet (open research item). |
 | `image list [--installed]`, `image install <img> [--accept-licenses]` | System images. |
-| `profile list` | Built-in hardware profiles (D24). |
+| `profile list` | Built-in hardware profiles (D24). `agent-lean` (720×1280, 2 GB, 2 cores, no audio or cameras) costs ~4 GB of host RAM instead of ~7.6 GB. |
+| `budget` | Host RAM, the device budget (`settings set --budget-percent`, 75% by default) and what each running device is expected to use and uses now (D42). |
 | `sdk status`, `sdk licenses <pkgs…>`, `sdk install <pkgs…> [--accept-licenses]` | The SDK Jidr uses (its private one; Android Studio's is only read, D3). |
 | `root set <name> none\|adb\|magisk`, `root verify <name>`, `root status <name>` | Root modes (provided by the root engine). |
 | `snapshot list\|save\|load\|delete <name> [snapshot]` | Snapshots tagged with their root mode (provided by the widgets provider). |
+| `base create <device> <name>`, `base ls`, `base rm <name> --yes` | Bases (D42): `create` saves a running device (root none or adb) as a read-only base with snapshot `jidr-base`, animations off, and stops the device. A base can't be started; `rm` refuses while clones of it are leased. |
+| `pool get <base> [--ttl 2h] [--timeout s]`, `pool release <lease\|device>`, `pool renew <lease> [--ttl 2h]`, `pool ls` | Throwaway clones of a base for agents and CI (D42): `get` makes a copy-on-write clone, resumes the base snapshot (seconds) and prints its serial; the lease lasts `--ttl` (default 2 h), then the daemon stops and deletes the clone. A full RAM budget makes `get` wait up to `--timeout` (120 s), then exit 9. The daemon stays up while leases exist (D4). |
 | `cert install <name> <file>`, `cert list <name>`, `cert verify <name>`, `cert remove <name> <cert>\|--all` | CA certificates in a Full-root device's system store (root engine, `root.cacert.*`); install and remove restart the device. See docs/root.md. |
 | `proxy set <name> [host:]port`, `proxy clear <name>`, `proxy show <name>` | The device's global HTTP proxy (widgets provider, `network.proxy.*`). The host defaults to `10.0.2.2`, this Mac. |
 | `jobs list [--all]`, `jobs wait <job>`, `jobs cancel <job>` | Long-running operations. |
@@ -103,6 +107,7 @@ Every command prints exactly one JSON line (`logcat -f` prints one per log line)
 | 6 | SDK, emulator, download or license problem |
 | 7 | Root failed |
 | 8 | Daemon stale: a daemon of another version is running (use `--restart-stale`) |
+| 9 | Resource exhausted: starting would go past the host RAM budget (`error.data.devices` lists what uses it; see `jidr budget`) |
 
 ## Environment
 

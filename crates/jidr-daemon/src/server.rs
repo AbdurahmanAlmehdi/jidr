@@ -79,7 +79,7 @@ pub(crate) async fn handle_connection(daemon: Arc<Daemon>, stream: UnixStream) {
             }
         }
     });
-    daemon.client_connected();
+    let conn = daemon.client_connected();
     let hello = Arc::new(AtomicBool::new(false));
     let mut subscription: Option<JoinHandle<()>> = None;
     let mut closing = daemon.closing.subscribe();
@@ -195,7 +195,7 @@ pub(crate) async fn handle_connection(daemon: Arc<Daemon>, stream: UnixStream) {
         }
         let (daemon, tx) = (daemon.clone(), tx.clone());
         tokio::spawn(async move {
-            let resp = daemon.dispatch(id, req.method, req.params).await;
+            let resp = daemon.dispatch(conn, id, req.method, req.params).await;
             let _ = tx.send(line(&resp));
         });
     }
@@ -204,7 +204,7 @@ pub(crate) async fn handle_connection(daemon: Arc<Daemon>, stream: UnixStream) {
     }
     drop(tx);
     let _ = writer.await;
-    daemon.client_disconnected();
+    daemon.client_disconnected(conn);
 }
 
 impl Daemon {
@@ -231,6 +231,7 @@ impl Daemon {
     /// Runs one request.
     pub(crate) async fn dispatch(
         self: &Arc<Self>,
+        conn: u64,
         id: Value,
         method: String,
         params: Value,
@@ -248,6 +249,12 @@ impl Daemon {
             );
         };
         let (provider, spec) = (provider.clone(), spec.clone());
+        // Any command naming a device is activity on it (auto-hibernate).
+        if let Some(sel) = params.get("device").and_then(Value::as_str)
+            && let Ok(d) = self.state.device(sel).await
+        {
+            self.state.touch(d.id);
+        }
         let result: JidrResult<Value> = async {
             crate::validate::validate(&spec.params, &params)?;
             let (guard, device) = if spec.locks_device {
@@ -266,7 +273,9 @@ impl Daemon {
             };
             let daemon: Arc<dyn DaemonContext> = self.state.clone();
             if !spec.long_running {
-                return provider.call(&CallCtx::new(daemon), &method, params).await;
+                return provider
+                    .call(&CallCtx::new(daemon).on_connection(conn), &method, params)
+                    .await;
             }
             // Long-running: answer now with the job; the lock moves into it.
             let (job, cancel) = self.jobs.create(&method, device);
@@ -299,6 +308,7 @@ impl Daemon {
                 progress,
                 bytes,
                 cancel,
+                connection: Some(conn),
             };
             let jobs = self.jobs.clone();
             daemon.emit(

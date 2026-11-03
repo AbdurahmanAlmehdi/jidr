@@ -1,0 +1,14 @@
+# The lean profile for agents and many devices at once (D42): about 4 GB of
+# host memory instead of ~7.6 GB for the default phone.
+id = "agent-lean"
+name = "Lean phone 720p"
+form_factor = "phone"
+width = 720
+height = 1280
+density = 320
+ram_mb = 2048
+cpus = 2
+data_mb = 4096
+audio = false
+camera_back = "none"
+camera_front = "none"

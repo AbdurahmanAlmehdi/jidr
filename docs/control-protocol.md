@@ -9,7 +9,7 @@ Frozen as **v0.1** at the git tag `protocol-v0.1`. A change after the tag needs 
 - **Socket:** a Unix domain socket at `~/Library/Application Support/Jidr/daemon.sock` (`$JIDR_HOME/data/daemon.sock` when `JIDR_HOME` is set), mode `0600`. One daemon per user; a second one refuses to start.
 - **Framing:** [JSON-RPC 2.0](https://www.jsonrpc.org/specification), one JSON object per line (newline-delimited JSON, as in MCP's stdio transport). Lines are at most 4 MB.
 - **Concurrency:** requests on one connection run concurrently; match answers by `id`. Notifications from the daemon have no `id`.
-- **Lifetime (D4):** clients start the daemon on demand (`jidr daemon`, detached). It exits after 10 minutes with no running device, no connected client and no active job. Emulators that outlive a daemon are re-adopted by the next one.
+- **Lifetime (D4):** clients start the daemon on demand (`jidr daemon`, detached). It exits after 10 minutes with no running device, no connected client, no active job and no pool lease. Emulators that outlive a daemon are re-adopted by the next one.
 
 ## Handshake
 
@@ -30,7 +30,7 @@ Clients ship with the daemon, so versions must be equal; there's no negotiation.
 
 ## Errors
 
-Protocol errors use the standard JSON-RPC codes. Jidr errors carry one of eight codes, which are also the CLI's exit codes, in `error.data.code`; `error.data.details` holds structured extras.
+Protocol errors use the standard JSON-RPC codes. Jidr errors carry one of nine codes, which are also the CLI's exit codes, in `error.data.code`; `error.data.details` holds structured extras.
 
 | `data.code` | JSON-RPC code | CLI exit | Meaning |
 |---|---|---|---|
@@ -45,6 +45,7 @@ Protocol errors use the standard JSON-RPC codes. Jidr errors carry one of eight 
 | `sdk` | -32006 | 6 | SDK, emulator, adb, download or license problem (`details.pending_licenses` lists what to accept) |
 | `root_failed` | -32007 | 7 | Rooting, verifying or reverting root failed |
 | `daemon_stale` | -32008 | 8 | Client and daemon versions differ |
+| `resource_exhausted` | -32009 | 9 | Starting would go past the host RAM budget (D42): `details: {needed_mb, used_mb, budget_mb, total_mb, devices: [{id, name, expected_mb, measured_mb?}], suggestions}`. `device.start {force: true}` overrides it |
 
 Params are checked against the command's JSON Schema before anything runs: unknown keys, missing required keys and wrong primitive types are all `-32602`.
 
@@ -74,12 +75,14 @@ Subscribing again replaces the filter. Topics:
 
 | Topic | Data |
 |---|---|
-| `device.status` | `{device, name, status}`: status is `{state: stopped\|starting\|booting\|running\|stopping\|crashed, …}` |
+| `device.status` | `{device, name, status}`: status is `{state: stopped\|starting\|booting\|running\|stopping\|hibernated\|crashed, …}` |
 | `device.boot` | `{device, stage: spawned\|grpc_ready\|adb_online\|booted, progress}` |
 | `device.boot_failed` | `{device, error}` |
 | `device.crashed` | `{device, report: {kind, reason, exit_code, log, …}}`; never restarted (D9) |
 | `device.created`, `device.deleted`, `device.updated` | `{device, name}` |
+| `device.hibernated` | `{device, name}`: saved and stopped by `device.hibernate` or auto-hibernate |
 | `device.hook_failed` | `{device, provider, error}`: a provider's after-boot hook failed |
+| `pool.leased`, `pool.released` | `{lease, device, base?}`: a pool clone was leased, or released (by `pool.release` or the reaper) |
 | `job.started` | `{job, kind, device}` |
 | `job.progress` | `{job, progress, message}` |
 | `job.finished` | the full job |
@@ -133,6 +136,31 @@ Uninstall an app and its data · locks the device · **destructive**
 |---|---|---|---|
 | `device` | string | yes |  |
 | `package` | string | yes | Package name, e.g. `com.example.shop`. |
+
+### `base.*`
+
+#### `base.create`
+
+Save a running device as a read-only base for pool clones (snapshot jidr-base, animations off) · long-running (job)
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `from_device` | string | yes | A running device to make the base from (root `none` or `adb`). It is stopped; the base is a copy of it. |
+| `name` | string | yes | The base's name. |
+
+#### `base.delete`
+
+Delete a base (none of its clones may be leased) · **destructive**
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `base` | string | yes | Base name or id. |
+
+#### `base.list`
+
+Bases and how many clones each has leased
+
+No params.
 
 ### `battery.*`
 
@@ -254,12 +282,13 @@ Set developer toggles
 
 #### `device.clone`
 
-Copy a stopped device under a new name · locks the device
+Copy a stopped device under a new name; keep_snapshot makes a copy-on-write clone that resumes that snapshot · locks the device
 
 | Param | Type | Required | Description |
 |---|---|---|---|
 | `device` | string | yes | Device to copy (must be stopped). |
 | `name` | string | yes | Name of the copy. |
+| `keep_snapshot` | string |  | Keep this snapshot (name or id): a copy-on-write clone whose first start resumes it, in seconds (D42). Without it the copy cold-boots. |
 
 #### `device.connect_info`
 
@@ -317,6 +346,15 @@ Rename a device or change its hardware (stopped) · locks the device
 | `height` | integer |  | Screen height in pixels (overrides the profile). |
 | `density` | integer |  | Screen density in dpi (overrides the profile). |
 | `agent_owned` | boolean |  |  |
+| `auto_hibernate_minutes` | integer |  | Hibernate this device after so many idle minutes (0 = never); `null` follows the `auto_hibernate_minutes` setting. |
+
+#### `device.hibernate`
+
+Save a running device's whole state and stop it; device.start resumes it in seconds · long-running (job) · locks the device
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes | Device name or id. |
 
 #### `device.list`
 
@@ -366,6 +404,7 @@ Start a device and wait until it has booted · long-running (job) · locks the d
 |---|---|---|---|
 | `device` | string | yes | Device name or id. |
 | `cold_boot` | boolean |  | Ignore the quick-boot snapshot. |
+| `force` | boolean |  | Start even past the host RAM budget (`resource_exhausted` otherwise). |
 
 #### `device.stop`
 
@@ -481,6 +520,14 @@ Set the GPS location
 | `altitude` | number |  | Metres above sea level. |
 | `bearing` | number |  | Degrees clockwise from north. |
 | `speed` | number |  | Metres per second. |
+
+### `host.*`
+
+#### `host.budget`
+
+Host RAM, the device budget and what each running device uses
+
+No params.
 
 ### `image.*`
 
@@ -676,6 +723,42 @@ Deliver an SMS to the device
 | `from` | string | yes | Sender number. |
 | `text` | string | yes |  |
 
+### `pool.*`
+
+#### `pool.get`
+
+Lease a throwaway clone of a base, booted from its snapshot; returns its serial. Release it when done · long-running (job)
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `base` | string | yes | Base name or id. |
+| `ttl_s` | integer |  | Lease lifetime in seconds. Without it the lease lasts as long as this client connection, plus 2 minutes. |
+| `timeout_s` | integer |  | How long to wait for room in the RAM budget (default 120 s). |
+
+#### `pool.list`
+
+Current leases
+
+No params.
+
+#### `pool.release`
+
+Give a leased clone back: it is stopped and deleted
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `lease` | uuid |  | The lease id from `pool.get`. |
+| `device` | string |  | Or the pool device's name or id. |
+
+#### `pool.renew`
+
+Extend a lease (TTL leases, or one in its grace period)
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `lease` | uuid | yes |  |
+| `ttl_s` | integer |  | New lifetime from now, in seconds (default 2 h). |
+
 ### `profile.*`
 
 #### `profile.list`
@@ -832,7 +915,7 @@ Set a motion or environment sensor value
 
 #### `settings.get`
 
-Daemon-wide settings: default root mode, quick boot on stop
+Daemon-wide settings: default root mode, quick boot on stop, RAM budget, auto-hibernate
 
 No params.
 
@@ -844,6 +927,8 @@ Change daemon-wide settings (only the fields given)
 |---|---|---|---|
 | `default_root_mode` | `none` \| `adb` \| `magisk` |  | Root mode for `device.create` without `root_mode`. |
 | `quick_boot` | boolean |  | Save a quick-boot snapshot on stop (D29); from each device's next start. |
+| `budget_percent` | integer |  | Share of host RAM running devices may use, 10–100 percent (D42). |
+| `auto_hibernate_minutes` | integer |  | Hibernate running devices idle this many minutes; 0 = off. |
 
 ### `snapshot.*`
 
@@ -895,4 +980,8 @@ Save a snapshot of a running device · long-running (job) · locks the device
 | 0.1 (additive) | Phase 9f: `device.props.get`, `device.props.set` (a Full-root device's build props, from the root provider). No existing command changed. |
 | 0.1 (additive) | `network.proxy.get`, `network.proxy.set {host, port}`, `network.proxy.clear` (the device's global HTTP proxy, from the widgets provider). No existing command changed. |
 | 0.1 (additive) | `root.cacert.install {path}`, `root.cacert.list`, `root.cacert.verify`, `root.cacert.remove {cert?, all?}` (CA certificates in a Full-root device's system store, from the root provider). No existing command changed. |
+| 0.1 (additive) | Phase 13a (D42): new error code `resource_exhausted` (-32009, CLI exit 9) from `device.start` past the host RAM budget; `device.start` gains `force`. New `host.budget` → `{total_mb, available_mb, budget_percent, budget_mb, used_mb, devices: [{id, name, expected_mb, measured_mb?}]}`. `settings` gains `budget_percent` (default 75, 10–100). `Device` gains `footprint_mb` (peak of its last run); `HardwareProfile` gains `audio`, `camera_back`, `camera_front`; `LaunchPrefs` gains `audio`. New profile `agent-lean`. No existing field changed meaning. |
+| 0.1 (additive) | Phase 13b (D42): `device.clone` gains `keep_snapshot` (a snapshot name or id with a non-empty `ram.bin`): a copy-on-write clone that keeps only that snapshot (and its root-mode tag), drops `default_boot` and the locks, and rewrites the AVD name and folder in its ini files. `LaunchPrefs` gains `resume_snapshot`: the next start launches with `-snapshot <id>` (and no exit save into it), then it is cleared. Without `keep_snapshot`, `device.clone` is unchanged. |
+| 0.1 (additive) | Phase 13c (D42): new device state `hibernated` (not active; uses no RAM) and event `device.hibernated`. New `device.hibernate` (long-running, locks the device): a named snapshot `jidr-hibernate` via SnapshotService, refused with `sdk` (the device keeps running) when its `ram.bin` is empty, then an exit without the quick-boot save; `device.start` resumes it (`-snapshot jidr-hibernate`) and the snapshot's root tag is kept (D29); `device.stop` leaves it hibernated, `device.reset` discards it. `settings` gains `auto_hibernate_minutes` (0 = off, the default); `Device` and `device.edit` gain `auto_hibernate_minutes` (`0` = never, `null` = the setting). `resource_exhausted` details gain `hibernate_candidates: [{id, name, idle_s}]`, the longest-idle running devices first. |
+| 0.1 (additive) | Phase 13d (D42): new commands from the pool provider: `base.create {from_device, name}` (long-running), `base.list`, `base.delete {base}` (destructive), `pool.get {base, ttl_s?, timeout_s?}` (long-running) → `{lease, device, serial, connect}`, `pool.release {lease \| device}`, `pool.renew {lease, ttl_s?}`, `pool.list`. A lease without `ttl_s` is tied to the calling connection and expires 2 minutes after it closes; the daemon reaps expired leases every 30 s and stays up while any exist (D4). `Device` gains `base` (read-only; `device.start` refuses it) and `pool_base`. Events `pool.leased`, `pool.released`. A full budget makes `pool.get` wait, then fail with `resource_exhausted`. |
 | 0.1 (fix) | `root.set` (mode `magisk`) and `root.verify`: `magisk_version` is now the version alone (`30.7`), not the raw `magisk -v` output (`30.7:MAGISK:R`). The field and its type are unchanged. |

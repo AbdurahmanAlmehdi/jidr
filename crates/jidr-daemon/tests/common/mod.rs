@@ -14,6 +14,9 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::UnixStream;
 use tokio::net::unix::{OwnedReadHalf, OwnedWriteHalf};
 
+#[cfg(feature = "emulator")]
+pub mod emulator;
+
 pub struct Harness {
     pub tmp: tempfile::TempDir,
     pub paths: JidrPaths,
@@ -26,6 +29,23 @@ impl Harness {
     pub async fn start() -> Self {
         let tmp = tempfile::tempdir().unwrap();
         let inner = TestDaemon::start(tmp.path()).await.unwrap();
+        Self::wrap(tmp, inner)
+    }
+
+    /// A daemon on a host with `total_mb` of RAM (D42 budget tests).
+    pub async fn start_with_memory(total_mb: u64) -> Self {
+        let tmp = tempfile::tempdir().unwrap();
+        let mem = jidr_sdk::host::HostMemory {
+            total_mb,
+            available_mb: total_mb / 2,
+        };
+        let inner = TestDaemon::start_with_memory(tmp.path(), mem)
+            .await
+            .unwrap();
+        Self::wrap(tmp, inner)
+    }
+
+    fn wrap(tmp: tempfile::TempDir, inner: TestDaemon) -> Self {
         Self {
             paths: inner.paths.clone(),
             backend: inner.backend.clone(),
@@ -61,6 +81,8 @@ pub struct Conn {
     reader: BufReader<OwnedReadHalf>,
     writer: OwnedWriteHalf,
     next: u64,
+    /// How long one read may wait (real emulators stop and boot slowly).
+    pub read_timeout: Duration,
 }
 
 impl Conn {
@@ -71,6 +93,7 @@ impl Conn {
             reader: BufReader::new(r),
             writer: w,
             next: 1,
+            read_timeout: Duration::from_secs(10),
         }
     }
 
@@ -83,7 +106,7 @@ impl Conn {
 
     pub async fn read(&mut self) -> Value {
         let mut l = String::new();
-        tokio::time::timeout(Duration::from_secs(10), self.reader.read_line(&mut l))
+        tokio::time::timeout(self.read_timeout, self.reader.read_line(&mut l))
             .await
             .unwrap()
             .unwrap();
@@ -118,6 +141,33 @@ impl Conn {
             return r;
         }
         let job = self.ok("jobs.wait", json!({ "job": r["job"] })).await;
+        assert_eq!(job["state"], "succeeded", "{method} job: {job}");
+        job["result"].clone()
+    }
+
+    /// Waits for a job of any length (one `jobs.wait` stays under the read
+    /// timeout) and returns it when it ends.
+    pub async fn wait_job(&mut self, job: &Value) -> Value {
+        loop {
+            let j = self
+                .ok("jobs.wait", json!({ "job": job, "timeout_s": 5 }))
+                .await;
+            if matches!(
+                j["state"].as_str(),
+                Some("succeeded" | "failed" | "cancelled")
+            ) {
+                return j;
+            }
+        }
+    }
+
+    /// Like `run`, for jobs that take minutes (emulator boots).
+    pub async fn run_long(&mut self, method: &str, params: Value) -> Value {
+        let r = self.ok(method, params).await;
+        if r.get("pending") != Some(&json!(true)) {
+            return r;
+        }
+        let job = self.wait_job(&r["job"]).await;
         assert_eq!(job["state"], "succeeded", "{method} job: {job}");
         job["result"].clone()
     }

@@ -10,7 +10,7 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
     name = "jidr",
     version,
     about = "Android emulators with one-click root, for people, CI and AI agents",
-    after_help = "Exit codes: 0 ok · 1 unexpected · 2 usage · 3 not found · 4 busy · 5 boot timeout · 6 sdk · 7 root failed · 8 daemon stale"
+    after_help = "Exit codes: 0 ok · 1 unexpected · 2 usage · 3 not found · 4 busy · 5 boot timeout · 6 sdk · 7 root failed · 8 daemon stale · 9 resource exhausted"
 )]
 pub struct Cli {
     /// Machine-readable output: {"jidr_json": 1, "ok": …, "result"|"error": …}.
@@ -121,6 +121,19 @@ pub enum Cmd {
     Cache {
         #[command(subcommand)]
         cmd: CacheCmd,
+    },
+    /// Host RAM, the device budget and what each running device uses (D42).
+    Budget,
+    /// Throwaway clones of a base for agents and CI: lease one, use its
+    /// serial, release it (D42).
+    Pool {
+        #[command(subcommand)]
+        cmd: PoolCmd,
+    },
+    /// Read-only bases that pool clones are made from.
+    Base {
+        #[command(subcommand)]
+        cmd: BaseCmd,
     },
     /// Daemon-wide settings, shared with the desktop app.
     Settings {
@@ -255,9 +268,18 @@ pub enum DeviceCmd {
         /// Give up (and stop the boot) after this many seconds.
         #[arg(long)]
         timeout: Option<u64>,
+        /// Start even past the host RAM budget.
+        #[arg(long)]
+        force: bool,
     },
     /// Stop devices (saves their quick-boot state).
     Stop {
+        #[command(flatten)]
+        sel: Selection,
+    },
+    /// Save devices' whole state and stop them; `device start` resumes them
+    /// in seconds. A hibernated device uses no RAM.
+    Hibernate {
         #[command(flatten)]
         sel: Selection,
     },
@@ -266,7 +288,14 @@ pub enum DeviceCmd {
     /// Settings, status and disk usage of a device.
     Details { device: String },
     /// Copy a stopped device.
-    Clone { device: String, name: String },
+    Clone {
+        device: String,
+        name: String,
+        /// Keep this snapshot: an instant copy-on-write clone whose first
+        /// start resumes it (otherwise the copy cold-boots).
+        #[arg(long)]
+        keep_snapshot: Option<String>,
+    },
     /// Factory reset: wipe all user data.
     Reset {
         device: String,
@@ -293,6 +322,12 @@ pub enum DeviceCmd {
         /// Let AI agents run destructive commands on it.
         #[arg(long)]
         agent_owned: Option<bool>,
+        /// Hibernate it after this many idle minutes (0 = never).
+        #[arg(long, conflicts_with = "auto_hibernate_default")]
+        auto_hibernate: Option<u32>,
+        /// Follow the global auto-hibernate setting again.
+        #[arg(long)]
+        auto_hibernate_default: bool,
     },
     /// gRPC endpoint, token and adb serial of a running device.
     ConnectInfo { device: String },
@@ -303,6 +338,65 @@ pub enum DeviceCmd {
         #[arg(long)]
         zip: Option<PathBuf>,
     },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum PoolCmd {
+    /// Lease a clone of a base and boot it from the base's snapshot; prints
+    /// its serial.
+    Get {
+        base: String,
+        /// Lease lifetime: `90s`, `30m`, `2h`.
+        #[arg(long, default_value = "2h")]
+        ttl: String,
+        /// Wait this many seconds for room in the RAM budget.
+        #[arg(long)]
+        timeout: Option<u64>,
+    },
+    /// Give a clone back (by lease id or device name): it is stopped and deleted.
+    Release { lease_or_device: String },
+    /// Extend a lease.
+    Renew {
+        lease: String,
+        /// New lifetime from now: `90s`, `30m`, `2h`.
+        #[arg(long, default_value = "2h")]
+        ttl: String,
+    },
+    /// Current leases.
+    Ls,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum BaseCmd {
+    /// Save a running device (root none or adb) as a base: snapshot
+    /// `jidr-base` with animations off. The device is stopped.
+    Create { device: String, name: String },
+    /// Bases and their leased clones.
+    Ls,
+    /// Delete a base (no clone of it may be leased).
+    Rm {
+        base: String,
+        /// Don't ask for confirmation.
+        #[arg(long, short)]
+        yes: bool,
+    },
+}
+
+/// `90s`, `30m`, `2h`, `1d` or plain seconds, in seconds.
+pub fn parse_duration(s: &str) -> Result<u64, String> {
+    let s = s.trim();
+    let (num, mult) = match s.char_indices().last() {
+        Some((i, 's')) => (&s[..i], 1),
+        Some((i, 'm')) => (&s[..i], 60),
+        Some((i, 'h')) => (&s[..i], 3600),
+        Some((i, 'd')) => (&s[..i], 86_400),
+        _ => (s, 1),
+    };
+    num.parse::<u64>()
+        .ok()
+        .filter(|n| *n > 0)
+        .map(|n| n * mult)
+        .ok_or_else(|| format!("not a duration: {s:?} (use e.g. 90s, 30m, 2h)"))
 }
 
 #[derive(Debug, Subcommand)]
@@ -317,6 +411,12 @@ pub enum SettingsCmd {
         /// Save a quick-boot snapshot when a device stops (from its next start).
         #[arg(long)]
         quick_boot: Option<bool>,
+        /// Share of host RAM running devices may use, 10–100 percent.
+        #[arg(long, value_parser = clap::value_parser!(u8).range(10..=100))]
+        budget_percent: Option<u8>,
+        /// Hibernate running devices idle this many minutes (0 = off).
+        #[arg(long)]
+        auto_hibernate_minutes: Option<u32>,
     },
 }
 
@@ -455,5 +555,17 @@ mod tests {
     #[test]
     fn cli_definition_is_valid() {
         Cli::command().debug_assert();
+    }
+
+    #[test]
+    fn durations() {
+        assert_eq!(parse_duration("2h"), Ok(7200));
+        assert_eq!(parse_duration("30m"), Ok(1800));
+        assert_eq!(parse_duration("90s"), Ok(90));
+        assert_eq!(parse_duration("45"), Ok(45));
+        assert_eq!(parse_duration("1d"), Ok(86_400));
+        for bad in ["", "h", "0m", "-1h", "2 hours"] {
+            assert!(parse_duration(bad).is_err(), "{bad:?}");
+        }
     }
 }

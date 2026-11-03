@@ -10,7 +10,7 @@ use jidr_adb::{Adb, InstallOptions};
 use jidr_core::provider::{
     CallCtx, CommandProvider, CommandSpec, DaemonContext, DeviceParams, NoParams, parse_params,
 };
-use jidr_core::{Device, ImageRef, JidrError, JidrResult, RootMode, RootState};
+use jidr_core::{Device, ImageRef, JidrError, JidrResult, LaunchPrefs, RootMode, RootState};
 use jidr_sdk::{AvdSpec, CatalogFilter, ConsentStore, Fetcher, Repository, profiles, repo};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -79,6 +79,12 @@ pub struct SettingsParams {
     /// Save a quick-boot snapshot on stop (D29); from each device's next start.
     #[serde(default)]
     pub quick_boot: Option<bool>,
+    /// Share of host RAM running devices may use, 10–100 percent (D42).
+    #[serde(default)]
+    pub budget_percent: Option<u8>,
+    /// Hibernate running devices idle this many minutes; 0 = off.
+    #[serde(default)]
+    pub auto_hibernate_minutes: Option<u32>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -106,6 +112,15 @@ pub struct EditParams {
     pub density: Option<u32>,
     #[serde(default)]
     pub agent_owned: Option<bool>,
+    /// Hibernate this device after so many idle minutes (0 = never); `null`
+    /// follows the `auto_hibernate_minutes` setting.
+    #[serde(default, deserialize_with = "some_or_null")]
+    pub auto_hibernate_minutes: Option<Option<u32>>,
+}
+
+/// `Some(None)` for an explicit `null`, so it can clear a value.
+fn some_or_null<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<Option<u32>>, D::Error> {
+    Option::<u32>::deserialize(d).map(Some)
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -115,6 +130,10 @@ pub struct CloneParams {
     pub device: String,
     /// Name of the copy.
     pub name: String,
+    /// Keep this snapshot (name or id): a copy-on-write clone whose first
+    /// start resumes it, in seconds (D42). Without it the copy cold-boots.
+    #[serde(default)]
+    pub keep_snapshot: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -125,6 +144,9 @@ pub struct StartParams {
     /// Ignore the quick-boot snapshot.
     #[serde(default)]
     pub cold_boot: bool,
+    /// Start even past the host RAM budget (`resource_exhausted` otherwise).
+    #[serde(default)]
+    pub force: bool,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -263,6 +285,21 @@ fn default_root(setting: RootMode, image: &ImageRef) -> RootMode {
     }
 }
 
+/// The folder id of the snapshot a user named: a tag's label in
+/// `<avd>/jidr/snapshots.json` (the snapshot manager's tags), else the name.
+fn snapshot_id_for(avd_dir: &std::path::Path, sel: &str) -> String {
+    let sel = sel.trim();
+    std::fs::read_to_string(avd_dir.join("jidr").join("snapshots.json"))
+        .ok()
+        .and_then(|t| serde_json::from_str::<serde_json::Map<String, Value>>(&t).ok())
+        .and_then(|tags| {
+            tags.iter()
+                .find(|(_, t)| t.get("label").and_then(Value::as_str) == Some(sel))
+                .map(|(id, _)| id.clone())
+        })
+        .unwrap_or_else(|| sel.to_string())
+}
+
 /// Parses an image selector; the ABI defaults to the host's.
 pub fn parse_image(sel: &str) -> JidrResult<ImageRef> {
     if sel.starts_with("system-images;") {
@@ -315,7 +352,7 @@ pub fn tail_lines(text: &str, n: usize) -> String {
     out
 }
 
-fn validate_device_name(name: &str) -> JidrResult<()> {
+pub(crate) fn validate_device_name(name: &str) -> JidrResult<()> {
     let name = name.trim();
     if name.is_empty() || name.len() > 64 || name.contains(['/', '\n', '\r']) {
         return Err(JidrError::usage(
@@ -476,6 +513,8 @@ impl CoreProvider {
                 image.tag
             )));
         }
+        let profile_audio = profile.audio;
+        let profile_cameras = (profile.camera_back.clone(), profile.camera_front.clone());
         let avds = self.state.avds();
         let avd = self
             .state
@@ -500,9 +539,18 @@ impl CoreProvider {
             },
             agent_owned: p.agent_owned.unwrap_or(false),
             created_at: chrono::Utc::now(),
-            launch: Default::default(),
+            launch: LaunchPrefs {
+                audio: (!profile_audio).then_some(false),
+                camera_back: profile_cameras.0,
+                camera_front: profile_cameras.1,
+                ..Default::default()
+            },
             status: Default::default(),
             runtime: None,
+            footprint_mb: None,
+            auto_hibernate_minutes: None,
+            base: false,
+            pool_base: None,
         };
         if let Err(e) = self.state.with_store(|s| s.insert(device.clone())) {
             let _ = avds.delete(&avd);
@@ -539,7 +587,7 @@ impl CoreProvider {
                 &BTreeMap::from([("avd.ini.displayname".into(), Some(name.clone()))]),
             )?;
         }
-        let (name, agent_owned) = (p.name, p.agent_owned);
+        let (name, agent_owned, auto) = (p.name, p.agent_owned, p.auto_hibernate_minutes);
         let d = self
             .state
             .update_device(
@@ -550,6 +598,9 @@ impl CoreProvider {
                     }
                     if let Some(a) = agent_owned {
                         d.agent_owned = a;
+                    }
+                    if let Some(m) = auto {
+                        d.auto_hibernate_minutes = m;
                     }
                 }),
             )
@@ -576,8 +627,19 @@ impl CoreProvider {
         let avd = self
             .state
             .with_store(|s| s.avd_id_for(&name, |id| avds.exists(id)));
-        avds.clone_avd(&src.avd, &avd, &name)?;
-        let (src_dir, dst_dir) = (avds.dir(&src.avd), avds.dir(&avd));
+        let src_dir = avds.dir(&src.avd);
+        let kept = match &p.keep_snapshot {
+            Some(sel) => {
+                let id = snapshot_id_for(&src_dir, sel);
+                avds.clone_with_snapshot(&src.avd, &avd, &name, &id)?;
+                Some(id)
+            }
+            None => {
+                avds.clone_avd(&src.avd, &avd, &name)?;
+                None
+            }
+        };
+        let dst_dir = avds.dir(&avd);
         let mut launch = src.launch.clone();
         // Per-device files (e.g. a patched ramdisk) move with the copy.
         if let Some(r) = &launch.ramdisk
@@ -591,7 +653,8 @@ impl CoreProvider {
         {
             root.patched_ramdisk_path = Some(dst_dir.join(rel));
         }
-        launch.force_cold_boot = true;
+        launch.force_cold_boot = kept.is_none();
+        launch.resume_snapshot = kept;
         let device = Device {
             id: Uuid::new_v4(),
             name,
@@ -601,6 +664,9 @@ impl CoreProvider {
             root,
             status: Default::default(),
             runtime: None,
+            footprint_mb: src.footprint_mb,
+            base: false,
+            pool_base: None,
             ..src
         };
         if let Err(e) = self.state.with_store(|s| s.insert(device.clone())) {
@@ -622,7 +688,17 @@ impl CoreProvider {
         self.state.avds().factory_reset(&d.avd)?;
         let d = self
             .state
-            .update_device(d.id, Box::new(|d| d.launch.force_cold_boot = true))
+            .update_device(
+                d.id,
+                Box::new(|d| {
+                    d.launch.force_cold_boot = true;
+                    // The wipe took the hibernate snapshot with it.
+                    d.launch.resume_snapshot = None;
+                    if matches!(d.status, jidr_core::DeviceStatus::Hibernated) {
+                        d.status = jidr_core::DeviceStatus::Stopped;
+                    }
+                }),
+            )
             .await?;
         json(d)
     }
@@ -729,6 +805,10 @@ impl CommandProvider for CoreProvider {
                 "Daemon version, uptime and device counts",
             ),
             CommandSpec::new::<NoParams>(
+                "host.budget",
+                "Host RAM, the device budget and what each running device uses",
+            ),
+            CommandSpec::new::<NoParams>(
                 "sdk.status",
                 "Where the SDKs are, emulator version, hypervisor, free disk",
             ),
@@ -766,7 +846,7 @@ impl CommandProvider for CoreProvider {
             .locks_device(),
             CommandSpec::new::<CloneParams>(
                 "device.clone",
-                "Copy a stopped device under a new name",
+                "Copy a stopped device under a new name; keep_snapshot makes a copy-on-write clone that resumes that snapshot",
             )
             .locks_device(),
             CommandSpec::new::<StartParams>(
@@ -779,6 +859,12 @@ impl CommandProvider for CoreProvider {
                 "device.stop",
                 "Stop a device, saving its quick-boot state",
             )
+            .locks_device(),
+            CommandSpec::new::<DeviceParams>(
+                "device.hibernate",
+                "Save a running device's whole state and stop it; device.start resumes it in seconds",
+            )
+            .long_running()
             .locks_device(),
             CommandSpec::new::<DeviceParams>("device.reset", "Factory reset: wipe all user data")
                 .destructive()
@@ -819,7 +905,7 @@ impl CommandProvider for CoreProvider {
             ),
             CommandSpec::new::<NoParams>(
                 "settings.get",
-                "Daemon-wide settings: default root mode, quick boot on stop",
+                "Daemon-wide settings: default root mode, quick boot on stop, RAM budget, auto-hibernate",
             ),
             CommandSpec::new::<SettingsParams>(
                 "settings.set",
@@ -846,6 +932,10 @@ impl CommandProvider for CoreProvider {
             "sdk.status" => {
                 parse_params::<NoParams>(params)?;
                 self.sdk_status().await
+            }
+            "host.budget" => {
+                parse_params::<NoParams>(params)?;
+                json(self.state.budget()?)
             }
             "sdk.licenses" => {
                 let p: PackagesParams = parse_params(params)?;
@@ -884,7 +974,7 @@ impl CommandProvider for CoreProvider {
                 let d = self.state.device(&p.device).await?;
                 json(
                     self.state
-                        .start_device(d.id, p.cold_boot, &ctx.cancel)
+                        .start_admitted(d.id, p.cold_boot, p.force, &ctx.cancel)
                         .await?,
                 )
             }
@@ -892,6 +982,12 @@ impl CommandProvider for CoreProvider {
                 let p: DeviceParams = parse_params(params)?;
                 let d = self.state.device(&p.device).await?;
                 json(self.state.stop_device(d.id).await?)
+            }
+            "device.hibernate" => {
+                let p: DeviceParams = parse_params(params)?;
+                let d = self.state.device(&p.device).await?;
+                ctx.report(None, "Saving memory and disk");
+                json(self.state.hibernate(d.id).await?)
             }
             "device.reset" => self.reset(parse_params(params)?).await,
             "device.delete" => self.delete(parse_params(params)?).await,
@@ -906,7 +1002,18 @@ impl CommandProvider for CoreProvider {
             }
             "settings.set" => {
                 let p: SettingsParams = parse_params(params)?;
+                if let Some(b) = p.budget_percent
+                    && !(10..=100).contains(&b)
+                {
+                    return Err(JidrError::usage("budget_percent must be 10–100"));
+                }
                 json(self.state.update_settings(|s| {
+                    if let Some(b) = p.budget_percent {
+                        s.budget_percent = b;
+                    }
+                    if let Some(m) = p.auto_hibernate_minutes {
+                        s.auto_hibernate_minutes = m;
+                    }
                     if let Some(m) = p.default_root_mode {
                         s.default_root_mode = m;
                     }

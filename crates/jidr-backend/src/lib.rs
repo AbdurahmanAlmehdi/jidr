@@ -55,6 +55,8 @@ pub struct LaunchOptions {
     pub ramdisk: Option<PathBuf>,
     /// `-no-snapshot-load`: ignore the quick-boot snapshot.
     pub cold_boot: bool,
+    /// `-snapshot <name>`: resume this snapshot instead of the quick-boot one.
+    pub snapshot: Option<String>,
     /// `-wipe-data`.
     pub wipe: bool,
     /// `-gpu` mode; `None` = `host` on macOS (ADR-0001), `swiftshader_indirect` elsewhere.
@@ -78,6 +80,7 @@ impl Default for LaunchOptions {
             camera_back: None,
             camera_front: None,
             cold_boot: false,
+            snapshot: None,
             wipe: false,
             gpu: None,
             audio: true,
@@ -186,6 +189,32 @@ pub trait Backend: Send + Sync + std::fmt::Debug {
 
     /// Resolves when the instance crashes (D9: report, never restart).
     async fn wait_for_crash(&self, instance: &InstanceInfo, log_dir: &Path) -> CrashReport;
+
+    /// Saves snapshot `name` of the running instance (`SnapshotService`)
+    /// into `<avd_dir>/snapshots/<name>`.
+    async fn save_snapshot(
+        &self,
+        instance: &InstanceInfo,
+        name: &str,
+        avd_dir: &Path,
+    ) -> JidrResult<()>;
+
+    /// Ends the instance without the quick-boot save on exit (hibernate: the
+    /// state was just saved under a name). Pauses the VM first, so no guest
+    /// write is torn.
+    async fn stop_without_save(&self, instance: &InstanceInfo) -> JidrResult<()>;
+
+    /// True while a client other than the daemon (the player, Android
+    /// Studio) holds a gRPC connection to the instance. Idle detection.
+    async fn has_clients(&self, _instance: &InstanceInfo) -> bool {
+        false
+    }
+
+    /// Host memory the instance uses now, in MB (D42 budget). `None` when it
+    /// can't be measured.
+    async fn footprint_mb(&self, _instance: &InstanceInfo) -> Option<u64> {
+        None
+    }
 }
 
 #[cfg(test)]

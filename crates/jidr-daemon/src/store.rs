@@ -184,6 +184,10 @@ mod tests {
             launch: Default::default(),
             status: Default::default(),
             runtime: None,
+            footprint_mb: None,
+            auto_hibernate_minutes: None,
+            base: false,
+            pool_base: None,
         }
     }
 

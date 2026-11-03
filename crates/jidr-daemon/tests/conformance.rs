@@ -289,7 +289,10 @@ async fn settings_drive_create_and_quick_boot() {
     let h = Harness::start().await;
     let mut c = h.client().await;
     let s = c.ok("settings.get", json!({})).await;
-    assert_eq!(s, json!({ "default_root_mode": "adb", "quick_boot": true }));
+    assert_eq!(
+        s,
+        json!({ "default_root_mode": "adb", "quick_boot": true, "budget_percent": 75, "auto_hibernate_minutes": 0 })
+    );
     // Default adb, but Play Store images refuse adb root: none.
     let ps = c
         .ok(
@@ -307,7 +310,7 @@ async fn settings_drive_create_and_quick_boot() {
         .await;
     assert_eq!(
         s,
-        json!({ "default_root_mode": "none", "quick_boot": false })
+        json!({ "default_root_mode": "none", "quick_boot": false, "budget_percent": 75, "auto_hibernate_minutes": 0 })
     );
     let saved: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(h.paths.settings_file()).unwrap()).unwrap();

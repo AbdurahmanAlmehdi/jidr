@@ -370,6 +370,22 @@ impl AvdManager {
         Ok(out)
     }
 
+    /// Turns the emulator's own quick-boot save on exit on or off in
+    /// `<avd>/AVD.conf` (`[perAvd] set\saveSnapshotOnExit`, 0 = save). The
+    /// headless emulator ignores the exit save without it ("Snapshots have
+    /// been disabled by the user"), which left Jidr devices with an empty
+    /// `default_boot` (Phase 13c). Other keys in the file are kept.
+    pub fn set_save_on_exit(&self, name: &str, save: bool) -> JidrResult<()> {
+        let path = self.require(name)?.join("AVD.conf");
+        let text = std::fs::read_to_string(&path).unwrap_or_default();
+        let next = with_save_on_exit(&text, save);
+        if next != text {
+            std::fs::write(&path, next)
+                .ctx(ErrorCode::Sdk, format!("writing {}", path.display()))?;
+        }
+        Ok(())
+    }
+
     /// True if an emulator process currently holds this AVD.
     pub fn is_running(&self, name: &str) -> bool {
         is_locked(&self.dir(name))
@@ -415,6 +431,59 @@ impl AvdManager {
         result
     }
 
+    /// Copies an AVD with one of its snapshots (D42, Phase 13b): a
+    /// copy-on-write clone ([`crate::cow::cow_copy`]) that keeps snapshot
+    /// `snapshot`, drops the quick-boot one, the others and every lock, and
+    /// rewrites the AVD's name and folder in `<dst>.ini`, `config.ini`,
+    /// `hardware-qemu.ini` and the snapshot's `hardware.ini`. Launch it with
+    /// `-snapshot <snapshot>` to resume where the source was saved.
+    pub fn clone_with_snapshot(
+        &self,
+        src: &str,
+        dst: &str,
+        display_name: &str,
+        snapshot: &str,
+    ) -> JidrResult<crate::cow::CopyMethod> {
+        let from = self.require(src)?;
+        validate_name(dst)?;
+        self.ensure_stopped(src)?;
+        if self.exists(dst) {
+            return Err(JidrError::usage(format!("AVD {dst} already exists")));
+        }
+        check_snapshot(&from, snapshot)?;
+        let to = self.dir(dst);
+        let result = crate::cow::cow_copy(&from, &to).and_then(|method| {
+            prune_clone(&to, snapshot)?;
+            let mut c = ConfigIni::read(&to.join("config.ini"))?;
+            c.set("AvdId", dst);
+            c.set("avd.ini.displayname", display_name);
+            c.write(&to.join("config.ini"))?;
+            for ini in [
+                to.join("hardware-qemu.ini"),
+                to.join("snapshots").join(snapshot).join("hardware.ini"),
+            ] {
+                if ini.is_file() {
+                    let text = std::fs::read_to_string(&ini)
+                        .ctx(ErrorCode::Sdk, format!("reading {}", ini.display()))?;
+                    std::fs::write(&ini, rewrite_avd_refs(&text, src, dst))
+                        .ctx(ErrorCode::Sdk, format!("writing {}", ini.display()))?;
+                }
+            }
+            let api = c
+                .get("target")
+                .and_then(|t| t.strip_prefix("android-"))
+                .and_then(|a| a.parse().ok())
+                .unwrap_or(0);
+            self.write_pointer(dst, api)?;
+            Ok(method)
+        });
+        if result.is_err() {
+            let _ = std::fs::remove_dir_all(&to);
+            let _ = std::fs::remove_file(self.ini(dst));
+        }
+        result
+    }
+
     pub fn delete(&self, name: &str) -> JidrResult<()> {
         let dir = self.require(name)?;
         self.ensure_stopped(name)?;
@@ -452,6 +521,158 @@ impl AvdManager {
     pub fn disk_usage(&self, name: &str) -> JidrResult<u64> {
         Ok(disk_usage(&self.require(name)?))
     }
+}
+
+const SAVE_ON_EXIT_KEY: &str = "set\\saveSnapshotOnExit";
+
+/// `AVD.conf` (a Qt settings file) with `saveSnapshotOnExit` set in its
+/// `[perAvd]` section: `0` saves on exit, `1` doesn't.
+pub fn with_save_on_exit(text: &str, save: bool) -> String {
+    let line = format!("{SAVE_ON_EXIT_KEY}={}", if save { 0 } else { 1 });
+    let mut out: Vec<String> = Vec::new();
+    let (mut in_section, mut seen_section, mut done) = (false, false, false);
+    for l in text.lines() {
+        let t = l.trim();
+        if t.starts_with('[') {
+            if in_section && !done {
+                out.push(line.clone());
+                done = true;
+            }
+            in_section = t == "[perAvd]";
+            seen_section |= in_section;
+        } else if in_section && t.split('=').next().map(str::trim) == Some(SAVE_ON_EXIT_KEY) {
+            if !done {
+                out.push(line.clone());
+                done = true;
+            }
+            continue;
+        }
+        out.push(l.to_string());
+    }
+    if !done {
+        if !seen_section {
+            out.push("[perAvd]".into());
+        }
+        out.push(line);
+    }
+    let mut s = out.join("\n");
+    s.push('\n');
+    s
+}
+
+/// A snapshot a clone can resume from: `snapshots/<name>/` with a
+/// `snapshot.pb` and a non-empty `ram.bin` (an empty one can't be loaded).
+pub fn check_snapshot(avd_dir: &Path, name: &str) -> JidrResult<()> {
+    let plain = !name.is_empty()
+        && !name.starts_with('.')
+        && !name.contains(['/', '\\'])
+        && !name.chars().any(char::is_control);
+    if !plain {
+        return Err(JidrError::usage(format!("not a snapshot: {name:?}")));
+    }
+    let dir = avd_dir.join("snapshots").join(name);
+    if !dir.join("snapshot.pb").is_file() {
+        return Err(JidrError::not_found(format!("no snapshot {name:?}")));
+    }
+    let ram = std::fs::metadata(dir.join("ram.bin"))
+        .map(|m| m.len())
+        .unwrap_or(0);
+    if ram == 0 {
+        return Err(JidrError::sdk(format!(
+            "snapshot {name:?} has no saved memory (empty ram.bin); save it again while the device runs"
+        )));
+    }
+    Ok(())
+}
+
+/// In a fresh clone: every lock, the per-session files and every snapshot
+/// but `keep` go; `jidr/snapshots.json` keeps only `keep`'s tag (D29: the
+/// root-mode tag travels with the snapshot).
+fn prune_clone(dir: &Path, keep: &str) -> JidrResult<()> {
+    remove_locks(dir)?;
+    for entry in RUNTIME_ENTRIES {
+        if matches!(*entry, "hardware-qemu.ini" | "snapshots") {
+            continue;
+        }
+        remove_any(&dir.join(entry))?;
+    }
+    let snaps = dir.join("snapshots");
+    for e in
+        std::fs::read_dir(&snaps).ctx(ErrorCode::Sdk, format!("reading {}", snaps.display()))?
+    {
+        let e = e.ctx(ErrorCode::Sdk, "reading directory entry")?;
+        if e.file_name() != keep {
+            remove_any(&e.path())?;
+        }
+    }
+    let tags = dir.join("jidr").join("snapshots.json");
+    if let Ok(text) = std::fs::read_to_string(&tags)
+        && let Ok(serde_json::Value::Object(mut map)) = serde_json::from_str(&text)
+    {
+        map.retain(|id, _| id == keep);
+        let text = serde_json::to_string_pretty(&map).unwrap_or_else(|_| "{}".into());
+        std::fs::write(&tags, text).ctx(ErrorCode::Sdk, format!("writing {}", tags.display()))?;
+    }
+    Ok(())
+}
+
+fn remove_locks(dir: &Path) -> JidrResult<()> {
+    for e in std::fs::read_dir(dir).ctx(ErrorCode::Sdk, format!("reading {}", dir.display()))? {
+        let e = e.ctx(ErrorCode::Sdk, "reading directory entry")?;
+        let path = e.path();
+        if e.file_type().is_ok_and(|t| t.is_dir()) {
+            remove_locks(&path)?;
+        } else if e.file_name().to_string_lossy().ends_with(".lock") {
+            remove_any(&path)?;
+        }
+    }
+    Ok(())
+}
+
+fn remove_any(path: &Path) -> JidrResult<()> {
+    let res = if path.is_dir() {
+        std::fs::remove_dir_all(path)
+    } else {
+        std::fs::remove_file(path)
+    };
+    match res {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => {
+            Err(JidrError::sdk(format!("removing {}: {e}", path.display())))
+        }
+        _ => Ok(()),
+    }
+}
+
+/// Rewrites an emulator ini (`hardware-qemu.ini`, a snapshot's
+/// `hardware.ini`) for AVD `dst`: `avd.name` / `avd.id`, and every path
+/// segment `<src>.avd` (the emulator writes paths like
+/// `<home>/../avd/<src>.avd/userdata-qemu.img`).
+pub fn rewrite_avd_refs(text: &str, src: &str, dst: &str) -> String {
+    let (from, to) = (format!("/{src}.avd"), format!("/{dst}.avd"));
+    let mut out = String::with_capacity(text.len());
+    for line in text.split_inclusive('\n') {
+        let (body, end) = match line.strip_suffix('\n') {
+            Some(b) => (b, "\n"),
+            None => (line, ""),
+        };
+        let rewritten = match body.split_once('=') {
+            Some((k, v)) if matches!(k.trim(), "avd.name" | "avd.id") && v.trim() == src => {
+                format!("{}= {dst}", k)
+            }
+            Some((k, v)) => {
+                let mut v = v.replace(&format!("{from}/"), &format!("{to}/"));
+                if v.trim_end().ends_with(&from) {
+                    let cut = v.trim_end().len() - from.len();
+                    v = format!("{}{to}", &v[..cut]);
+                }
+                format!("{k}={v}")
+            }
+            None => body.to_string(),
+        };
+        out.push_str(&rewritten);
+        out.push_str(end);
+    }
+    out
 }
 
 /// The emulator holds `hardware-qemu.ini.lock` (containing its pid) while
@@ -645,6 +866,198 @@ odd=no-spaces
         assert!(m.list().unwrap().is_empty());
         assert!(!dir.path().join("a1.ini").exists());
         assert_eq!(m.delete("a1").unwrap_err().code, ErrorCode::NotFound);
+    }
+
+    const HW_QEMU: &str = "\
+disk.dataPartition.path = /h/avd/../avd/src.avd/userdata-qemu.img
+disk.ramdisk.path = /h/avd/src.avd/jidr/ramdisk.magisk-30.img
+kernel.path = /sdk/system-images/android-35/google_apis/arm64-v8a//kernel-ranchu
+avd.name = src
+avd.id = src
+android.avd.home = /h/avd
+other.src.avd.like = /h/avd/src.avd.bak/x
+";
+
+    #[test]
+    fn rewrite_moves_names_and_paths() {
+        let out = rewrite_avd_refs(HW_QEMU, "src", "dst");
+        assert!(
+            out.contains("disk.dataPartition.path = /h/avd/../avd/dst.avd/userdata-qemu.img\n")
+        );
+        assert!(out.contains("disk.ramdisk.path = /h/avd/dst.avd/jidr/ramdisk.magisk-30.img\n"));
+        assert!(out.contains("avd.name = dst\n") && out.contains("avd.id = dst\n"));
+        assert!(
+            out.contains("kernel.path = /sdk/system-images/"),
+            "image paths stay"
+        );
+        assert!(out.contains("android.avd.home = /h/avd\n"));
+        assert!(
+            out.contains("/h/avd/src.avd.bak/x"),
+            "only whole `<src>.avd` segments"
+        );
+        assert_eq!(out.lines().count(), HW_QEMU.lines().count());
+        // A folder at the end of a value moves too; no-op for other AVDs.
+        assert_eq!(
+            rewrite_avd_refs("p = /a/src.avd\n", "src", "d"),
+            "p = /a/d.avd\n"
+        );
+        assert_eq!(rewrite_avd_refs(HW_QEMU, "zzz", "dst"), HW_QEMU);
+    }
+
+    /// A used AVD with a saved snapshot, the quick-boot one, locks and tags.
+    fn snapshotted(m: &AvdManager, name: &str) {
+        m.create(&spec(name)).unwrap();
+        let d = m.dir(name);
+        std::fs::write(d.join("userdata-qemu.img.qcow2"), b"overlay").unwrap();
+        std::fs::write(
+            d.join("hardware-qemu.ini"),
+            format!(
+                "avd.name = {name}\ndisk.dataPartition.path = {}/userdata-qemu.img\n",
+                d.display()
+            ),
+        )
+        .unwrap();
+        std::fs::write(d.join("hardware-qemu.ini.lock"), b"999999").unwrap();
+        std::fs::write(d.join("multiinstance.lock"), b"").unwrap();
+        for s in ["base", "other", "default_boot"] {
+            let sd = d.join("snapshots").join(s);
+            std::fs::create_dir_all(&sd).unwrap();
+            std::fs::write(sd.join("snapshot.pb"), b"pb").unwrap();
+            std::fs::write(sd.join("ram.bin"), vec![1u8; 64]).unwrap();
+            std::fs::write(sd.join("hardware.ini"), format!("avd.name = {name}\n")).unwrap();
+            std::fs::write(sd.join("snapshot.lock"), b"").unwrap();
+        }
+        std::fs::create_dir_all(d.join("jidr")).unwrap();
+        std::fs::write(
+            d.join("jidr/snapshots.json"),
+            r#"{"base": {"root_mode": "adb", "created_at": "2026-11-02T00:00:00Z"}, "other": {"root_mode": "none", "created_at": "2026-11-02T00:00:00Z"}}"#,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn clone_with_snapshot_keeps_only_that_snapshot() {
+        let dir = tempfile::tempdir().unwrap();
+        let m = AvdManager::new(dir.path());
+        snapshotted(&m, "src");
+        m.clone_with_snapshot("src", "dst", "Copy", "base").unwrap();
+        let d = m.dir("dst");
+        assert_eq!(m.config("dst").unwrap().get("AvdId"), Some("dst"));
+        assert_eq!(m.info("dst").unwrap().display_name.as_deref(), Some("Copy"));
+        assert!(
+            std::fs::read_to_string(dir.path().join("dst.ini"))
+                .unwrap()
+                .contains("dst.avd")
+        );
+        assert_eq!(
+            std::fs::read(d.join("userdata-qemu.img.qcow2")).unwrap(),
+            b"overlay"
+        );
+        assert_eq!(
+            std::fs::read(d.join("snapshots/base/ram.bin"))
+                .unwrap()
+                .len(),
+            64
+        );
+        for gone in [
+            "snapshots/default_boot",
+            "snapshots/other",
+            "hardware-qemu.ini.lock",
+            "multiinstance.lock",
+            "snapshots/base/snapshot.lock",
+        ] {
+            assert!(!d.join(gone).exists(), "{gone} should be gone");
+        }
+        let hw = std::fs::read_to_string(d.join("hardware-qemu.ini")).unwrap();
+        assert!(
+            hw.contains("avd.name = dst") && hw.contains("/dst.avd/userdata-qemu.img"),
+            "{hw}"
+        );
+        let snap_hw = std::fs::read_to_string(d.join("snapshots/base/hardware.ini")).unwrap();
+        assert_eq!(snap_hw, "avd.name = dst\n");
+        let tags: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(d.join("jidr/snapshots.json")).unwrap())
+                .unwrap();
+        assert_eq!(
+            tags["base"]["root_mode"], "adb",
+            "the root tag travels (D29)"
+        );
+        assert!(tags.get("other").is_none());
+        // The source is untouched.
+        let s = m.dir("src");
+        assert!(s.join("snapshots/default_boot").is_dir() && s.join("snapshots/other").is_dir());
+        assert!(
+            std::fs::read_to_string(s.join("hardware-qemu.ini"))
+                .unwrap()
+                .contains("avd.name = src")
+        );
+    }
+
+    #[test]
+    fn clone_with_snapshot_refuses_bad_snapshots() {
+        let dir = tempfile::tempdir().unwrap();
+        let m = AvdManager::new(dir.path());
+        snapshotted(&m, "src");
+        assert_eq!(
+            m.clone_with_snapshot("src", "x", "X", "missing")
+                .unwrap_err()
+                .code,
+            ErrorCode::NotFound
+        );
+        std::fs::write(m.dir("src").join("snapshots/other/ram.bin"), b"").unwrap();
+        let e = m.clone_with_snapshot("src", "x", "X", "other").unwrap_err();
+        assert_eq!(e.code, ErrorCode::Sdk, "an empty ram.bin can't be resumed");
+        for bad in ["..", "a/b", ".x", ""] {
+            assert_eq!(
+                m.clone_with_snapshot("src", "x", "X", bad)
+                    .unwrap_err()
+                    .code,
+                ErrorCode::Usage,
+                "{bad:?}"
+            );
+        }
+        assert!(!m.exists("x"), "nothing left behind");
+        std::fs::write(
+            m.dir("src").join("hardware-qemu.ini.lock"),
+            std::process::id().to_string(),
+        )
+        .unwrap();
+        assert_eq!(
+            m.clone_with_snapshot("src", "x", "X", "base")
+                .unwrap_err()
+                .code,
+            ErrorCode::Busy
+        );
+    }
+
+    /// Regression (Phase 13c): Jidr AVDs had no `AVD.conf`, so the headless
+    /// emulator never saved quick-boot state on exit.
+    #[test]
+    fn save_on_exit_setting() {
+        assert_eq!(
+            with_save_on_exit("", true),
+            "[perAvd]\nset\\saveSnapshotOnExit=0\n"
+        );
+        let studio = "[perAvd]\nbattery\\charge_level=100\nset\\saveSnapshotOnExit=1\nset\\pauseAvdWhenMinimized=false\n";
+        assert_eq!(
+            with_save_on_exit(studio, true),
+            "[perAvd]\nbattery\\charge_level=100\nset\\saveSnapshotOnExit=0\nset\\pauseAvdWhenMinimized=false\n"
+        );
+        let other = "[General]\nx=1\n[perAvd]\nloc\\altitude=5\n";
+        assert_eq!(
+            with_save_on_exit(other, false),
+            "[General]\nx=1\n[perAvd]\nloc\\altitude=5\nset\\saveSnapshotOnExit=1\n"
+        );
+        assert_eq!(
+            with_save_on_exit("[General]\nx=1\n", true),
+            "[General]\nx=1\n[perAvd]\nset\\saveSnapshotOnExit=0\n"
+        );
+        let dir = tempfile::tempdir().unwrap();
+        let m = AvdManager::new(dir.path());
+        m.create(&spec("q")).unwrap();
+        m.set_save_on_exit("q", true).unwrap();
+        let conf = std::fs::read_to_string(m.dir("q").join("AVD.conf")).unwrap();
+        assert!(conf.contains("set\\saveSnapshotOnExit=0"), "{conf}");
     }
 
     #[test]
