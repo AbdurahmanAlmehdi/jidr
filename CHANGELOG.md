@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.3.0](https://github.com/AbdurahmanAlmehdi/jidr/compare/v0.2.0...v0.3.0) (2026-11-03)
+
+
+### Features
+
+* **daemon:** bases, pool leases and a reaper for agents (Phase 13d, D42) ([c780dc5](https://github.com/AbdurahmanAlmehdi/jidr/commit/c780dc5355797bbf8d2ee51913d307ed612a9dbb))
+* **daemon:** hibernate, auto-hibernate and a working quick-boot save (Phase 13c, D42) ([a186692](https://github.com/AbdurahmanAlmehdi/jidr/commit/a18669279bf4cc6c3205e2d2eec28a548575cf03))
+* **daemon:** host RAM budget, lean profile and host.budget (Phase 13a, D42) ([b06e0a6](https://github.com/AbdurahmanAlmehdi/jidr/commit/b06e0a6123da5317f248db6493f2d382580b45dc))
+* many devices on one machine (D42, Phases 13a–13d) ([48a8289](https://github.com/AbdurahmanAlmehdi/jidr/commit/48a8289d64a28674fc1f34d4ae20082f32cba7ab))
+* **root:** trust CA certificates as system certs on Full-root devices ([68c79b8](https://github.com/AbdurahmanAlmehdi/jidr/commit/68c79b8a01d1c3ece68e351508c606dd6e023427))
+* **root:** trust CA certificates as system certs on Full-root devices ([0bf3c20](https://github.com/AbdurahmanAlmehdi/jidr/commit/0bf3c20b4887c1fe634f8937dbfdbd6e94b19450))
+* **sdk:** snapshot-keeping copy-on-write clones (Phase 13b, D42) ([3fe675d](https://github.com/AbdurahmanAlmehdi/jidr/commit/3fe675da6ce7cf71da6fbd78700296f836721899))
+* **site:** take the download's version, size and checksum from GitHub ([3f5f8d3](https://github.com/AbdurahmanAlmehdi/jidr/commit/3f5f8d3cb1356ca9455807447fbcc542e93f9862))
+* **site:** take the download's version, size and checksum from GitHub ([e287b93](https://github.com/AbdurahmanAlmehdi/jidr/commit/e287b9304b828ec634625d16882b21b4b757ae70))
+* **skills:** jidr and jidr-app-testing agent skills with xtask skills-check (D43) ([cec4fcb](https://github.com/AbdurahmanAlmehdi/jidr/commit/cec4fcb6b69f0e05744ff27c759d46552399b351))
+* **skills:** jidr and jidr-app-testing agent skills with xtask skills-check (D43) ([db26b30](https://github.com/AbdurahmanAlmehdi/jidr/commit/db26b30a3baaa7fca215bdacac8c5134aa71188f))
+* **widgets:** set and clear a device's HTTP proxy ([8b44aab](https://github.com/AbdurahmanAlmehdi/jidr/commit/8b44aab0e957d6629e4c06c7569ea3bbebf41d94))
+* **widgets:** set and clear a device's HTTP proxy ([340e11d](https://github.com/AbdurahmanAlmehdi/jidr/commit/340e11d9778c5f572c61cc678201c3010a3d54de))
+
+
+### Bug Fixes
+
+* CI and test failures after the merge batch ([ebb571d](https://github.com/AbdurahmanAlmehdi/jidr/commit/ebb571df793c07fc2ae972cd3759236ebaa5d734))
+* **daemon:** save quick-boot state when stopping a resumed run ([4566dde](https://github.com/AbdurahmanAlmehdi/jidr/commit/4566ddecbd33251a1b80a6cb166720696e3d8bdb))
+* Full-root su hang recovery, Magisk version text, new-device auto start ([ba9cb20](https://github.com/AbdurahmanAlmehdi/jidr/commit/ba9cb20dfc764cb20b98ae7d475dac422d993daa))
+* **packaging:** keep the template placeholders out of the cask's comment ([0a1a9f6](https://github.com/AbdurahmanAlmehdi/jidr/commit/0a1a9f66758b3f7d3a475369c67b5aa5b8c35330))
+* **root:** recover a shell su that hangs right after the Full-root grant ([ff1beeb](https://github.com/AbdurahmanAlmehdi/jidr/commit/ff1beeb9160581424c2f71a58ca6e92bee6bcbf9))
+* **root:** report the Magisk version without magisk -v's variant suffix ([a69eb44](https://github.com/AbdurahmanAlmehdi/jidr/commit/a69eb4474d929f30fca9b1a19843f1dd0b8de039))
+* **root:** take one Zygote pid when pidof prints several ([a344019](https://github.com/AbdurahmanAlmehdi/jidr/commit/a3440198b1d10e5f8b551168bafc5283ca62b5ea))
+* **site:** run the site tests on Node 22 ([e4b0892](https://github.com/AbdurahmanAlmehdi/jidr/commit/e4b08925970dbcfc4e066aa8b53570615e1d6171))
+* **ui:** map player touches through the display rotation ([b29b53a](https://github.com/AbdurahmanAlmehdi/jidr/commit/b29b53a3dd69565258e629a4b5d23f178d4bd823))
+* **ui:** map player touches through the display rotation ([2b01155](https://github.com/AbdurahmanAlmehdi/jidr/commit/2b01155dbabf3028864852729834b66d93628fc5)), closes [#51](https://github.com/AbdurahmanAlmehdi/jidr/issues/51)
+* **ui:** start a new Full-root device's setup when the device list arrives ([edcde01](https://github.com/AbdurahmanAlmehdi/jidr/commit/edcde01fae1fb77dc168b6af8d51b9d1aa107e2a))
+
 ## [0.2.0](https://github.com/AbdurahmanAlmehdi/jidr/compare/v0.1.0...v0.2.0) (2026-10-18)
 
 
