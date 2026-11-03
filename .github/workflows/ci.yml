@@ -74,15 +74,33 @@ jobs:
     # Emulator integration tests on Linux KVM with x86_64 images (D28).
     # The arm64 run happens on an Apple Silicon Mac via `cargo xtask e2e-mac` before release.
     # Skipped when only docs/site/Markdown change, like clippy-macos.
-    name: emulator tests (Linux KVM, API ${{ matrix.api }})
+    name: emulator tests (Linux KVM, API ${{ matrix.api }}, ${{ matrix.shard.name }})
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         api: [30, 33, 35]
+        # Every emulator test boots its own device, so the tests are split
+        # across four jobs per API level, balanced by measured run times
+        # (about 8 minutes each). `rest` takes every binary the other shards
+        # don't name, so a new `*_emulator` binary always runs; keep its
+        # exclusion list in sync and move binaries out when it gets slow.
+        shard:
+          - name: daemon
+            filter: binary(~pool_emulator) | binary(~budget_emulator) | binary(~hibernate_emulator) | binary(~resilience_emulator)
+          - name: root
+            filter: binary(~props_emulator) | binary(~magisk_emulator) | binary(~adb_emulator)
+          - name: cacert, mcp, ui
+            filter: binary(~cacert_emulator) | binary(agent_tasks) | binary(~player_emulator) | binary(~media_emulator)
+          - name: rest
+            filter: >-
+              (binary(~_emulator) | binary(agent_tasks))
+              - (binary(~pool_emulator) | binary(~budget_emulator) | binary(~hibernate_emulator) | binary(~resilience_emulator)
+              | binary(~props_emulator) | binary(~magisk_emulator) | binary(~adb_emulator)
+              | binary(~cacert_emulator) | binary(agent_tasks) | binary(~player_emulator) | binary(~media_emulator))
     steps:
       - uses: actions/checkout@v4
       - name: Enable KVM
@@ -112,8 +130,13 @@ jobs:
           yes | sdkmanager --licenses > /dev/null
           sdkmanager "platform-tools" "emulator" "system-images;android-${{ matrix.api }};google_apis;x86_64"
       - name: Emulator tests
+        # Only this shard's tests, all of which boot a device; the check job
+        # already runs the offline tests. `--no-fail-fast` so one flaky test
+        # doesn't hide the result of the ones after it.
         env:
           JIDR_TEST_SDK: ${{ env.ANDROID_SDK_ROOT }}
           JIDR_TEST_IMAGE: system-images;android-${{ matrix.api }};google_apis;x86_64
           JIDR_TEST_API: ${{ matrix.api }}
-        run: cargo nextest run --workspace --features emulator --no-tests=pass --test-threads 1
+        run: >-
+          cargo nextest run --workspace --features emulator --no-tests=pass --test-threads 1
+          --no-fail-fast -E '${{ matrix.shard.filter }}'
