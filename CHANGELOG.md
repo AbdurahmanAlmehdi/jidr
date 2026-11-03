@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.1](https://github.com/AbdurahmanAlmehdi/jidr/compare/v0.3.0...v0.3.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* **release:** retry hdiutil create when the image is busy ([f6f0be4](https://github.com/AbdurahmanAlmehdi/jidr/commit/f6f0be4fb82e0f0f969fc320347a843c64bd7b38))
+* **release:** retry hdiutil create when the image is busy ([3277063](https://github.com/AbdurahmanAlmehdi/jidr/commit/3277063a8c96b7a4ee392cae5ed8d657c65a086b))
+
 ## [0.3.0](https://github.com/AbdurahmanAlmehdi/jidr/compare/v0.2.0...v0.3.0) (2026-11-03)
 
 
