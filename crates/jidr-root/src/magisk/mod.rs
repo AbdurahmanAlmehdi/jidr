@@ -183,7 +183,7 @@ pub(crate) async fn repatch(ctx: &CallCtx, device: &Device) -> JidrResult<Device
 
 /// Stops the device if it is running, then cold-boots it. The stored
 /// `launch.ramdisk` points at the patched copy, so this boots Magisk.
-async fn cold_boot(ctx: &CallCtx, device: &Device) -> JidrResult<Device> {
+pub(crate) async fn cold_boot(ctx: &CallCtx, device: &Device) -> JidrResult<Device> {
     if device.status.is_active() {
         ctx.report(None, "Stopping before the cold boot");
         ctx.daemon.stop_device(device.id).await?;

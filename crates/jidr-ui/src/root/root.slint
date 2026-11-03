@@ -10,6 +10,9 @@ import { T, Role, Tone, Tones, Icon, Spinner, Tag, Button, ButtonKind, Toggle, K
 import { RootBadge } from "../../ui/components/status.slint";
 import { RootKind, RootChoice } from "../../ui/types.slint";
 import { PropsBlock } from "props/props.slint";
+import { CertsBlock, CertRow } from "cacerts/cacerts.slint";
+
+export { CertRow }
 
 /// Which body the Root sheet shows.
 export enum RootSheetState {
@@ -114,6 +117,18 @@ export global RootUi {
     /// "edit", "cancel", "save", "reset", "restart".
     callback props-action(string);
     callback props-edited(int, string);
+
+    // ---- CA certificates (Full root): `src/root/cacerts`
+    /// The daemon has `root.cacert.install`.
+    in property <bool> certs-supported;
+    in property <[CertRow]> certs;
+    in property <bool> certs-running;
+    /// An add or remove runs on this device.
+    in property <bool> certs-working;
+    in property <string> certs-status;
+    in property <bool> certs-failed;
+    /// "add", "" | "remove", file.
+    callback certs-action(string, string);
 }
 
 // ============================================================ Root sheet
@@ -842,5 +857,14 @@ export component RootDevTools inherits VerticalLayout {
         saving: RootUi.props-saving;
         action(a) => { RootUi.props-action(a); }
         edited(i, v) => { RootUi.props-edited(i, v); }
+    }
+    if RootUi.tools-full && RootUi.certs-supported: CertsBlock {
+        certs: RootUi.certs;
+        running: RootUi.certs-running;
+        busy: RootUi.tools-busy;
+        working: RootUi.certs-working;
+        status: RootUi.certs-status;
+        failed: RootUi.certs-failed;
+        action(a, v) => { RootUi.certs-action(a, v); }
     }
 }
