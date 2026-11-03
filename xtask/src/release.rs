@@ -118,22 +118,32 @@ pub fn run(args: &[String]) -> Result<()> {
 
     let dmg_name = format!("Jidr-{version}-arm64.dmg");
     let dmg = out.join(&dmg_name);
-    tool(
-        "hdiutil",
-        &[
-            "create",
-            "-volname",
-            &format!("Jidr {version}"),
-            "-srcfolder",
-            &path_str(&staging)?,
-            "-fs",
-            "APFS",
-            "-format",
-            "UDZO",
-            "-ov",
-            &path_str(&dmg)?,
-        ],
-    )?;
+    let (volname, srcfolder, dmg_path) = (
+        format!("Jidr {version}"),
+        path_str(&staging)?,
+        path_str(&dmg)?,
+    );
+    // `hdiutil create` sometimes fails with "Resource busy" on GitHub's macOS
+    // runners (v0.3.0's release did), while something briefly holds the new
+    // image. It succeeds when run again.
+    retry(3, std::time::Duration::from_secs(10), || {
+        tool(
+            "hdiutil",
+            &[
+                "create",
+                "-volname",
+                &volname,
+                "-srcfolder",
+                &srcfolder,
+                "-fs",
+                "APFS",
+                "-format",
+                "UDZO",
+                "-ov",
+                &dmg_path,
+            ],
+        )
+    })?;
     if signing == Signing::DeveloperId {
         // Sign, notarize and staple before the checksum is taken.
         tool("bash", &[&path_str(&sign_script)?, "dmg", &path_str(&dmg)?])?;
@@ -204,6 +214,27 @@ fn workspace_version() -> Result<String> {
 
 fn tool(program: &str, args: &[&str]) -> Result<()> {
     crate::run(program, args)
+}
+
+/// Runs `f` up to `attempts` times, waiting `delay` between tries, and
+/// returns the first success or the last error.
+fn retry<T>(
+    attempts: u32,
+    delay: std::time::Duration,
+    mut f: impl FnMut() -> Result<T>,
+) -> Result<T> {
+    let mut tried = 1;
+    loop {
+        match f() {
+            Ok(v) => return Ok(v),
+            Err(e) if tried >= attempts => return Err(e),
+            Err(e) => {
+                eprintln!("xtask: attempt {tried} of {attempts} failed ({e:#}); retrying");
+                std::thread::sleep(delay);
+                tried += 1;
+            }
+        }
+    }
 }
 
 fn tool_output(program: &str, args: &[&str], dir: &Path) -> Result<String> {
@@ -519,6 +550,29 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn retry_returns_the_first_success_or_the_last_error() {
+        let no_wait = std::time::Duration::ZERO;
+        let mut calls = 0;
+        let ok = retry(3, no_wait, || {
+            calls += 1;
+            if calls < 3 {
+                bail!("Resource busy")
+            } else {
+                Ok(calls)
+            }
+        });
+        assert_eq!(ok.unwrap(), 3);
+
+        let mut calls = 0;
+        let err = retry(3, no_wait, || -> Result<()> {
+            calls += 1;
+            bail!("busy {calls}")
+        });
+        assert_eq!(calls, 3);
+        assert_eq!(err.unwrap_err().to_string(), "busy 3");
+    }
 
     #[test]
     fn parses_flags() {
