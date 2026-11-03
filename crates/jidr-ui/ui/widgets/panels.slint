@@ -284,8 +284,8 @@ export component NetworkPanel inherits VerticalLayout {
             }
         }
         Hint {
-            height: 30px;
-            text: root.vm.proxy != "" ? @tr("HTTP(S) traffic goes through {}.", root.vm.proxy)
+            height: root.vm.proxy != "" ? 44px : 30px;
+            text: root.vm.proxy != "" ? @tr("HTTP(S) traffic goes through {}. For HTTPS, trust the proxy's CA under More › Developer tools › CA certificates.", root.vm.proxy)
                 : @tr("Off. 10.0.2.2 is this Mac; Burp and mitmproxy listen on 8080.");
         }
     }
