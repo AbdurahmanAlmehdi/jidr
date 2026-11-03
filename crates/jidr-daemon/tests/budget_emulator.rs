@@ -35,8 +35,10 @@ async fn budget_lean_footprint() {
         d["footprint_mb"]
     );
     assert!(peak > 0, "the footprint was measured");
-    assert_eq!(d["footprint_mb"], peak);
-    assert!(peak <= 4608, "lean device used {peak} MB (> 4.5 GB)");
+    // The daemon's own 30 s sampler may have caught a higher sample.
+    let stored = d["footprint_mb"].as_u64().unwrap_or(0);
+    assert!(stored >= peak, "stored {stored} < sampled {peak}");
+    assert!(stored <= 4608, "lean device used {stored} MB (> 4.5 GB)");
     c.ok("device.delete", json!({ "device": lean })).await;
     h.stop().await;
 }
