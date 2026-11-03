@@ -236,24 +236,30 @@ pub fn sink(weak: Weak<AppWindow>) -> impl Fn(Update) + Send + Sync + 'static {
                     app.set_conn(s);
                     app.set_conn_text(text.into());
                 }
-                Update::Data(data) => {
-                    let state = state();
-                    let mut st = state.borrow_mut();
-                    let ids: Vec<Uuid> = data.devices.iter().map(|d| d.device.id).collect();
-                    st.tabs.retain(|t| ids.contains(t));
-                    if st.active.is_some_and(|a| a >= st.tabs.len()) {
-                        st.active = None;
-                    }
-                    st.data = data;
-                    render(&app, &st);
-                    drop(st);
-                    if let Some(c) = ctx() {
-                        crate::player::sync(&c);
-                    }
-                }
+                Update::Data(data) => apply_data(&app, data),
                 Update::Event(_) => {}
             }
         });
+    }
+}
+
+/// Takes a fresh device list from the daemon (UI thread).
+pub fn apply_data(app: &AppWindow, data: Data) {
+    let state = state();
+    let mut st = state.borrow_mut();
+    let ids: Vec<Uuid> = data.devices.iter().map(|d| d.device.id).collect();
+    st.tabs.retain(|t| ids.contains(t));
+    if st.active.is_some_and(|a| a >= st.tabs.len()) {
+        st.active = None;
+    }
+    st.data = data;
+    render(app, &st);
+    drop(st);
+    if let Some(c) = ctx() {
+        crate::player::sync(&c);
+        // Starts a root setup queued for a device that just arrived (a new
+        // Full-root device), instead of waiting for the next selection.
+        crate::root::sync(&c);
     }
 }
 
@@ -376,4 +382,53 @@ pub fn fire<T: Send + 'static>(token: Token, value: T) {
             f(Box::new(value));
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::RootUi;
+    use jidr_core::RootMode;
+
+    #[test]
+    fn a_new_full_root_device_starts_its_setup_when_the_list_brings_it_in() {
+        // Regression: `root.set magisk` for a just-created device waited in
+        // the queue until the person selected it (only a re-render drained
+        // the queue), so the device stayed Stopped.
+        crate::offscreen::init().unwrap();
+        let tmp = tempfile::tempdir().unwrap();
+        let app = AppWindow::new().unwrap();
+        let paths = JidrPaths::under(tmp.path());
+        let ctx = Rc::new(Ctx {
+            app: app.clone_strong(),
+            bridge: Bridge::new().unwrap(),
+            state: state(),
+            prefs: RefCell::default(),
+            paths,
+            windows: RefCell::default(),
+            catalog: RefCell::default(),
+            pending_confirm: RefCell::default(),
+            player: RefCell::default(),
+        });
+        CTX.with(|c| *c.borrow_mut() = Some(ctx.clone()));
+
+        let tablet = crate::fixtures::device_infos()
+            .into_iter()
+            .find(|i| i.device.name == "Tablet 11")
+            .unwrap();
+        crate::root::start(&ctx, tablet.device.id, RootMode::Magisk);
+        assert!(!app.global::<RootUi>().get_open(), "queued, not started");
+
+        apply_data(
+            &app,
+            Data {
+                devices: vec![tablet],
+                ..Data::default()
+            },
+        );
+        assert!(
+            app.global::<RootUi>().get_open(),
+            "the Root sheet opens and root.set runs once the device is listed"
+        );
+    }
 }
