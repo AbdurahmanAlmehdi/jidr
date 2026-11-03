@@ -82,17 +82,22 @@ pub(crate) async fn verify(ctx: &CallCtx, device: &Device) -> JidrResult<Verific
     record(ctx, device, mode, uid, version).await
 }
 
+/// The version in `magisk -v` output, which is `<version>:<variant>:<flags>`
+/// (`30.7:MAGISK:R`): just `30.7`.
+pub(crate) fn parse_magisk_version(output: &str) -> Option<&str> {
+    let version = output.trim().split(':').next()?.trim();
+    (!version.is_empty()).then_some(version)
+}
+
 /// The Magisk version reported by `su -c 'magisk -v'`.
 pub(crate) async fn magisk_version(adb: &Adb) -> JidrResult<String> {
     let (status, out) = adb.shell_status("su -c 'magisk -v'").await?;
-    let version = out.trim();
-    if status == 0 && !version.is_empty() {
-        Ok(version.to_string())
-    } else {
-        Err(JidrError::root_failed(format!(
+    match parse_magisk_version(&out) {
+        Some(version) if status == 0 => Ok(version.to_string()),
+        _ => Err(JidrError::root_failed(format!(
             "`su -c 'magisk -v'` reported no version: {}",
             out.trim()
-        )))
+        ))),
     }
 }
 
@@ -164,6 +169,16 @@ mod tests {
         );
         assert_eq!(parse_uid("uid=(x)"), None);
         assert_eq!(parse_uid(""), None);
+    }
+
+    #[test]
+    fn magisk_version_drops_the_variant_and_flags() {
+        // Regression: the Rooted sheet showed the raw `30.7:MAGISK:R`.
+        assert_eq!(parse_magisk_version("30.7:MAGISK:R\n"), Some("30.7"));
+        assert_eq!(parse_magisk_version("27.0:MAGISK"), Some("27.0"));
+        assert_eq!(parse_magisk_version(" 30.7 \n"), Some("30.7"));
+        assert_eq!(parse_magisk_version(""), None);
+        assert_eq!(parse_magisk_version(":MAGISK:R"), None);
     }
 
     #[test]

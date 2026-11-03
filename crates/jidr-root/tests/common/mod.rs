@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use jidr_backend::fake::FakeBackend;
-use jidr_core::provider::{CallCtx, DaemonContext};
+use jidr_core::provider::{CallCtx, CommandProvider, DaemonContext};
 use jidr_core::{Device, ImageRef, JidrPaths, JidrResult};
 use jidr_daemon::{Daemon, DaemonConfig};
 use serde_json::{Value, json};
@@ -42,6 +42,9 @@ case "$1" in
       "id -u") echo "$uid";;
       id*) echo "uid=$uid($name) gid=$uid($name) groups=$uid($name)";;
       "su -c id")
+        # `su-stuck`: su doesn't answer (2026-11-03) until the grant is
+        # written again, after the recovery cold boot.
+        if [ -f "$dir/su-stuck" ]; then echo "su: no answer" >&2; exit 1; fi
         if [ -f "$grant" ]; then echo "uid=0(root) gid=0(root) groups=0(root)"; else echo "su: Permission denied" >&2; exit 1; fi;;
       "su -c 'magisk -v'"|"su -c magisk -v")
         if [ -f "$grant" ]; then echo "30.7:MAGISK:R"; else echo "su: Permission denied" >&2; exit 1; fi;;
@@ -49,7 +52,9 @@ case "$1" in
         echo "yes";;
       "/debug_ramdisk/magisk --sqlite"*|"/sbin/magisk --sqlite"*|"/data/adb/magisk/magisk --sqlite"*)
         case "$cmd" in
-          *"REPLACE INTO policies"*) echo 1 > "$grant"; echo "done";;
+          *"REPLACE INTO policies"*)
+            if [ -f "$grant" ]; then rm -f "$dir/su-stuck"; fi
+            echo 1 > "$grant"; echo 1 >> "$dir/grant-writes"; echo "done";;
           *"SELECT policy FROM policies"*)
             if [ -f "$grant" ]; then echo "policy=2"; else echo "policy=0"; fi;;
           *) echo "done";;
@@ -171,6 +176,11 @@ fn write_fake_apk(dir: &Path) -> PathBuf {
 
 impl Env {
     pub async fn start() -> Self {
+        Self::start_with(jidr_root::provider()).await
+    }
+
+    /// An `Env` whose daemon registers `root` as its root provider.
+    pub async fn start_with(root: Arc<dyn CommandProvider>) -> Self {
         let tmp = tempfile::tempdir().unwrap();
         let studio = jidr_daemon::testing::fake_studio(&tmp.path().join("studio")).unwrap();
         write_exec(&studio.join("platform-tools/adb"), FAKE_ADB);
@@ -193,7 +203,7 @@ impl Env {
             },
             backend.clone(),
         )
-        .provider(jidr_root::provider())
+        .provider(root)
         .build()
         .unwrap();
         let ctx = CallCtx::new(daemon.state().clone());
@@ -249,6 +259,19 @@ impl Env {
     /// Simulates the person tapping Grant on the Magisk prompt.
     pub fn tap_grant(&self) {
         std::fs::write(self.studio.join("platform-tools/su-granted"), b"1").unwrap();
+    }
+
+    /// Makes the shell `su` hang after the grant, as on 2026-11-03, until
+    /// the grant is written a second time.
+    pub fn stick_su(&self) {
+        std::fs::write(self.studio.join("platform-tools/su-stuck"), b"1").unwrap();
+    }
+
+    /// How many times the shell su policy was written.
+    pub fn grant_writes(&self) -> usize {
+        std::fs::read_to_string(self.studio.join("platform-tools/grant-writes"))
+            .map(|s| s.lines().count())
+            .unwrap_or(0)
     }
 
     pub fn revoke_su(&self) {
