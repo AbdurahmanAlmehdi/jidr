@@ -5,8 +5,12 @@
 
 mod common;
 
+use std::sync::Arc;
+use std::time::Duration;
+
 use common::Env;
-use jidr_core::{ErrorCode, RootMode};
+use jidr_core::{ErrorCode, RootHealth, RootMode};
+use jidr_root::RootProvider;
 use serde_json::json;
 
 async fn to_magisk(env: &Env, name: &str) -> serde_json::Value {
@@ -67,6 +71,39 @@ async fn magisk_flow_roots_and_verifies_a_device() {
             .unwrap()
             .contains("Play Integrity")
     );
+}
+
+#[tokio::test]
+async fn a_shell_su_that_hangs_after_the_grant_gets_one_more_cold_boot() {
+    // Regression (2026-11-03, API 35): steps 1–4 passed, then verify failed
+    // with "su -c id timed out after 20 s" while magiskd ran; only a cold
+    // boot and a new grant ("Try again") fixed it. The setup now does that
+    // itself.
+    let env = Env::start_with(Arc::new(RootProvider::with_su_settle(
+        Duration::from_millis(300),
+    )))
+    .await;
+    env.create("phone", "35:google_apis", None).await;
+    env.stick_su();
+
+    let r = to_magisk(&env, "phone").await;
+    assert_eq!(r["verification"]["uid"], 0, "{r}");
+    assert_eq!(env.grant_writes(), 2, "granted again after the cold boot");
+    assert_eq!(
+        env.backend.launches().len(),
+        3,
+        "patched boot, reboot, and one recovery cold boot"
+    );
+    assert_eq!(env.device("phone").await.root.health, RootHealth::Ok);
+}
+
+#[tokio::test]
+async fn a_healthy_setup_cold_boots_twice_and_grants_once() {
+    let env = Env::start().await;
+    env.create("phone", "35:google_apis", None).await;
+    to_magisk(&env, "phone").await;
+    assert_eq!(env.grant_writes(), 1);
+    assert_eq!(env.backend.launches().len(), 2);
 }
 
 #[tokio::test]

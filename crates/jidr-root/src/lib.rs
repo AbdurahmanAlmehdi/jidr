@@ -22,6 +22,7 @@ mod verify;
 
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
 use async_trait::async_trait;
 use jidr_core::provider::{CallCtx, CommandProvider, CommandSpec, DeviceParams, parse_params};
@@ -37,11 +38,30 @@ pub const PLAY_INTEGRITY_NOTICE: &str = "Play Integrity cannot pass on any emula
 
 /// The root provider, for `jidr daemon` to register (gap G8).
 pub fn provider() -> Arc<dyn CommandProvider> {
-    Arc::new(RootProvider)
+    Arc::new(RootProvider::default())
 }
 
-#[derive(Debug, Default)]
-pub struct RootProvider;
+#[derive(Debug)]
+pub struct RootProvider {
+    /// How long a Full-root setup waits for the granted shell `su` to answer
+    /// before it cold-boots once more.
+    su_settle: Duration,
+}
+
+impl Default for RootProvider {
+    fn default() -> Self {
+        Self {
+            su_settle: magisk::SU_SETTLE,
+        }
+    }
+}
+
+impl RootProvider {
+    /// A provider that gives the shell `su` `su_settle` to answer (tests).
+    pub fn with_su_settle(su_settle: Duration) -> Self {
+        Self { su_settle }
+    }
+}
 
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -153,7 +173,7 @@ impl CommandProvider for RootProvider {
                 ensure_running(&device)?;
                 to_value(verify::verify(ctx, &device).await?)
             }
-            "root.set" => set(ctx, parse_params(params)?).await,
+            "root.set" => set(ctx, parse_params(params)?, self.su_settle).await,
             "root.module.install" => {
                 let p: ModuleInstallParams = parse_params(params)?;
                 let device = ctx.daemon.device(&p.device).await?;
@@ -217,7 +237,7 @@ pub(crate) fn ensure_running(device: &Device) -> JidrResult<()> {
     }
 }
 
-async fn set(ctx: &CallCtx, p: SetParams) -> JidrResult<Value> {
+async fn set(ctx: &CallCtx, p: SetParams, su_settle: Duration) -> JidrResult<Value> {
     let device = ctx.daemon.device(&p.device).await?;
     if p.mode == RootMode::Adb && !device.image.allows_adb_root() {
         return Err(JidrError::usage(format!(
@@ -226,7 +246,7 @@ async fn set(ctx: &CallCtx, p: SetParams) -> JidrResult<Value> {
         )));
     }
     if p.mode == RootMode::Magisk {
-        return magisk::to_magisk(ctx, &device, p.magisk_sha256.as_deref()).await;
+        return magisk::to_magisk(ctx, &device, p.magisk_sha256.as_deref(), su_settle).await;
     }
 
     let changed = device.root.mode != p.mode;

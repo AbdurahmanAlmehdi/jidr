@@ -15,6 +15,7 @@ pub mod patch;
 pub mod pins;
 
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use jidr_adb::InstallOptions;
 use jidr_core::provider::CallCtx;
@@ -216,9 +217,10 @@ pub(crate) async fn to_magisk(
     ctx: &CallCtx,
     device: &Device,
     magisk_sha256: Option<&str>,
+    su_settle: Duration,
 ) -> JidrResult<Value> {
     let changed = device.root.mode != RootMode::Magisk;
-    match to_magisk_inner(ctx, device, changed, magisk_sha256).await {
+    match to_magisk_inner(ctx, device, changed, magisk_sha256, su_settle).await {
         Ok(v) => Ok(v),
         Err(e) => {
             let _ = ctx
@@ -235,6 +237,7 @@ async fn to_magisk_inner(
     device: &Device,
     changed: bool,
     magisk_sha256: Option<&str>,
+    su_settle: Duration,
 ) -> JidrResult<Value> {
     let pin = pins::default_pin()?;
     let adb_root_allowed = device.image.allows_adb_root();
@@ -301,6 +304,11 @@ async fn to_magisk_inner(
     ctx.report(None, "Granting the adb shell su access");
     let adb = verify::device_adb(ctx, &device).await?;
     grant::grant_shell(ctx, &adb, adb_root_allowed).await?;
+    let device = if adb_root_allowed {
+        settle_su(ctx, device, &adb, su_settle).await?
+    } else {
+        device
+    };
 
     ctx.report(None, "Verifying root");
     let verification = verify::verify(ctx, &device).await?;
@@ -314,6 +322,30 @@ async fn to_magisk_inner(
         "beta": !adb_root_allowed,
         "play_integrity": crate::PLAY_INTEGRITY_NOTICE,
     }))
+}
+
+/// How long `su` gets to answer as root after the zero-touch grant.
+pub(crate) const SU_SETTLE: Duration = Duration::from_secs(60);
+
+/// Waits for the granted shell `su` to answer as root. On a first setup it
+/// can stay stuck instead (2026-11-03: `su -c id` timed out with the policy
+/// stored and magiskd running, until a cold boot), so cold-boot and grant
+/// once more, as "Try again" would, and let verify judge the result.
+async fn settle_su(
+    ctx: &CallCtx,
+    device: Device,
+    adb: &jidr_adb::Adb,
+    timeout: Duration,
+) -> JidrResult<Device> {
+    if grant::su_answers_root(&ctx.cancel, adb, timeout).await? {
+        return Ok(device);
+    }
+    ctx.report(None, "su didn't answer as root; cold booting once more");
+    let device = cold_boot(ctx, &device).await?;
+    ctx.report(None, "Granting the adb shell su access");
+    let adb = verify::device_adb(ctx, &device).await?;
+    grant::grant_shell_zero_touch(&adb).await?;
+    Ok(device)
 }
 
 /// Clears a Magisk patch: delete the patched file, clear `launch.ramdisk` and
