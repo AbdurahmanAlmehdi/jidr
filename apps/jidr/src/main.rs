@@ -11,8 +11,8 @@ use std::time::Duration;
 
 use clap::{CommandFactory, Parser};
 use cli::{
-    BaseCmd, CacheCmd, Cli, Cmd, DaemonCmd, DeviceCmd, Hardware, ImageCmd, JobsCmd, PoolCmd,
-    ProfileCmd, ProxyCmd, RootCmd, SdkCmd, Selection, SettingsCmd, SnapshotCmd,
+    BaseCmd, CacheCmd, CertCmd, Cli, Cmd, DaemonCmd, DeviceCmd, Hardware, ImageCmd, JobsCmd,
+    PoolCmd, ProfileCmd, ProxyCmd, RootCmd, SdkCmd, Selection, SettingsCmd, SnapshotCmd,
 };
 use jidr_client::{Client, SpawnOptions};
 use jidr_core::{ErrorCode, JidrError, JidrPaths, JidrResult, Job, JobState};
@@ -659,6 +659,25 @@ async fn run(cli: Cli, out: Out) -> JidrResult<()> {
             };
             let v = exec(c, out, method, params).await?;
             out.ok(&v, output::pretty);
+        }
+        Cmd::Cert { cmd } => {
+            let (method, params) = match cmd {
+                CertCmd::Install { device, file } => {
+                    let file = std::path::absolute(&file).unwrap_or(file);
+                    (
+                        "root.cacert.install",
+                        json!({ "device": device, "path": file }),
+                    )
+                }
+                CertCmd::List { device } => ("root.cacert.list", json!({ "device": device })),
+                CertCmd::Verify { device } => ("root.cacert.verify", json!({ "device": device })),
+                CertCmd::Remove { device, cert, all } => (
+                    "root.cacert.remove",
+                    json!({ "device": device, "cert": cert, "all": all }),
+                ),
+            };
+            let v = exec(c, out, method, params).await?;
+            out.ok(&v, output::certs);
         }
         Cmd::Proxy { cmd } => {
             let (method, params) = match cmd {

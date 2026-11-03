@@ -121,6 +121,55 @@ the stock ramdisk, so the stock values come back, and the stored props are
 dropped. Play Integrity is unaffected: a changed fingerprint doesn't make an
 emulator pass it.
 
+## CA certificates (system trust)
+
+To read an app's HTTPS traffic in Burp or mitmproxy, the app must trust the
+proxy's CA. Apps that target Android 7 or later ignore user-installed CAs, so on a
+Full-root device Jidr adds the CA to the **system** store instead:
+
+```bash
+jidr cert install <device> ~/Downloads/cacert.der   # PEM or DER; restarts the device
+jidr cert list <device>                             # Jidr's CAs and whether each is trusted
+jidr cert verify <device>                           # fails (exit 7) unless all are in the store
+jidr cert remove <device> a4ac454c.0                # or a subject hash, a SHA-256, or --all
+jidr proxy set <device> 8080                        # then send traffic to 10.0.2.2:8080
+```
+
+Burp exports its CA from Proxy › Proxy settings › Import / export CA
+certificate (DER); mitmproxy keeps it in `~/.mitmproxy/mitmproxy-ca-cert.pem`.
+In the GUI: the player's widget panel → More → Developer tools → CA
+certificates → Add….
+
+How it works: Jidr writes its own Magisk module, `/data/adb/modules/jidr_cacerts`,
+in Magisk's documented module layout. The certificate is stored under the name
+Android's store uses, `<subject hash>.<n>` (OpenSSL's `subject_hash_old`; `n`
+counts certificates with the same subject, so a re-generated Burp CA becomes
+`.1` next to the old one).
+
+- **API 29–33** read `/system/etc/security/cacerts`. The module's `system/`
+  folder puts the certificate there through Magisk's system overlay.
+- **API 34+** read the Conscrypt APEX store, `/apex/com.android.conscrypt/cacerts`,
+  which no overlay reaches. The module's `post-fs-data.sh`, which Magisk runs
+  before Zygote starts, copies the store and Jidr's certificates into a
+  tmpfs directory and bind-mounts it over the APEX store. Zygote, and every
+  app it forks, inherits the mount.
+
+A change applies on the next boot, so `install` and `remove` cold-boot the
+device, then verify. Verification works like `su -c id` for root: it reads the
+store as Zygote sees it (`nsenter` into Zygote's mount namespace) and compares
+each certificate byte for byte. `list` reports `trusted: false` for a
+certificate that is not in that store yet.
+
+Installing a certificate that is already trusted changes nothing and doesn't
+restart. Removing the last one deletes the module. Reverting root to `none`
+or `adb` stops Magisk, so the certificates stop applying. Going back to Full
+root (on the same data) brings them back. Wiping the device's data removes
+them.
+
+Only Full-root (Magisk) devices are supported: `adb root` can't change the
+system store of a running device. An app that pins its certificates still
+refuses the proxy; that needs Frida or similar on top.
+
 ## Play Store images (beta)
 
 `google_apis_playstore` images refuse `adb root`, so the shell grant cannot be

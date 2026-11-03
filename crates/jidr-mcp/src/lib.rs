@@ -4,7 +4,7 @@
 //! `command_run`, `jobs_*`); typed tools cover the hot paths of driving a
 //! device (`screenshot`, `tap`, `swipe`, `type_text`, `press_key`, `ui_dump`,
 //! `logcat_tail`) and of a proxy for security testing (`proxy_set`,
-//! `proxy_clear`). Destructive commands follow D5.
+//! `proxy_clear`, `ca_cert_install`). Destructive commands follow D5.
 
 pub mod device;
 
@@ -222,6 +222,16 @@ struct ProxyArgs {
     port: u16,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct CaCertArgs {
+    /// A running Full-root (Magisk) device.
+    device: String,
+    /// Path on this Mac to the CA certificate, PEM or DER (Burp's
+    /// `cacert.der`, `~/.mitmproxy/mitmproxy-ca-cert.pem`).
+    path: String,
+}
+
 fn schema<T: JsonSchema>() -> JsonObject {
     let mut v = serde_json::to_value(schemars::schema_for!(T))
         .unwrap_or_else(|_| json!({ "type": "object" }));
@@ -383,6 +393,11 @@ impl JidrMcp {
             tool::<DeviceArgs>(
                 "proxy_clear",
                 "Remove a running device's HTTP proxy.",
+                idempotent(),
+            ),
+            tool::<CaCertArgs>(
+                "ca_cert_install",
+                "Trust a CA certificate (Burp, mitmproxy) as a system cert on a running Full-root device, so apps accept the proxy. Restarts the device (about a minute) and verifies; root.cacert.list / .remove through command_run.",
                 idempotent(),
             ),
         ]
@@ -637,6 +652,17 @@ impl JidrMcp {
                     self.client
                         .call("network.proxy.clear", json!({ "device": a.device }))
                         .await?,
+                ))
+            }
+            "ca_cert_install" => {
+                let a: CaCertArgs = parse(args)?;
+                Ok(ok_json(
+                    self.command_run(CommandRunArgs {
+                        command: "root.cacert.install".into(),
+                        params: Some(json!({ "device": a.device, "path": a.path })),
+                        timeout_s: None,
+                    })
+                    .await?,
                 ))
             }
             other => Err(JidrError::usage(format!("unknown tool {other}"))),

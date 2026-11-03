@@ -203,7 +203,54 @@ pub fn cases() -> Vec<Case> {
             name: "root-devtools-props-edit",
             render: |v| props_shot(v, true),
         },
+        Case {
+            // System CA certificates: Burp's trusted, a renewed CA waiting
+            // for the restart.
+            name: "root-devtools-certs",
+            render: certs_shot,
+        },
     ]
+}
+
+/// The dev-tools section with the CA certificates block.
+fn certs_shot(v: Variant) -> Result<slint::SharedPixelBuffer<slint::Rgba8Pixel>, String> {
+    use super::cacerts::{CertsVm, apply};
+    let app = device_tab(v, PIXEL)?;
+    app.set_player_panel_tab(4);
+    let info = fixtures::device_infos().remove(PIXEL);
+    let vm = tools_vm(Some(&info), None, fixtures::now());
+    let ui = app.global::<RootUi>();
+    ui.set_tools_visible(vm.visible);
+    ui.set_tools_kind(vm.kind);
+    ui.set_tools_badge(vm.badge);
+    ui.set_tools_beta(vm.beta);
+    ui.set_tools_full(vm.full);
+    ui.set_tools_running(vm.running);
+    ui.set_tools_busy(vm.busy);
+    ui.set_tools_verified(vm.verified);
+    ui.set_tools_failed(vm.failed);
+    ui.set_tools_auto_grant(vm.auto_grant);
+    ui.set_tools_auto_grant_supported(true);
+    ui.set_certs_supported(true);
+    let row = |file: &str, subject: &str, trusted| crate::CertRow {
+        file: file.into(),
+        subject: subject.into(),
+        trusted,
+    };
+    apply(
+        &ui,
+        &CertsVm {
+            certs: vec![
+                row("9a5ba575.0", "PortSwigger CA", true),
+                row("9a5ba575.1", "PortSwigger CA", false),
+            ],
+            running: true,
+            working: false,
+            status: String::new(),
+            failed: false,
+        },
+    );
+    shot(&app, 1440, 900)
 }
 
 /// The dev-tools section with the build-identity block (Phase 9f).

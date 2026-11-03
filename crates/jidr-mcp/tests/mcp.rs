@@ -40,6 +40,7 @@ async fn tools_are_listed_with_annotations() {
         "logcat_tail",
         "proxy_set",
         "proxy_clear",
+        "ca_cert_install",
     ] {
         assert!(names.contains(&want), "{want} missing from {names:?}");
     }
@@ -160,6 +161,8 @@ async fn generic_commands_and_jobs() {
     assert_eq!(e["code"], "usage", "missing y");
     let e = mcp.err("proxy_set", json!({ "device": "Bot" })).await;
     assert_eq!(e["code"], "usage", "missing port");
+    let e = mcp.err("ca_cert_install", json!({ "device": "Bot" })).await;
+    assert_eq!(e["code"], "usage", "missing path");
     d.stop().await;
 }
 
