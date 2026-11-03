@@ -106,15 +106,34 @@ fn bounds_of(xml: &str, text: &str) -> Option<(f32, f32, f32, f32)> {
     (n.len() == 4).then(|| (n[0], n[1], n[2], n[3]))
 }
 
-async fn eventually<T>(what: &str, mut f: impl FnMut() -> Option<T>) -> T {
-    let deadline = Instant::now() + Duration::from_secs(60);
-    while Instant::now() < deadline {
+/// Polls `f` every 300 ms for up to `secs` seconds.
+async fn within<T>(secs: u64, mut f: impl FnMut() -> Option<T>) -> Option<T> {
+    let deadline = Instant::now() + Duration::from_secs(secs);
+    loop {
         if let Some(v) = f() {
-            return v;
+            return Some(v);
+        }
+        if Instant::now() >= deadline {
+            return None;
         }
         tokio::time::sleep(Duration::from_millis(300)).await;
     }
-    panic!("timed out waiting for {what}");
+}
+
+async fn eventually<T>(what: &str, f: impl FnMut() -> Option<T>) -> T {
+    within(60, f)
+        .await
+        .unwrap_or_else(|| panic!("timed out waiting for {what}"))
+}
+
+/// The resumed activities (`dumpsys activity`), for failure messages.
+fn resumed(info: &ConnectInfo) -> String {
+    shell(info, "dumpsys activity activities")
+        .lines()
+        .filter(|l| l.contains("ResumedActivity"))
+        .map(str::trim)
+        .collect::<Vec<_>>()
+        .join("; ")
 }
 
 /// The next streamed frame: (width, height, quarter turns).
@@ -241,47 +260,70 @@ async fn taps_land_under_the_pointer_in_every_rotation() {
         let shown = oriented(panel, (w, h));
         // A human tap: Settings' "Connected devices" row (on screen in every
         // orientation), found by its bounds and touched at its centre
-        // through the player's mapping, must open that page.
-        shell(
-            &info,
-            "am start -W -f 0x10008000 -a android.settings.SETTINGS",
-        );
-        let deadline = Instant::now() + Duration::from_secs(60);
-        let row = loop {
-            let last = ui_dump(&info);
-            // Laid out for this rotation, and not already on that page.
-            let found = bounds_of(&last, "Connected devices").filter(|b| {
-                b.2 <= shown.width as f32
-                    && b.3 <= shown.height as f32
-                    && !last.contains("text=\"Pair new device\"")
-            });
-            if let Some(b) = found {
-                break b;
-            }
-            assert!(
-                Instant::now() < deadline,
-                "no Connected devices row in Settings turned {q} quarter turns ({}×{}); on screen: {:?}",
-                shown.width,
-                shown.height,
-                texts(&last)
+        // through the player's mapping, must open that page. A freshly
+        // booted device is busy (API 33/35 CI): Settings can be gone when
+        // we look for the row, or a tap dropped. So, like a person, reopen
+        // Settings and tap again. Every try taps the row's centre through
+        // the same mapping, and Settings restarts on its home page in
+        // between, so a wrong mapping still never opens the page.
+        let mut failed = Vec::new();
+        let mut opened = false;
+        for _ in 0..3 {
+            shell(
+                &info,
+                "am start -W -f 0x10008000 -a android.settings.SETTINGS",
             );
-            tokio::time::sleep(Duration::from_millis(300)).await;
-        };
-        let n = (
-            (row.0 + row.2) / 2.0 / shown.width as f32,
-            (row.1 + row.3) / 2.0 / shown.height as f32,
+            let mut last = String::new();
+            let row = within(30, || {
+                last = ui_dump(&info);
+                // Laid out for this rotation, and not already on that page.
+                bounds_of(&last, "Connected devices").filter(|b| {
+                    b.2 <= shown.width as f32
+                        && b.3 <= shown.height as f32
+                        && !last.contains("text=\"Pair new device\"")
+                })
+            })
+            .await;
+            let Some(row) = row else {
+                failed.push(format!(
+                    "no Connected devices row; resumed: {}; on screen: {:?}",
+                    resumed(&info),
+                    texts(&last)
+                ));
+                continue;
+            };
+            let n = (
+                (row.0 + row.2) / 2.0 / shown.width as f32,
+                (row.1 + row.3) / 2.0 / shown.height as f32,
+            );
+            let pts = panel_touches(Gesture::Single, panel, shown, quarter, n);
+            tx.send(touch_event(&pts, true)).unwrap();
+            tx.send(touch_event(&pts, false)).unwrap();
+            let page = within(20, || {
+                last = ui_dump(&info);
+                last.contains("text=\"Pair new device\"").then_some(())
+            })
+            .await;
+            if page.is_some() {
+                opened = true;
+                break;
+            }
+            failed.push(format!(
+                "a tap at {n:?} (panel {pts:?}) didn't open the page; resumed: {}; on screen: {:?}",
+                resumed(&info),
+                texts(&last)
+            ));
+        }
+        assert!(
+            opened,
+            "no tap opened the Connected devices page in a {}×{} screen turned {q} quarter turns:\n{}",
+            shown.width,
+            shown.height,
+            failed.join("\n")
         );
-        let pts = panel_touches(Gesture::Single, panel, shown, quarter, n);
-        tx.send(touch_event(&pts, true)).unwrap();
-        tx.send(touch_event(&pts, false)).unwrap();
-        eventually(
-            &format!(
-                "the Connected devices page after a tap at {n:?} of a {}×{} screen turned {q} quarter turns (panel {pts:?})",
-                shown.width, shown.height
-            ),
-            || ui_dump(&info).contains("text=\"Pair new device\"").then_some(()),
-        )
-        .await;
+        for f in &failed {
+            println!("turned {q}: retried after: {f}");
+        }
     }
 
     let _ = client
