@@ -71,6 +71,9 @@ pub struct State {
     pub(crate) activity: Mutex<HashMap<Uuid, std::time::Instant>>,
     /// Pool leases (D42, Phase 13d).
     pub(crate) leases: Mutex<crate::leases::Leases>,
+    /// Running devices launched from a named snapshot (`-no-snapshot-save`):
+    /// their stop saves `default_boot` explicitly.
+    resumed: Mutex<std::collections::HashSet<Uuid>>,
 }
 
 /// Latest and peak footprint of a device's current run, in MB.
@@ -143,6 +146,7 @@ impl State {
             budget_gate: Mutex::new(()),
             activity: Mutex::new(HashMap::new()),
             leases: Mutex::new(crate::leases::Leases::default()),
+            resumed: Mutex::new(std::collections::HashSet::new()),
         }))
         .inspect(|s| s.adopt_pool_clones())
     }
@@ -551,6 +555,11 @@ impl DaemonContext for State {
         }
         self.watch_crash(id, info);
         self.touch(id);
+        if resume.is_some() {
+            lock(&self.resumed).insert(id);
+        } else {
+            lock(&self.resumed).remove(&id);
+        }
         let device = self.with_store(|s| s.get(id).cloned())?;
         self.run_boot_hooks(&device).await;
         Ok(device)
@@ -568,6 +577,19 @@ impl DaemonContext for State {
         let info = lock(&self.instances).remove(&id);
         if let Some(info) = info {
             self.set_status(id, DeviceStatus::Stopping, None);
+            let resumed = lock(&self.resumed).remove(&id);
+            if resumed && self.settings().quick_boot && current.pool_base.is_none() {
+                // This run started from a named snapshot with no exit save:
+                // save the quick-boot state explicitly (best effort).
+                let dir = self.avds().dir(&current.avd);
+                if let Err(e) = self
+                    .backend
+                    .save_snapshot(&info, "default_boot", &dir)
+                    .await
+                {
+                    tracing::warn!(device = %current.name, "quick-boot save after a resume failed: {e}");
+                }
+            }
             if let Err(e) = self.backend.stop(&info).await {
                 // Put it back: we don't know its state.
                 lock(&self.instances).insert(id, info.clone());

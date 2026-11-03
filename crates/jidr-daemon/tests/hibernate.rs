@@ -52,6 +52,22 @@ async fn hibernate_saves_stops_and_resumes() {
     assert_eq!(opts.snapshot.as_deref(), Some("jidr-hibernate"));
     assert!(!opts.cold_boot);
     assert!(d["launch"].get("resume_snapshot").is_none());
+
+    // The resumed run has no exit save: stop saves quick-boot state itself,
+    // so the next start quick-boots.
+    c.ok("device.stop", json!({ "device": "H" })).await;
+    assert_eq!(
+        h.backend.saves().last().unwrap(),
+        &(avd.clone(), "default_boot".to_string())
+    );
+    c.run("device.start", json!({ "device": "H" })).await;
+    let launches = h.backend.launches();
+    let third = &launches[2].1;
+    assert!(third.snapshot.is_none() && third.snapshot_save && !third.cold_boot);
+    // A normal run's stop leaves it to the emulator's own exit save.
+    let n = h.backend.saves().len();
+    c.ok("device.stop", json!({ "device": "H" })).await;
+    assert_eq!(h.backend.saves().len(), n);
     h.stop().await;
 }
 
