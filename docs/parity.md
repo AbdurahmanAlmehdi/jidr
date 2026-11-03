@@ -19,7 +19,7 @@ Tests named `*_emulator` run on a real emulator: on Linux KVM in CI (API 30, 33,
 | Log zip | Free | ✅ | `apps/jidr/tests/maintenance.rs:49` `device_log_bundle` (`jidr device logs --zip`) |
 | CLI automation (`gmtool admin/device`) | Paid | ✅ | `cli.rs:9` `device_lifecycle_json`, `cli.rs:44` `exit_codes_are_error_codes`; `scripts/e2e-cli.sh` (create → start → install → logcat → stop → delete, JSON throughout) |
 | Install APK / push / pull / logcat | Free | ✅ | `scripts/e2e-cli.sh` (install, logcat); `crates/jidr-adb/tests/fake_adb.rs:139` `push_pull`; `crates/jidr-daemon/tests/jobs_events.rs:112` `logcat_follow_streams_lines` |
-| Zip flash | Free | 🚧 | A dropped zip installs as a Magisk module on Full-root devices and is pushed to `/sdcard/Download` otherwise (D35): `crates/jidr-ui/src/player/drop.rs:79` `drops_route_by_type_and_root`, `crates/jidr-root/tests/magisk_mode.rs:150` `module_install_refuses_non_magisk_devices`. No emulator test of a module install; image flashing isn't offered |
+| Zip flash | Free | 🚧 | A dropped zip installs as a Magisk module on Full-root devices and is pushed to `/sdcard/Download` otherwise (D35): `crates/jidr-ui/src/player/drop.rs:79` `drops_route_by_type_and_root`, `crates/jidr-root/tests/magisk_mode.rs:150` `module_install_refuses_non_magisk_devices`. No emulator test of a module install; image flashing isn't offered: ⏭️ [#72](https://github.com/AbdurahmanAlmehdi/jidr/issues/72) |
 | Root (Android ≤ 11) | Free | ✅ | `crates/jidr-root/tests/adb_emulator.rs:47` `adb_root_cycle_none_adb_none` (API 30; API 31 in `e2e-mac`) |
 | Root toggle (Android 12+) | Paid | ✅ | `adb_emulator.rs:47` `adb_root_cycle_none_adb_none` (API 33 and 35 in CI); `crates/jidr-root/tests/adb_mode.rs` (live switch, cold-boot apply, verify) |
 | Magisk root | — (Jidr only) | ✅ | `crates/jidr-root/tests/magisk_emulator.rs:49` `magisk_root_cycle_none_magisk_none`; `scripts/e2e-root.sh` (none → adb → magisk → none, `su -c id`) |
@@ -38,7 +38,7 @@ Tests named `*_emulator` run on a real emulator: on Linux KVM in CI (API 30, 33,
 | Build props | Free | ✅ | `crates/jidr-root/tests/props_emulator.rs:61` `props_spoof_after_cold_boot_and_stock_after_revert` (Full-root devices only) |
 | Disk I/O limit | Free | ⏭️ | [#20](https://github.com/AbdurahmanAlmehdi/jidr/issues/20) |
 | Camera / media injection | Paid | 🚧 | Host webcam as a camera at the next start: `widgets_core_commands` (`camera.set` → `-camera-back webcam0` in the launch args). Image and video files: ⏭️ [#21](https://github.com/AbdurahmanAlmehdi/jidr/issues/21) |
-| Microphone / audio injection | Paid | ⏭️ | Not built; the emulator exposes `injectAudio` over gRPC. No issue yet |
+| Microphone / audio injection | Paid | ⏭️ | [#70](https://github.com/AbdurahmanAlmehdi/jidr/issues/70); the emulator exposes `injectAudio` over gRPC |
 | Biometrics | Paid | 🚧 | Fingerprint touch and remove: `widgets_core_commands` (the fingerprint HAL is checked on HIDL and AIDL images). Dirty / partial / insufficient / too fast: ⏭️ [#22](https://github.com/AbdurahmanAlmehdi/jidr/issues/22) |
 | Android controls (D-pad, volume, media keys) | Paid | ✅ | `widgets_core_commands` (Home → launcher focus, volume panel) |
 | Dev tools (show taps, pointer location, layout bounds, animations) | Paid | ✅ | `widgets_core_commands` (`dev.set`, read back with `settings get` and `getprop debug.layout`) |
@@ -51,9 +51,9 @@ Tests named `*_emulator` run on a real emulator: on Linux KVM in CI (API 30, 33,
 | Snapshot manager | — (Jidr only) | ✅ | `crates/jidr-widgets/tests/snapshot_emulator.rs` `snapshot_round_trip_and_cross_root_refusal` |
 | Shared folders | — (Jidr only) | ⏭️ | [#27](https://github.com/AbdurahmanAlmehdi/jidr/issues/27) |
 | Multitouch via modifiers | Free | 🚧 | ⌥ pinch and ⇧⌥ pan: `crates/jidr-ui/src/player/input.rs` `gestures_add_a_second_finger` (unit test only) |
-| Pixel-perfect, fullscreen, resize | Free | 🚧 | Pixel-perfect and resize (golden `player-pixel-perfect`); fullscreen not built |
+| Pixel-perfect, fullscreen, resize | Free | 🚧 | Pixel-perfect and resize (golden `player-pixel-perfect`); fullscreen: ⏭️ [#71](https://github.com/AbdurahmanAlmehdi/jidr/issues/71) |
 | MCP server for AI agents | — (Jidr only) | ✅ | `crates/jidr-mcp/tests/mcp.rs:25` `tools_are_listed_with_annotations`, `mcp.rs:163` `destructive_policy_d5`; `crates/jidr-mcp/tests/agent_tasks.rs:175` `five_agent_tasks` (real emulator) |
-| Shell REPL (Genymotion Shell) | Free | ⏭️ | Future consideration; the CLI covers scripting today. No issue yet |
+| Shell REPL (Genymotion Shell) | Free | ⏭️ | Future consideration ([#73](https://github.com/AbdurahmanAlmehdi/jidr/issues/73)); the CLI covers scripting today |
 
 **Breadth:** 26 / 43 ✅ (60%). Of the other 17: 8 🚧, 8 ⏭️, 1 ❌. Five rows are Jidr-only (not in Genymotion); three of them are ✅.
 
