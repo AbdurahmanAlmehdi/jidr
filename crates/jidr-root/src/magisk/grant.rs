@@ -135,19 +135,34 @@ async fn poll_for_grant(
     adb: &Adb,
     timeout: Duration,
 ) -> JidrResult<()> {
+    if su_answers_root(cancel, adb, timeout).await? {
+        return Ok(());
+    }
+    Err(JidrError::root_failed(
+        "root grant to Shell was denied or timed out; tap Grant and try again, or revert",
+    )
+    .with_data(serde_json::json!({ "state": "awaiting_user_grant" })))
+}
+
+/// Retries `su -c id` (each try at most 20 s) until it reports uid 0 (true)
+/// or `timeout` elapses (false). magiskd answers a uid's su requests one at a
+/// time, so a request it is still holding (it waits up to 70 s for the
+/// Magisk app) makes a new `su` hang although the policy now allows it.
+pub async fn su_answers_root(
+    cancel: &jidr_core::Cancel,
+    adb: &Adb,
+    timeout: Duration,
+) -> JidrResult<bool> {
     let deadline = tokio::time::Instant::now() + timeout;
     loop {
         cancel.check()?;
         let attempt = adb.clone().with_timeout(GUIDED_ATTEMPT);
         match attempt.shell_status("su -c id").await {
-            Ok((_, out)) if parse_uid(&out) == Some(0) => return Ok(()),
+            Ok((_, out)) if parse_uid(&out) == Some(0) => return Ok(true),
             _ => {}
         }
         if tokio::time::Instant::now() >= deadline {
-            return Err(JidrError::root_failed(
-                "root grant to Shell was denied or timed out; tap Grant and try again, or revert",
-            )
-            .with_data(serde_json::json!({ "state": "awaiting_user_grant" })));
+            return Ok(false);
         }
         tokio::time::sleep(POLL).await;
     }
@@ -203,6 +218,35 @@ mod tests {
             .unwrap_err();
         assert_eq!(err.code, jidr_core::ErrorCode::RootFailed);
         assert_eq!(err.data.as_ref().unwrap()["state"], "awaiting_user_grant");
+    }
+
+    #[tokio::test]
+    async fn su_is_retried_until_it_answers_root() {
+        // The first `su -c id` gets no answer (magiskd still holds an older
+        // request); the second one is root.
+        let dir = tempfile::tempdir().unwrap();
+        let adb = dir.path().join("adb");
+        let tries = dir.path().join("tries");
+        write_exec(
+            &adb,
+            &format!(
+                "#!/bin/sh\nwhile [ \"$1\" = -s ]; do shift 2; done\necho x >> {t}\n[ \"$(wc -l < {t})\" -ge 2 ] || exit 1\necho \"uid=0(root) gid=0(root)\"\n",
+                t = tries.display()
+            ),
+        );
+        let cancel = jidr_core::Cancel::new();
+        let adb = Adb::new(adb);
+        assert!(
+            su_answers_root(&cancel, &adb, Duration::from_secs(5))
+                .await
+                .unwrap()
+        );
+        let never = adb_that_never_grants(dir.path());
+        assert!(
+            !su_answers_root(&cancel, &never, Duration::from_millis(200))
+                .await
+                .unwrap()
+        );
     }
 
     #[tokio::test]
