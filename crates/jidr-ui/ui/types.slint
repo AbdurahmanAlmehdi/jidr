@@ -167,6 +167,11 @@ export struct WidgetsVm {
     mobile: bool,
     /// Index into the network profiles (Full, LTE, HSDPA, UMTS, EDGE, GPRS, GSM).
     profile: int,
+    /// The device's HTTP proxy (`host:port`), "" when there is none.
+    proxy: string,
+    /// The proxy form's host and port drafts.
+    proxy-host: string,
+    proxy-port: string,
     signal: int,
     rotation: int,
     show-taps: bool,

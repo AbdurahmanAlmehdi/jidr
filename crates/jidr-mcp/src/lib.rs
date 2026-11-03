@@ -3,7 +3,8 @@
 //! Generic tools cover every protocol command (`command_list`,
 //! `command_run`, `jobs_*`); typed tools cover the hot paths of driving a
 //! device (`screenshot`, `tap`, `swipe`, `type_text`, `press_key`, `ui_dump`,
-//! `logcat_tail`). Destructive commands follow D5.
+//! `logcat_tail`) and of a proxy for security testing (`proxy_set`,
+//! `proxy_clear`). Destructive commands follow D5.
 
 pub mod device;
 
@@ -36,6 +37,8 @@ const NOT_CALLABLE: &[&str] = &[
 ];
 const DEFAULT_RUN_TIMEOUT_S: u64 = 900;
 const UI_DUMP_LIMIT: usize = 400_000;
+/// The Mac as the emulator sees it: where Burp or mitmproxy listens.
+const PROXY_HOST: &str = "10.0.2.2";
 
 #[derive(Debug, Clone, Default)]
 pub struct McpOptions {
@@ -208,6 +211,17 @@ struct LogcatArgs {
     filter: Vec<String>,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct ProxyArgs {
+    device: String,
+    /// Proxy host as the device sees it (default `10.0.2.2`, this Mac).
+    #[serde(default)]
+    host: Option<String>,
+    /// Proxy port, e.g. 8080 for Burp.
+    port: u16,
+}
+
 fn schema<T: JsonSchema>() -> JsonObject {
     let mut v = serde_json::to_value(schemars::schema_for!(T))
         .unwrap_or_else(|_| json!({ "type": "object" }));
@@ -238,6 +252,14 @@ fn interacts() -> ToolAnnotations {
         .read_only(false)
         .destructive(false)
         .idempotent(false)
+        .open_world(false)
+}
+
+fn idempotent() -> ToolAnnotations {
+    ToolAnnotations::new()
+        .read_only(false)
+        .destructive(false)
+        .idempotent(true)
         .open_world(false)
 }
 
@@ -352,6 +374,16 @@ impl JidrMcp {
                 "logcat_tail",
                 "Recent device log lines, optionally filtered.",
                 read_only(),
+            ),
+            tool::<ProxyArgs>(
+                "proxy_set",
+                "Send a running device's HTTP(S) traffic through a proxy on this Mac (Burp, mitmproxy): host defaults to 10.0.2.2.",
+                idempotent(),
+            ),
+            tool::<DeviceArgs>(
+                "proxy_clear",
+                "Remove a running device's HTTP proxy.",
+                idempotent(),
             ),
         ]
     }
@@ -586,6 +618,26 @@ impl JidrMcp {
                 Ok(CallToolResult::success(vec![ContentBlock::text(
                     v["text"].as_str().unwrap_or_default(),
                 )]))
+            }
+            "proxy_set" => {
+                let a: ProxyArgs = parse(args)?;
+                let host = a.host.as_deref().unwrap_or(PROXY_HOST);
+                Ok(ok_json(
+                    self.client
+                        .call(
+                            "network.proxy.set",
+                            json!({ "device": a.device, "host": host, "port": a.port }),
+                        )
+                        .await?,
+                ))
+            }
+            "proxy_clear" => {
+                let a: DeviceArgs = parse(args)?;
+                Ok(ok_json(
+                    self.client
+                        .call("network.proxy.clear", json!({ "device": a.device }))
+                        .await?,
+                ))
             }
             other => Err(JidrError::usage(format!("unknown tool {other}"))),
         }
