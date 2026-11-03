@@ -8,7 +8,7 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 use jidr_core::{ImageRef, JidrPaths};
-use jidr_sdk::{AvdManager, AvdSpec, Sdk, SdkSet, profiles};
+use jidr_sdk::{AvdManager, AvdSpec, CopyMethod, Sdk, SdkSet, profiles};
 
 fn test_sdk() -> PathBuf {
     std::env::var_os("JIDR_TEST_SDK")
@@ -342,7 +342,18 @@ fn snapshot_clone_resumes_independently() {
     );
     drop(source);
     drop(clone);
-    assert!(resumed <= 15.0, "clone resume took {resumed:.1} s (> 15 s)");
+    // 15 s is the target for a copy-on-write clone (APFS on the Mac). Where
+    // the filesystem can't clone (ext4 on the CI runners) the snapshot's RAM
+    // was just copied byte for byte and the resume reads it cold, so only
+    // guard against it hanging.
+    let limit = match method {
+        CopyMethod::Clone => 15.0,
+        CopyMethod::Full => 30.0,
+    };
+    assert!(
+        resumed <= limit,
+        "clone ({method:?}) resume took {resumed:.1} s (> {limit} s)"
+    );
     avds.delete(&src).unwrap();
     avds.delete(&dst).unwrap();
 }
