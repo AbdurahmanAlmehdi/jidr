@@ -38,6 +38,8 @@ async fn tools_are_listed_with_annotations() {
         "press_key",
         "ui_dump",
         "logcat_tail",
+        "proxy_set",
+        "proxy_clear",
     ] {
         assert!(names.contains(&want), "{want} missing from {names:?}");
     }
@@ -156,6 +158,8 @@ async fn generic_commands_and_jobs() {
     }
     let e = mcp.err("tap", json!({ "device": "Bot", "x": 1 })).await;
     assert_eq!(e["code"], "usage", "missing y");
+    let e = mcp.err("proxy_set", json!({ "device": "Bot" })).await;
+    assert_eq!(e["code"], "usage", "missing port");
     d.stop().await;
 }
 

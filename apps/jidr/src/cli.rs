@@ -107,6 +107,11 @@ pub enum Cmd {
         #[command(subcommand)]
         cmd: SnapshotCmd,
     },
+    /// The device's global HTTP proxy (Burp, mitmproxy, …).
+    Proxy {
+        #[command(subcommand)]
+        cmd: ProxyCmd,
+    },
     /// The download cache (Magisk APKs and other pinned files, by SHA-256).
     Cache {
         #[command(subcommand)]
@@ -390,6 +395,17 @@ pub enum SnapshotCmd {
     Save { device: String, name: String },
     Load { device: String, name: String },
     Delete { device: String, name: String },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum ProxyCmd {
+    /// Send the device's HTTP(S) traffic through `[host:]port`; the host
+    /// defaults to 10.0.2.2, this Mac as the emulator sees it.
+    Set { device: String, proxy: String },
+    /// Remove the proxy.
+    Clear { device: String },
+    /// The current proxy.
+    Show { device: String },
 }
 
 #[derive(Debug, Subcommand)]

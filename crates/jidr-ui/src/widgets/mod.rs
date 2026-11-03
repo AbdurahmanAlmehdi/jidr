@@ -15,6 +15,8 @@ pub mod gps;
 pub const PROFILES: [&str; 7] = ["full", "lte", "hsdpa", "umts", "edge", "gprs", "gsm"];
 pub const SCALES: [f32; 7] = [0.0, 0.5, 1.0, 1.5, 2.0, 5.0, 10.0];
 pub const CAMERAS: [&str; 4] = ["emulated", "webcam0", "virtualscene", "none"];
+/// The proxy host when the field is empty: this Mac, as the emulator sees it.
+pub const PROXY_HOST: &str = "10.0.2.2";
 
 /// Defaults before the device answers.
 pub fn default_vm() -> WidgetsVm {
@@ -58,6 +60,23 @@ pub fn command(vm: &mut WidgetsVm, action: &str, value: &str) -> Option<(&'stati
             vm.profile = i as i32;
             ("network.set", json!({ "profile": PROFILES.get(i)? }))
         }
+        "network.proxy-host" => {
+            vm.proxy_host = value.into();
+            return None;
+        }
+        "network.proxy-port" => {
+            vm.proxy_port = value.into();
+            return None;
+        }
+        "network.proxy.set" => {
+            let port = vm.proxy_port.trim().parse::<u16>().ok()?;
+            let host = match vm.proxy_host.trim() {
+                "" => PROXY_HOST,
+                h => h,
+            };
+            ("network.proxy.set", json!({ "host": host, "port": port }))
+        }
+        "network.proxy.clear" => ("network.proxy.clear", json!({})),
         "phone.signal" => {
             let i = idx()?.min(4);
             vm.signal = i as i32;
@@ -169,6 +188,27 @@ pub fn merge(vm: &mut WidgetsVm, method: &str, v: &Value) {
             vm.wifi = v.get("wifi").and_then(Value::as_bool).unwrap_or(true);
             vm.mobile = v.get("mobile").and_then(Value::as_bool).unwrap_or(true);
         }
+        "network.proxy.get" | "network.proxy.set" | "network.proxy.clear" => {
+            vm.proxy = v
+                .get("proxy")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .into();
+            // Fill an untouched form with the device's proxy.
+            if vm.proxy_port.is_empty() {
+                vm.proxy_host = v
+                    .get("host")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .into();
+                vm.proxy_port = v
+                    .get("port")
+                    .and_then(Value::as_u64)
+                    .map(|p| p.to_string())
+                    .unwrap_or_default()
+                    .into();
+            }
+        }
         "dev.get" => {
             vm.show_taps = v.get("show_taps").and_then(Value::as_bool).unwrap_or(false);
             vm.pointer_location = v
@@ -236,6 +276,7 @@ pub fn load(ctx: &Rc<Ctx>) {
     for m in [
         "battery.get",
         "network.get",
+        "network.proxy.get",
         "dev.get",
         "camera.get",
         "gps.get",
@@ -352,6 +393,51 @@ mod tests {
         assert!(command(&mut vm, "battery.level", "x").is_none());
         let (_, p) = command(&mut vm, "camera.back", "1").unwrap();
         assert_eq!(p["back"], "webcam0");
+    }
+
+    #[test]
+    fn proxy_form_sets_and_clears() {
+        let mut vm = default_vm();
+        assert!(command(&mut vm, "network.proxy-port", "8080").is_none());
+        let (m, p) = command(&mut vm, "network.proxy.set", "").unwrap();
+        assert_eq!(m, "network.proxy.set");
+        assert_eq!(
+            p,
+            json!({ "host": "10.0.2.2", "port": 8080 }),
+            "empty host = this Mac"
+        );
+        command(&mut vm, "network.proxy-host", " 192.168.1.5 ");
+        let (_, p) = command(&mut vm, "network.proxy.set", "").unwrap();
+        assert_eq!(p["host"], "192.168.1.5");
+        command(&mut vm, "network.proxy-port", "x");
+        assert!(
+            command(&mut vm, "network.proxy.set", "").is_none(),
+            "bad port"
+        );
+        let (m, _) = command(&mut vm, "network.proxy.clear", "").unwrap();
+        assert_eq!(m, "network.proxy.clear");
+    }
+
+    #[test]
+    fn proxy_answers_merge() {
+        let mut vm = default_vm();
+        let set = json!({ "proxy": "10.0.2.2:8080", "host": "10.0.2.2", "port": 8080 });
+        merge(&mut vm, "network.proxy.get", &set);
+        assert_eq!(
+            (
+                vm.proxy.as_str(),
+                vm.proxy_host.as_str(),
+                vm.proxy_port.as_str()
+            ),
+            ("10.0.2.2:8080", "10.0.2.2", "8080")
+        );
+        merge(
+            &mut vm,
+            "network.proxy.clear",
+            &json!({ "proxy": null, "host": null, "port": null }),
+        );
+        assert_eq!(vm.proxy, "");
+        assert_eq!(vm.proxy_port, "8080", "the form keeps what was typed");
     }
 
     #[test]
