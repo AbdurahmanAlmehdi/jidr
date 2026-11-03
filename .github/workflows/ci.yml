@@ -153,14 +153,17 @@ jobs:
       - name: Emulator tests
         # Only this shard's tests, all of which boot a device; the check job
         # already runs the offline tests. `--no-fail-fast` so one flaky test
-        # doesn't hide the result of the ones after it.
+        # doesn't hide the result of the ones after it. `--retries 1` because
+        # hosted runners have 4 vCPUs and the emulator occasionally dies while
+        # booting (a hung QEMU main loop); a test that passes on the retry is
+        # reported as FLAKY in the log, so flakes stay visible.
         env:
           JIDR_TEST_SDK: ${{ env.ANDROID_SDK_ROOT }}
           JIDR_TEST_IMAGE: system-images;android-${{ matrix.api }};google_apis;x86_64
           JIDR_TEST_API: ${{ matrix.api }}
         run: >-
           cargo nextest run --workspace --features emulator --no-tests=pass --test-threads 1
-          --no-fail-fast -E '${{ matrix.shard.filter }}'
+          --no-fail-fast --retries 1 -E '${{ matrix.shard.filter }}'
 
   emulator-gate:
     # Branch protection requires one "emulator tests (Linux KVM, API N)" check
