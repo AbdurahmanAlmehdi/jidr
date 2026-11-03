@@ -94,7 +94,9 @@ Jidr is split-licensed. The desktop app (`crates/jidr-ui`, `apps/jidr-gui`) is *
 
 Jidr downloads the Android Emulator and system images from Google under the Android SDK License, which you accept in the app. It downloads Magisk (GPL-3.0) only when you choose Full root. None of these are bundled.
 
-## Contributing
+## Questions and contributing
+
+Questions, ideas and setups you want to share go in [Discussions](https://github.com/AbdurahmanAlmehdi/jidr/discussions); bugs go in [Issues](https://github.com/AbdurahmanAlmehdi/jidr/issues).
 
 Contributions are welcome: read [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues as described in [SECURITY.md](SECURITY.md). If you work with an AI coding agent, point it at [AGENTS.md](AGENTS.md).
 
