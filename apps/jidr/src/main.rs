@@ -664,6 +664,10 @@ async fn dispatch(c: &Client, cmd: Cmd, out: Out) -> JidrResult<()> {
                     }
                     ("root.set", p)
                 }
+                RootCmd::WritableSystem { device, state } => (
+                    "root.writable_system",
+                    json!({ "device": device, "enabled": state.enabled() }),
+                ),
                 RootCmd::Verify { device } => ("root.verify", json!({ "device": device })),
                 RootCmd::Status { device } => ("root.status", json!({ "device": device })),
             };
@@ -1221,6 +1225,7 @@ mod tests {
             "battery.set",
             "snapshot.save",
             "root.set",
+            "root.writable_system",
         ] {
             assert!(daemon.registry().get(method).is_some(), "{method}");
         }

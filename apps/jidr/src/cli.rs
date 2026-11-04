@@ -209,6 +209,18 @@ impl RootModeArg {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum OnOff {
+    On,
+    Off,
+}
+
+impl OnOff {
+    pub fn enabled(self) -> bool {
+        self == Self::On
+    }
+}
+
 #[derive(Debug, Args)]
 pub struct Hardware {
     /// RAM in MB.
@@ -495,6 +507,14 @@ pub enum RootCmd {
         #[arg(long)]
         magisk: Option<PathBuf>,
     },
+    /// Writable /system on a shell-root (adb) device: `on` boots with
+    /// `-writable-system` and runs `adb remount`; `off` goes back to the
+    /// read-only stock system image. Cold boots a running device.
+    WritableSystem {
+        device: String,
+        #[arg(value_enum)]
+        state: OnOff,
+    },
     /// Check that root works.
     Verify { device: String },
     /// Root mode and health.
@@ -562,6 +582,23 @@ mod tests {
     #[test]
     fn cli_definition_is_valid() {
         Cli::command().debug_assert();
+    }
+
+    #[test]
+    fn root_writable_system_takes_on_or_off() {
+        let cli = Cli::try_parse_from(["jidr", "root", "writable-system", "Phone", "on"]).unwrap();
+        match cli.cmd {
+            Cmd::Root {
+                cmd: RootCmd::WritableSystem { device, state },
+            } => {
+                assert_eq!(device, "Phone");
+                assert!(state.enabled());
+            }
+            other => panic!("{other:?}"),
+        }
+        assert!(
+            Cli::try_parse_from(["jidr", "root", "writable-system", "Phone", "maybe"]).is_err()
+        );
     }
 
     #[test]
