@@ -31,6 +31,8 @@ struct FakeState {
     /// Instances stopped without the exit save.
     unsaved_stops: Vec<String>,
     clients: HashMap<String, bool>,
+    /// The gRPC port started instances report (default `20000 + n`).
+    grpc_port: Option<u16>,
 }
 
 #[derive(Debug, Default)]
@@ -103,6 +105,12 @@ impl FakeBackend {
         self.lock().clients.insert(avd.to_string(), attached);
     }
 
+    /// From now on started instances report gRPC on `port`: a test server
+    /// of its own, or a closed port to exercise "emulator unreachable".
+    pub fn set_grpc_port(&self, port: u16) {
+        self.lock().grpc_port = Some(port);
+    }
+
     /// What [`Backend::footprint_mb`] reports for AVD `avd` while it runs.
     pub fn set_footprint(&self, avd: &str, mb: u64) {
         self.lock().footprints.insert(avd.to_string(), mb);
@@ -161,7 +169,7 @@ impl Backend for FakeBackend {
             pid,
             console_port: console,
             adb_port: console + 1,
-            grpc_port: 20_000 + s.next,
+            grpc_port: s.grpc_port.unwrap_or(20_000 + s.next),
             adb_serial: format!("emulator-{console}"),
             grpc_token: format!("fake-token-{pid}"),
             started_at: Utc::now(),
