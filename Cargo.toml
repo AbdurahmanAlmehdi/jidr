@@ -76,6 +76,7 @@ prost = "0.14.4"
 # CLI / MCP / GUI
 clap = { version = "4.6", features = ["derive", "env"] }
 clap_complete = "4.6"
+rustyline = { version = "19.0", default-features = false, features = ["with-file-history"] }
 rmcp = "3.5"
 slint = "1.18"
 png = "0.18"

@@ -171,6 +171,13 @@ pub enum Cmd {
         /// Params as a JSON object.
         params: Option<String>,
     },
+    /// Interactive shell: run `jidr` commands without the `jidr` prefix,
+    /// with `use <device>`, tab completion and history. With a file (or
+    /// piped input) it runs each line in order and stops at the first failure.
+    Shell {
+        /// A script of shell lines (`#` starts a comment).
+        script: Option<PathBuf>,
+    },
     /// Print shell completions.
     Completions { shell: clap_complete::Shell },
 }
