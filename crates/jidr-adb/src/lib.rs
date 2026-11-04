@@ -276,6 +276,14 @@ impl Adb {
         Ok(LogcatStream { child, lines: rx })
     }
 
+    /// Flushes the guest's page cache to its disks (`sync`). Run it before
+    /// anything that ends the VM without a guest shutdown (the emulator's
+    /// `Shutdown` VM state, a kill, a cold boot): writes Android only cached,
+    /// such as a `settings put`, are otherwise lost (#79).
+    pub async fn sync(&self) -> JidrResult<()> {
+        self.shell("sync").await.map(drop)
+    }
+
     /// `adb root`. Images that don't allow it ("production builds") fail
     /// with `root_failed`.
     pub async fn root(&self) -> JidrResult<()> {

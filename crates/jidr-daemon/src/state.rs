@@ -21,7 +21,12 @@ use uuid::Uuid;
 use crate::budget::{Budget, DeviceUse};
 use crate::locks::DeviceLocks;
 use crate::store::DeviceStore;
+use jidr_adb::Adb;
 use jidr_core::rpc::Event;
+
+/// How long the guest `sync` before a stop may take; the stop goes ahead
+/// after it either way.
+const STOP_SYNC_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
 #[derive(Debug, Clone)]
 pub struct DaemonConfig {
@@ -441,6 +446,26 @@ impl State {
             }
         }
     }
+
+    /// Best-effort `sync` in the guest before a graceful stop. The emulator's
+    /// `Shutdown` VM state ends the VM without flushing the guest's page
+    /// cache, so recent `/data` writes (a `settings put` from `proxy clear`)
+    /// could be lost at the next cold boot (#79). A device adb can't reach
+    /// still stops; this only logs.
+    async fn flush_guest_storage(&self, name: &str, info: &InstanceInfo) {
+        let adb = match self.adb_path() {
+            Ok(path) => Adb::new(path)
+                .device(info.adb_serial.clone())
+                .with_timeout(STOP_SYNC_TIMEOUT),
+            Err(e) => {
+                tracing::warn!(device = %name, "no adb to flush guest storage before stop: {e}");
+                return;
+            }
+        };
+        if let Err(e) = adb.sync().await {
+            tracing::warn!(device = %name, "flushing guest storage before stop failed: {e}");
+        }
+    }
 }
 
 #[async_trait]
@@ -577,6 +602,7 @@ impl DaemonContext for State {
         let info = lock(&self.instances).remove(&id);
         if let Some(info) = info {
             self.set_status(id, DeviceStatus::Stopping, None);
+            self.flush_guest_storage(&current.name, &info).await;
             let resumed = lock(&self.resumed).remove(&id);
             if resumed && self.settings().quick_boot && current.pool_base.is_none() {
                 // This run started from a named snapshot with no exit save:
