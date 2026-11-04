@@ -2,8 +2,9 @@
 //!
 //! The emulator's `-writable-system` launch option boots a writable copy of
 //! the system image. After `adb root`, `adb remount` mounts `/system`
-//! read-write (an overlayfs on API 29+). The first remount on a device turns
-//! verity off and asks for a reboot; after that reboot (and `adb root` again)
+//! read-write (an overlayfs on API 29+). The first remount on a device needs
+//! a reboot: it turns verity off and asks for one, or (API 30) reports success
+//! while `/system` stays read-only. After that reboot (and `adb root` again)
 //! a second remount succeeds. Changing the setting forces a cold boot (D29):
 //! a quick-boot snapshot taken with one system image never resumes on the
 //! other.
@@ -208,9 +209,11 @@ fn text(out: &jidr_adb::Output) -> String {
     format!("{}{}", out.stdout, out.stderr)
 }
 
-async fn remount(adb: &Adb) -> JidrResult<Remount> {
+/// Runs `adb remount`; returns what it asked for and its output.
+async fn remount(adb: &Adb) -> JidrResult<(Remount, String)> {
     let out = adb.raw(&["remount"]).await?;
-    parse_remount(out.success(), &text(&out))
+    let output = text(&out);
+    Ok((parse_remount(out.success(), &output)?, output))
 }
 
 async fn is_writable(adb: &Adb) -> bool {
@@ -221,28 +224,37 @@ async fn has_overlay(adb: &Adb) -> bool {
     matches!(adb.shell_status(OVERLAY_PROBE).await, Ok((_, out)) if out.trim() == "overlay")
 }
 
-/// Remounts `/system` read-write unless it already is, rebooting once if
-/// `adb remount` asks for it, then checks a file can be written there.
+/// Remounts `/system` read-write unless it already is, then checks a file
+/// can be written there. The first remount on a device may need a reboot
+/// before `/system` becomes writable, whether or not its output says so: on
+/// API 30 it reports success while the new overlay only takes effect after a
+/// reboot. So a remount that leaves `/system` read-only gets one reboot and
+/// a second remount.
 async fn ensure_writable(ctx: &CallCtx, adb: &Adb) -> JidrResult<()> {
     if is_writable(adb).await {
         return Ok(());
     }
     ctx.report(None, "Remounting /system read-write");
-    if remount(adb).await? == Remount::NeedsReboot {
-        reboot_and_reroot(ctx, adb).await?;
-        ctx.report(None, "Remounting /system read-write");
-        if remount(adb).await? == Remount::NeedsReboot {
-            return Err(JidrError::root_failed(
-                "adb remount still asks for a reboot after rebooting once",
-            ));
-        }
+    let (first, _) = remount(adb).await?;
+    if first == Remount::Done && is_writable(adb).await {
+        return Ok(());
+    }
+    reboot_and_reroot(ctx, adb).await?;
+    ctx.report(None, "Remounting /system read-write");
+    let (second, output) = remount(adb).await?;
+    if second == Remount::NeedsReboot {
+        return Err(JidrError::root_failed(format!(
+            "adb remount still asks for a reboot after rebooting once: {}",
+            output.trim()
+        )));
     }
     if is_writable(adb).await {
         Ok(())
     } else {
-        Err(JidrError::root_failed(
-            "/system is still read-only after adb remount; is the device booted with -writable-system?",
-        ))
+        Err(JidrError::root_failed(format!(
+            "/system is still read-only after rebooting and running adb remount again; is the device booted with -writable-system? adb remount said: {}",
+            output.trim()
+        )))
     }
 }
 

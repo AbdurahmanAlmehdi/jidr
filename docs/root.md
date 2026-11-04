@@ -139,8 +139,10 @@ device is restarted at once; a stopped one applies it at its next start.
 How it works: with the setting on, the device launches with the emulator's
 `-writable-system` option, which boots a writable copy of the system image.
 After every boot the root hook runs `adb root`, then `adb remount`. The first
-remount on a device turns verity off and asks for a reboot; Jidr reboots the
-guest once, waits for the boot to complete, roots adbd again and remounts. It
+remount on a device needs a reboot before `/system` becomes writable (it
+turns verity off and asks for one, or, on API 30, reports success while
+`/system` stays read-only). Jidr then reboots the guest once, waits for the
+boot to complete, roots adbd again and remounts. It
 then checks that a file can be created under `/system`, and the command fails
 with `root_failed` (exit code 7) if it can't. Later boots only remount.
 

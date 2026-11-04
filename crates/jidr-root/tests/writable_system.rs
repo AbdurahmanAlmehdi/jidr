@@ -70,6 +70,31 @@ async fn enabling_a_stopped_device_applies_at_the_next_cold_boot() {
     assert!(env.adb_file("system-rw").exists());
 }
 
+/// Regression (#85 CI, API 30): the first `adb remount` reported success but
+/// left `/system` read-only until a reboot, so `root.writable_system` failed
+/// with `root_failed` instead of rebooting once and remounting.
+#[tokio::test]
+async fn a_remount_that_reports_success_but_stays_read_only_gets_a_reboot() {
+    let env = Env::start().await;
+    std::fs::write(env.adb_file("remount-says-done"), b"1").unwrap();
+    env.create("phone", "35:google_apis", Some("adb")).await;
+    env.call("device.start", json!({ "device": "phone" }))
+        .await
+        .unwrap();
+
+    let r = env
+        .call(
+            "root.writable_system",
+            json!({ "device": "phone", "enabled": true }),
+        )
+        .await
+        .unwrap();
+    assert_eq!(r["system_writable"], true);
+    assert_eq!(env.adb_count("reboots"), 1, "rebooted once, then remounted");
+    assert!(env.adb_file("system-rw").exists(), "/system is writable");
+    assert_eq!(env.adbd_uid(), "0", "adbd is root again after the reboot");
+}
+
 #[tokio::test]
 async fn a_running_device_is_cold_booted_on_and_back_off() {
     let env = Env::start().await;

@@ -36,6 +36,11 @@ case "$1" in
   remount)
     if [ -f "$dir/verity-off" ]; then
       touch "$dir/system-rw" "$dir/overlay"; echo "remount succeeded"
+    elif [ -f "$dir/remount-says-done" ]; then
+      # As on API 30: the first remount sets the overlay up and reports
+      # success, but /system stays read-only until the guest reboots.
+      touch "$dir/verity-off" "$dir/overlay"
+      echo "Using overlayfs for /system"; echo "remount succeeded"
     else
       touch "$dir/verity-off"
       echo "Successfully disabled verification"
