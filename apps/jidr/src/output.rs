@@ -357,6 +357,34 @@ pub fn certs(v: &Value) -> String {
     )
 }
 
+/// An `audio.inject` result.
+pub fn audio(v: &Value) -> String {
+    let secs = |k: &str| v[k].as_f64().unwrap_or(0.0);
+    let how = if v["stopped"] == true {
+        "Stopped after"
+    } else {
+        "Played"
+    };
+    let loops = v["loops"].as_u64().unwrap_or(0);
+    let passes = if loops > 1 {
+        format!(", {loops} passes")
+    } else {
+        String::new()
+    };
+    let converted = match v["converted_from"].as_str() {
+        Some(f) => format!(", converted from {f}"),
+        None => String::new(),
+    };
+    format!(
+        "{how} {:.1} s of {:.1} s into the microphone ({} Hz, {} ch, {}{converted}{passes}).",
+        secs("played_s"),
+        secs("duration_s"),
+        v["sample_rate"].as_u64().unwrap_or(0),
+        v["channels"].as_u64().unwrap_or(0),
+        v["format"].as_str().unwrap_or("?"),
+    )
+}
+
 pub fn pretty(v: &Value) -> String {
     serde_json::to_string_pretty(v).unwrap_or_default()
 }
@@ -383,6 +411,22 @@ mod tests {
         let t = certs(&json!({ "store": "/apex/x", "certs": [c] }));
         assert!(t.contains("Jidr Test CA") && t.contains("yes") && t.ends_with("/apex/x"));
         assert!(certs(&json!({ "store": "/apex/x", "certs": [] })).starts_with("No CA"));
+    }
+
+    #[test]
+    fn audio_results() {
+        let v = json!({ "played_s": 2.5, "duration_s": 2.5, "loops": 1, "stopped": false,
+            "sample_rate": 44100, "channels": 2, "format": "s16le", "converted_from": null });
+        assert_eq!(
+            audio(&v),
+            "Played 2.5 s of 2.5 s into the microphone (44100 Hz, 2 ch, s16le)."
+        );
+        let v = json!({ "played_s": 7.0, "duration_s": 3.0, "loops": 2, "stopped": true,
+            "sample_rate": 16000, "channels": 1, "format": "s16le", "converted_from": "float32" });
+        assert_eq!(
+            audio(&v),
+            "Stopped after 7.0 s of 3.0 s into the microphone (16000 Hz, 1 ch, s16le, converted from float32, 2 passes)."
+        );
     }
 
     #[test]
