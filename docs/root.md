@@ -14,6 +14,7 @@ per device — the shared SDK system images are never modified.
 jidr root set <device> magisk   # one-click full root
 jidr root set <device> adb      # shell root
 jidr root set <device> none     # revert either to stock
+jidr root writable-system <device> on   # adb mode: a writable /system
 jidr root verify <device>       # check the live uid against the mode
 jidr root status <device>       # stored mode, health, Magisk version
 ```
@@ -120,6 +121,43 @@ then. Other modes refuse `device.props.set` with `usage`. Reverting root boots
 the stock ramdisk, so the stock values come back, and the stored props are
 dropped. Play Integrity is unaffected: a changed fingerprint doesn't make an
 emulator pass it.
+
+## Writable /system (adb mode)
+
+A shell-root (`adb`) device can boot with a writable `/system`, so you can push
+files into the system partitions (`adb push … /system/…`):
+
+```bash
+jidr root writable-system <device> on    # -writable-system + adb remount
+jidr root writable-system <device> off   # back to the read-only stock image
+```
+
+`root.writable_system {device, enabled}` stores the setting in the device's
+root state (`writable_system`). Changing it forces a cold boot (D29): a running
+device is restarted at once; a stopped one applies it at its next start.
+
+How it works: with the setting on, the device launches with the emulator's
+`-writable-system` option, which boots a writable copy of the system image.
+After every boot the root hook runs `adb root`, then `adb remount`. The first
+remount on a device turns verity off and asks for a reboot; Jidr reboots the
+guest once, waits for the boot to complete, roots adbd again and remounts. It
+then checks that a file can be created under `/system`, and the command fails
+with `root_failed` (exit code 7) if it can't. Later boots only remount.
+
+Revert: turning it off on a running device runs `adb enable-verity`, which
+drops the remount overlay, then cold-boots without `-writable-system`, so the
+device sees the stock read-only system image again. A device turned off while
+stopped gets the same teardown at its next boot if an overlay is still mounted.
+Leaving adb root (`root.set none` or `magisk`) turns the setting off the same
+way.
+
+Only `adb`-mode devices on images that allow `adb root` (`default`,
+`google_apis`, `aosp_atd`) qualify. Turning it on for a `none` or `magisk`
+device, or a Play Store image, is refused with `usage`; turning it off always
+works. On a Full-root device, change system files with a Magisk module instead.
+A device with a writable `/system` can't be made into a pool base (D42); turn
+it off first. The writable copy of the system image can take several GB in the
+device's folder.
 
 ## CA certificates (system trust)
 
