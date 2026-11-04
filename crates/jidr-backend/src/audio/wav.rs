@@ -226,19 +226,19 @@ fn convert(f: Fmt, data: &[u8]) -> JidrResult<Clip> {
         (FLOAT, 32) => (
             SampleFormat::S16,
             Some("float32"),
-            data.chunks_exact(4)
-                .flat_map(|s| float_to_s16(f64::from(f32::from_le_bytes([s[0], s[1], s[2], s[3]]))))
+            data.as_chunks::<4>()
+                .0
+                .iter()
+                .flat_map(|s| float_to_s16(f64::from(f32::from_le_bytes(*s))))
                 .collect(),
         ),
         (FLOAT, 64) => (
             SampleFormat::S16,
             Some("float64"),
-            data.chunks_exact(8)
-                .flat_map(|s| {
-                    let mut b = [0u8; 8];
-                    b.copy_from_slice(s);
-                    float_to_s16(f64::from_le_bytes(b))
-                })
+            data.as_chunks::<8>()
+                .0
+                .iter()
+                .flat_map(|s| float_to_s16(f64::from_le_bytes(*s)))
                 .collect(),
         ),
         _ => return Err(unsupported(f)),
@@ -389,8 +389,10 @@ pub(crate) mod tests {
         let c = parse_wav(&wav(FLOAT, 2, 48_000, 32, &f)).unwrap();
         let s: Vec<i16> = c
             .data
-            .chunks_exact(2)
-            .map(|b| i16::from_le_bytes([b[0], b[1]]))
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|b| i16::from_le_bytes(*b))
             .collect();
         assert_eq!(s, vec![32767, -32767, 0, 0]);
         assert_eq!(c.converted_from, Some("float32"));
