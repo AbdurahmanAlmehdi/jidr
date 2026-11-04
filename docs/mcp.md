@@ -44,6 +44,8 @@ Each release also publishes Jidr to the [MCP Registry](https://registry.modelcon
 | `command_run root.writable_system {device, enabled}` | restarts a running device | A writable `/system` on an `adb`-root device, or back to read-only (docs/root.md); refused with `usage` on other root modes, Play Store images and images older than API 31 |
 | `proxy_set {device, host?, port}`, `proxy_clear {device}` | idempotent | The device's global HTTP proxy, for Burp or mitmproxy on the Mac (`host` defaults to `10.0.2.2`, the Mac as the emulator sees it) |
 
+Everything else goes through `command_run`, e.g. playing a WAV on this Mac as the device's microphone for a voice flow: `command_run {command: "audio.inject", params: {device, path, loop?}, timeout_s: 5}` returns the job while it plays, and `command_run {command: "audio.stop", params: {device}}` ends it.
+
 Every tool carries `readOnlyHint`, `destructiveHint`, `idempotentHint` and `openWorldHint` annotations. Jidr errors come back as tool results with `isError: true` and structured `{code, message, data}` (codes as in docs/control-protocol.md), so an agent can recover, e.g. start a stopped device after `not_found`.
 
 ## Devices for agents (D42)

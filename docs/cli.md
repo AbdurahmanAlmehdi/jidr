@@ -46,6 +46,7 @@ jidr --json device start Phone --timeout 300 || exit $?
 | `pool get <base> [--ttl 2h] [--timeout s]`, `pool release <lease\|device>`, `pool renew <lease> [--ttl 2h]`, `pool ls` | Throwaway clones of a base for agents and CI (D42): `get` makes a copy-on-write clone, resumes the base snapshot (seconds) and prints its serial; the lease lasts `--ttl` (default 2 h), then the daemon stops and deletes the clone. A full RAM budget makes `get` wait up to `--timeout` (120 s), then exit 9. The daemon stays up while leases exist (D4). |
 | `cert install <name> <file>`, `cert list <name>`, `cert verify <name>`, `cert remove <name> <cert>\|--all` | CA certificates in a Full-root device's system store (root engine, `root.cacert.*`); install and remove restart the device. See docs/root.md. |
 | `proxy set <name> [host:]port`, `proxy clear <name>`, `proxy show <name>` | The device's global HTTP proxy (widgets provider, `network.proxy.*`). The host defaults to `10.0.2.2`, this Mac. |
+| `audio inject <name> <file> [--loop] [--rate Hz [--channels 1\|2]] [--no-wait]`, `audio stop <name>` | Play a WAV as the device's microphone (widgets provider, `audio.*`); `--rate` reads the file as headerless 16-bit PCM. See [Microphone](#microphone). |
 | `jobs list [--all]`, `jobs wait <job>`, `jobs cancel <job>` | Long-running operations. |
 | `commands` | Every protocol command (what the GUI and MCP see). |
 | `call <method> [params-json]` | Call any protocol command directly, e.g. `jidr call device.start '{"device":"Phone","cold_boot":true}'`. Follows jobs. |
@@ -120,6 +121,19 @@ jidr cert remove Phone a4ac454c.0            # or --all
 ```
 
 `install` restarts the device and fails with exit code 7 (root failed) unless the certificate ends up in the store apps read. How it works on each Android version is in docs/root.md.
+
+## Microphone
+
+Play an audio file into a running device's microphone, for voice input, speech recognition or call tests:
+
+```bash
+jidr audio inject Phone ~/Desktop/hello.wav           # waits until it has played
+jidr audio inject Phone ~/Desktop/hello.wav --loop --no-wait
+jidr audio stop Phone
+jidr audio inject Phone capture.pcm --rate 16000      # headerless 16-bit little-endian PCM, mono
+```
+
+Jidr streams the file over the emulator's gRPC `injectAudio`. WAV files can be 8- or 16-bit PCM (sent as they are), or 24/32-bit PCM or 32/64-bit float (converted to 16-bit), mono or stereo, at 8–48 kHz. Other files, other rates and more channels exit 2; convert them first, e.g. `afconvert -f WAVE -d LEI16@44100 in.m4a out.wav`. The audio plays as the device reads its microphone: start the app's recording before or after, and if nothing records, playback waits (the progress stops) until something does or you stop it. `--loop` repeats until `audio stop`; `jobs cancel` also ends it. One file plays at a time per device; a second `audio inject` exits 4. The Mac's own microphone isn't routed to the device (yet).
 
 ## Licenses (D8)
 

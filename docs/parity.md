@@ -38,7 +38,7 @@ Tests named `*_emulator` run on a real emulator: on Linux KVM in CI (API 30, 33,
 | Build props | Free | ✅ | `crates/jidr-root/tests/props_emulator.rs:61` `props_spoof_after_cold_boot_and_stock_after_revert` (Full-root devices only) |
 | Disk I/O limit | Free | ⏭️ | [#20](https://github.com/AbdurahmanAlmehdi/jidr/issues/20) |
 | Camera / media injection | Paid | 🚧 | Host webcam as a camera at the next start: `widgets_core_commands` (`camera.set` → `-camera-back webcam0` in the launch args). Image and video files: ⏭️ [#21](https://github.com/AbdurahmanAlmehdi/jidr/issues/21) |
-| Microphone / audio injection | Paid | ⏭️ | [#70](https://github.com/AbdurahmanAlmehdi/jidr/issues/70); the emulator exposes `injectAudio` over gRPC |
+| Microphone / audio injection | Paid | 🚧 | `audio.inject` / `audio.stop` stream a WAV or raw PCM file over gRPC `injectAudio` ([#70](https://github.com/AbdurahmanAlmehdi/jidr/issues/70)): WAV parsing in `crates/jidr-backend/src/audio/wav.rs` (unit tests), packet chunking, pacing and stop in `crates/jidr-backend/src/audio/mod.rs` (unit tests), the commands against the fake backend in `crates/jidr-widgets/tests/audio.rs` `inject_checks_its_input_and_reports_an_unreachable_emulator`. `crates/jidr-widgets/tests/audio_emulator.rs` `inject_busy_and_stop` hasn't run yet, and nothing checks what an app hears. No player widget; the Mac's microphone isn't routed |
 | Biometrics | Paid | 🚧 | Fingerprint touch and remove: `widgets_core_commands` (the fingerprint HAL is checked on HIDL and AIDL images). Dirty / partial / insufficient / too fast: ⏭️ [#22](https://github.com/AbdurahmanAlmehdi/jidr/issues/22) |
 | Android controls (D-pad, volume, media keys) | Paid | ✅ | `widgets_core_commands` (Home → launcher focus, volume panel) |
 | Dev tools (show taps, pointer location, layout bounds, animations) | Paid | ✅ | `widgets_core_commands` (`dev.set`, read back with `settings get` and `getprop debug.layout`) |
@@ -55,7 +55,7 @@ Tests named `*_emulator` run on a real emulator: on Linux KVM in CI (API 30, 33,
 | MCP server for AI agents | — (Jidr only) | ✅ | `crates/jidr-mcp/tests/mcp.rs:25` `tools_are_listed_with_annotations`, `mcp.rs:163` `destructive_policy_d5`; `crates/jidr-mcp/tests/agent_tasks.rs:175` `five_agent_tasks` (real emulator) |
 | Shell REPL (Genymotion Shell) | Free | ✅ | `jidr shell` ([#73](https://github.com/AbdurahmanAlmehdi/jidr/issues/73)): `apps/jidr/tests/shell.rs` `piped_lines_run_with_the_current_device`, `a_script_stops_at_its_first_failure`, `source_runs_a_file_inside_the_shell`; device context and completion: `apps/jidr/src/shell/line.rs` `fills_in_the_current_device`, `apps/jidr/src/shell/complete.rs` `completes_commands_devices_and_methods` |
 
-**Breadth:** 28 / 43 ✅ (65%). Of the other 15: 7 🚧, 7 ⏭️, 1 ❌. Five rows are Jidr-only (not in Genymotion); three of them are ✅.
+**Breadth:** 28 / 43 ✅ (65%). Of the other 15: 8 🚧, 6 ⏭️, 1 ❌. Five rows are Jidr-only (not in Genymotion); three of them are ✅.
 
 **Ready for real work: about 70% for the core use case, lower for Genymotion power users.**
 
@@ -64,5 +64,5 @@ Tests named `*_emulator` run on a real emulator: on Linux KVM in CI (API 30, 33,
   - There's no signed release yet; v0.1.0 is in preparation.
   - Quick boot is slower than its target.
   - A few emulator tests are still flaky on shared CI runners.
-  - Several paid-tier niches are partial or post-MVP: motion presets, file-based camera, biometric scenarios, network loss and DNS, identifiers, disk limits, gamepad.
+  - Several paid-tier niches are partial or post-MVP: motion presets, file-based camera, microphone injection (not yet run on an emulator), biometric scenarios, network loss and DNS, identifiers, disk limits, gamepad.
   - Clipboard sharing in the player isn't finished.

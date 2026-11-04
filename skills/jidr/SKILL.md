@@ -48,7 +48,7 @@ jidr logcat Phone --clear
 
 `media.screenshot` takes an optional `"path"`; without it the PNG goes to the user's Pictures/Jidr folder. Taps, swipes, text and the UI tree go through `adb -s <serial> shell input …` or the MCP tools; see jidr-app-testing.
 
-Other protocol commands work the same way through `jidr call`: `network.set`, `gps.set`, `battery.set`, `clipboard.set`, `media.record` / `media.record_stop` and more. `jidr commands` lists them all. A call with a missing param fails with `missing field <name>`, which tells you what to add.
+Other protocol commands work the same way through `jidr call`: `network.set`, `gps.set`, `battery.set`, `clipboard.set`, `media.record` / `media.record_stop` and more. `jidr audio inject <device> <file.wav>` plays a WAV as the device's microphone (`jidr audio stop <device>` ends it). `jidr commands` lists them all. A call with a missing param fails with `missing field <name>`, which tells you what to add.
 
 ## Snapshots, stop and clean up
 
