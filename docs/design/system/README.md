@@ -80,7 +80,8 @@ Level colours `jidr-logcat-verbose`, `-debug`, `-info`, `-warn`, `-error`, `-fat
 - The Android screen is the hero of the device window. Nothing overlaps it; the toolbar is 48 px of icon buttons and the widget panel opens beside it.
 - Bezel `jidr-color-surface-device-bezel` with `jidr-frame-<class>-bezel`, `-radius`, `-screen-radius` for phone, small-phone and tablet: a neutral rounded rectangle, no notch, camera, buttons or brand silhouette.
 - Fit (default): largest size that fits, aspect kept, continuous scale. Pixel-perfect 1:1 (⌘0): one device pixel per physical pixel; the stage scrolls rather than scaling or cropping.
-- Letterbox is `jidr-color-surface-sunken` with nothing drawn on it, at least `jidr-frame-stage-padding` (24) around the bezel. Rotation swaps the frame and re-fits; the window does not resize itself.
+- Fullscreen (⌃⌘F, Esc leaves): the screen alone, no bezel or padding, letterboxed the same way; the chrome hides and comes back while the pointer is at the toolbar's edge.
+- Letterbox is `jidr-color-surface-sunken` with nothing drawn on it, at least `jidr-frame-stage-padding` (24) around the bezel outside fullscreen. Rotation swaps the frame and re-fits; the window does not resize itself.
 
 ## Motion
 
