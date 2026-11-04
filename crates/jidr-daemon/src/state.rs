@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use jidr_backend::{Backend, BootStage, InstanceInfo, LaunchOptions, LaunchSpec};
 use jidr_core::provider::{CallCtx, CommandProvider, DaemonContext, DeviceUpdate};
 use jidr_core::{
-    Cancel, ConnectInfo, Device, DeviceStatus, JidrError, JidrPaths, JidrResult, Settings,
+    Cancel, ConnectInfo, Device, DeviceStatus, JidrError, JidrPaths, JidrResult, RootMode, Settings,
 };
 use jidr_sdk::host::HostMemory;
 use jidr_sdk::{AvdManager, Sdk, SdkSet};
@@ -544,6 +544,8 @@ impl DaemonContext for State {
             // resumed run doesn't: the exit save would go into the named
             // snapshot, not `default_boot`.
             snapshot_save: self.settings().quick_boot && resume.is_none(),
+            // #25: only adb-root devices boot a writable system image.
+            writable_system: device.root.writable_system && device.root.mode == RootMode::Adb,
             ..LaunchOptions::default()
         };
         if opts.snapshot_save {

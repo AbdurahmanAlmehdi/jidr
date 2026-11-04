@@ -4,6 +4,8 @@
 //! - `root.status`: the stored root state of a device;
 //! - `root.verify`: checks the live uid (and Magisk version) against the mode;
 //! - `root.set`: switches the mode, live when the device is running;
+//! - `root.writable_system`: a writable `/system` on an adb-root device
+//!   (#25, [`writable`]);
 //! - `root.module.install`: installs a Magisk module zip on a Magisk device;
 //! - `device.props.get` / `device.props.set`: a Full-root device's build
 //!   props (Phase 9f, [`props`]);
@@ -19,6 +21,7 @@ pub mod cacerts;
 mod magisk;
 pub mod props;
 mod verify;
+mod writable;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -115,6 +118,12 @@ impl CommandProvider for RootProvider {
             )
             .locks_device()
             .long_running(),
+            CommandSpec::new::<writable::SetParams>(
+                "root.writable_system",
+                "Make /system writable on a shell-root (adb) device (-writable-system + adb remount), or back to read-only; cold boots it if running",
+            )
+            .locks_device()
+            .long_running(),
             CommandSpec::new::<ModuleInstallParams>(
                 "root.module.install",
                 "Install a Magisk module zip and reboot (Full-root devices only)",
@@ -174,6 +183,7 @@ impl CommandProvider for RootProvider {
                 to_value(verify::verify(ctx, &device).await?)
             }
             "root.set" => set(ctx, parse_params(params)?, self.su_settle).await,
+            "root.writable_system" => writable::set(ctx, parse_params(params)?).await,
             "root.module.install" => {
                 let p: ModuleInstallParams = parse_params(params)?;
                 let device = ctx.daemon.device(&p.device).await?;
@@ -199,9 +209,10 @@ impl CommandProvider for RootProvider {
 
     async fn on_booted(&self, ctx: &CallCtx, device: &Device) -> JidrResult<()> {
         match device.root.mode {
-            RootMode::Adb => adb_mode::apply(ctx, device, RootMode::Adb)
-                .await
-                .map(|_| ()),
+            RootMode::Adb => {
+                adb_mode::apply(ctx, device, RootMode::Adb).await?;
+                writable::on_booted(ctx, device).await
+            }
             RootMode::Magisk => magisk::on_booted(ctx, device).await,
             RootMode::None => Ok(()),
         }
@@ -245,6 +256,11 @@ async fn set(ctx: &CallCtx, p: SetParams, su_settle: Duration) -> JidrResult<Val
             device.image.tag
         )));
     }
+    // #25: writable /system is an adb-root setting; leaving adb root drops it
+    // (torn down live while adbd is still root, then the cold boot).
+    if p.mode != device.root.mode && device.root.writable_system && is_running(&device) {
+        writable::drop_overlay_live(ctx, &device).await;
+    }
     if p.mode == RootMode::Magisk {
         return magisk::to_magisk(ctx, &device, p.magisk_sha256.as_deref(), su_settle).await;
     }
@@ -261,6 +277,9 @@ async fn set(ctx: &CallCtx, p: SetParams, su_settle: Duration) -> JidrResult<Val
                 device.id,
                 Box::new(move |d: &mut Device| {
                     d.root.mode = mode;
+                    if mode != RootMode::Adb {
+                        d.root.writable_system = false;
+                    }
                     d.root.health = RootHealth::Unverified;
                     d.root.verified_at = None;
                     // D29: a root change never resumes a snapshot taken under the old mode.

@@ -213,6 +213,13 @@ impl PoolProvider {
                 "bases are root none or adb for now; Magisk bases come later (Phase 13f)",
             ));
         }
+        if src.root.writable_system {
+            // #25: the writable system copy isn't part of the base snapshot.
+            return Err(JidrError::usage(format!(
+                "{} has a writable /system; turn it off first (root.writable_system false)",
+                src.name
+            )));
+        }
         let info = st.connect_info(src.id).await.map_err(|_| {
             JidrError::not_found(format!(
                 "start {} first: a base is saved from a running device",
