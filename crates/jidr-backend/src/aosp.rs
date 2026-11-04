@@ -103,6 +103,9 @@ impl AospBackend {
         if let Some(r) = &opts.ramdisk {
             a.extend(["-ramdisk".into(), r.to_string_lossy().into_owned()]);
         }
+        if opts.writable_system {
+            a.push("-writable-system".into());
+        }
         a.extend(opts.extra_args.iter().cloned());
         a
     }
@@ -552,6 +555,10 @@ mod tests {
         ));
         assert!(!base.contains("-no-snapshot"), "D29: quick boot by default");
         assert!(!base.contains("-no-audio"));
+        assert!(
+            !base.contains("-writable-system"),
+            "#25: /system is read-only unless asked"
+        );
 
         let opts = LaunchOptions {
             extra_args: vec!["-feature".into(), "-SystemAsRoot".into()],
@@ -562,6 +569,7 @@ mod tests {
             gpu: Some("swiftshader_indirect".into()),
             audio: false,
             snapshot_save: false,
+            writable_system: true,
             boot_timeout: Duration::from_secs(1),
             camera_back: Some("webcam0".into()),
             camera_front: Some("emulated".into()),
@@ -576,6 +584,7 @@ mod tests {
             "-ramdisk /avd/dev1.avd/jidr/ramdisk.magisk-27.img",
             "-camera-back webcam0",
             "-camera-front emulated",
+            "-writable-system",
         ] {
             assert!(all.contains(want), "missing {want}: {all}");
         }
