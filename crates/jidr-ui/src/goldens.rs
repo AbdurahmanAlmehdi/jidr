@@ -386,6 +386,29 @@ pub fn cases() -> Vec<Case> {
             },
         },
         Case {
+            name: "player-fullscreen",
+            render: |v| {
+                let app = device_tab(v, 0)?;
+                app.set_player_fullscreen(true);
+                shot(&app, 1440, 900)
+            },
+        },
+        Case {
+            name: "player-fullscreen-reveal",
+            render: |v| {
+                let app = device_tab(v, 0)?;
+                app.set_player_fullscreen(true);
+                shot(&app, 1440, 900)?;
+                // The pointer on the toolbar's edge reveals the chrome.
+                let x = if v == Variant::Rtl { 2.0 } else { 1437.0 };
+                app.window()
+                    .dispatch_event(slint::platform::WindowEvent::PointerMoved {
+                        position: slint::LogicalPosition::new(x, 450.0),
+                    });
+                shot(&app, 1440, 900)
+            },
+        },
+        Case {
             name: "player-apk-drop",
             render: |v| {
                 let app = device_tab(v, 0)?;
