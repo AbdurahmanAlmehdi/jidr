@@ -9,7 +9,7 @@ Jidr (جذر) runs Android emulators, optionally rooted. A daemon owns every dev
 
 If `jidr` isn't on the `PATH`, ask the user to install Jidr (https://jidr.ly, or `brew install --cask abdurahmanalmehdi/tap/jidr`). The macOS app also carries the CLI at `Jidr.app/Contents/Helpers/jidr`.
 
-**Prefer the CLI.** It covers every command, needs no setup and works in scripts. `jidr call <method> '<json>'` reaches any protocol command that has no subcommand. A Jidr device is not an Android Studio AVD: `emulator -list-avds` doesn't list it.
+**Prefer the CLI.** It covers every command, needs no setup and works in scripts. `jidr call <method> '<json>'` reaches any protocol command that has no subcommand. A Jidr device is not an Android Studio AVD: `emulator -list-avds` doesn't list it. A `.jidr` file is a script for `jidr shell` (one `jidr` command per line, without the `jidr`); `jidr shell file.jidr` runs it and stops at the first failing line. Interactively, prefer one-shot `jidr` commands over the shell.
 
 ## Find or create a device
 
