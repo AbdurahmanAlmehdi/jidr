@@ -1,6 +1,6 @@
 [package]
 name = "jidr-widgets"
-description = "CommandProvider for sensors, phone, network, dev tools, screenshots, recording and snapshots."
+description = "CommandProvider for sensors, phone, network, dev tools, screenshots, recording, microphone injection and snapshots."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
