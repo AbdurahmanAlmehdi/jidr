@@ -69,6 +69,9 @@ pub struct LaunchOptions {
     pub audio: bool,
     /// Save the quick-boot snapshot when stopped (D29); `false` adds `-no-snapshot-save`.
     pub snapshot_save: bool,
+    /// `-writable-system`: a writable copy of the system image, so `adb
+    /// remount` can make `/system` read-write (#25, adb-root devices only).
+    pub writable_system: bool,
     pub boot_timeout: Duration,
 }
 
@@ -85,6 +88,7 @@ impl Default for LaunchOptions {
             gpu: None,
             audio: true,
             snapshot_save: true,
+            writable_system: false,
             boot_timeout: Duration::from_secs(300),
         }
     }

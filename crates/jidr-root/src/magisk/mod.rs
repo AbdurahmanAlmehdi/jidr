@@ -252,6 +252,8 @@ async fn to_magisk_inner(
             device.id,
             Box::new(move |d| {
                 d.root.mode = RootMode::Magisk;
+                // #25: writable /system is for adb root only.
+                d.root.writable_system = false;
                 d.root.magisk_version = Some(version);
                 d.root.patched_ramdisk_path = Some(patched.clone());
                 d.root.health = RootHealth::Unverified;

@@ -31,6 +31,27 @@ case "$1" in
   push)
     # Keep what was pushed: the CA certificate scripts read it back.
     rm -rf "$dir/pushed"; cp -R "$2" "$dir/pushed"; echo "pushed";;
+  # Writable /system (#25): the first remount turns verity off and asks for
+  # a reboot; after it, remount makes /system writable through an overlay.
+  remount)
+    if [ -f "$dir/verity-off" ]; then
+      touch "$dir/system-rw" "$dir/overlay"; echo "remount succeeded"
+    elif [ -f "$dir/remount-says-done" ]; then
+      # As on API 30: the first remount sets the overlay up and reports
+      # success, but /system stays read-only until the guest reboots.
+      touch "$dir/verity-off" "$dir/overlay"
+      echo "Using overlayfs for /system"; echo "remount succeeded"
+    else
+      touch "$dir/verity-off"
+      echo "Successfully disabled verification"
+      echo "Now reboot your device for settings to take effect"
+    fi;;
+  enable-verity)
+    rm -f "$dir/verity-off" "$dir/system-rw" "$dir/overlay"
+    echo 1 >> "$dir/verity-enabled"; echo "Successfully enabled verity";;
+  reboot)
+    # A guest reboot: adbd comes back as shell, /system is read-only again.
+    echo 2000 > "$state"; rm -f "$dir/system-rw"; echo 1 >> "$dir/reboots";;
   install) echo "Success";;
   uninstall) echo "Success";;
   logcat) echo 'I/fake: hello';;
@@ -78,6 +99,11 @@ case "$1" in
         echo "store /apex/com.android.conscrypt/cacerts"
         for f in "$dir"/cacerts/*; do [ -f "$f" ] || continue; echo "cert ${f##*/} 1"; cat "$f"; done;;
       "su -c 'sh /data/local/tmp/jidr-cacerts/check.sh'") echo absent;;
+      "touch /system/.jidr-rw"*)
+        if [ -f "$dir/system-rw" ] && [ "$uid" = 0 ]; then echo writable; else echo "touch: '/system/.jidr-rw': Read-only file system" >&2; exit 1; fi;;
+      "grep -qE '^overlay"*)
+        if [ -f "$dir/overlay" ]; then echo overlay; else exit 1; fi;;
+      "[ -e /dev/.jidr-reboot-pending ]"*) echo 1;;
       "am force-stop com.topjohnwu.magisk")
         echo 1 >> "$dir/force-stopped"; echo "ok";;
       *"su_auto_response"*)
@@ -240,6 +266,18 @@ impl Env {
             .unwrap_or_else(|_| "2000".into())
             .trim()
             .to_string()
+    }
+
+    /// A file the fake adb writes next to itself (`platform-tools/<name>`).
+    pub fn adb_file(&self, name: &str) -> PathBuf {
+        self.studio.join("platform-tools").join(name)
+    }
+
+    /// How many lines the fake adb appended to `platform-tools/<name>`.
+    pub fn adb_count(&self, name: &str) -> usize {
+        std::fs::read_to_string(self.adb_file(name))
+            .map(|s| s.lines().count())
+            .unwrap_or(0)
     }
 
     /// What a real reboot does to adbd.

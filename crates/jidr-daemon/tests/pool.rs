@@ -287,3 +287,37 @@ async fn pool_refuses_magisk_and_stopped_sources() {
     );
     h.stop().await;
 }
+
+#[tokio::test]
+async fn pool_refuses_a_writable_system_source() {
+    use jidr_core::provider::DaemonContext;
+    let h = Harness::start().await;
+    let mut c = h.client().await;
+    c.ok(
+        "device.create",
+        json!({ "name": "Rw", "image": "35", "root_mode": "adb" }),
+    )
+    .await;
+    let st = h.daemon.state();
+    let d = st.device("Rw").await.unwrap();
+    st.update_device(
+        d.id,
+        Box::new(|d: &mut jidr_core::Device| d.root.writable_system = true),
+    )
+    .await
+    .unwrap();
+    c.run("device.start", json!({ "device": "Rw" })).await;
+    let job = c
+        .ok("base.create", json!({ "from_device": "Rw", "name": "B" }))
+        .await;
+    let done = c.ok("jobs.wait", json!({ "job": job["job"] })).await;
+    assert_eq!(done["error"]["code"], "usage", "{done}");
+    assert!(
+        done["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("writable /system"),
+        "{done}"
+    );
+    h.stop().await;
+}
