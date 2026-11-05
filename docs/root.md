@@ -78,8 +78,8 @@ On a Full-root device the adb shell is always auto-granted `su`. Every other
 app gets Magisk's normal allow/deny prompt — unless you opt in per device:
 
 ```bash
-jidr root auto-grant <device> true    # grant every app root without a prompt
-jidr root auto-grant <device> false   # back to the prompt (off by default)
+jidr root auto-grant <device> on    # grant every app root without a prompt
+jidr root auto-grant <device> off   # back to the prompt (off by default)
 ```
 
 `root.auto_grant` stores the flag on the device and, when it is running, sets

@@ -63,7 +63,7 @@ fn exit_codes_are_error_codes() {
         "{err}"
     );
     // `root auto-grant` parses and reaches the daemon as `root.auto_grant`.
-    let err = e.fail(&["root", "auto-grant", "P", "true"], 2);
+    let err = e.fail(&["root", "auto-grant", "P", "on"], 2);
     assert!(
         err["message"]
             .as_str()
