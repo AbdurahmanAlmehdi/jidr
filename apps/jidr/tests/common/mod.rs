@@ -44,6 +44,11 @@ impl Env {
         c
     }
 
+    /// Runs `jidr <args>` with `stdin` piped in (`jidr shell` reads it as a script).
+    pub fn jidr_stdin(&self, args: &[&str], stdin: &str) -> std::process::Output {
+        self.command(args).write_stdin(stdin).output().unwrap()
+    }
+
     pub fn jidr(&self, args: &[&str]) -> std::process::Output {
         self.command(args).output().unwrap()
     }

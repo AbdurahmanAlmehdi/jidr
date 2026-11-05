@@ -2,6 +2,7 @@
 
 mod cli;
 mod output;
+mod shell;
 mod uninstall;
 
 use std::io::{BufRead, IsTerminal, Write};
@@ -34,6 +35,7 @@ fn main() -> ExitCode {
         Cmd::Daemon {
             action: None | Some(DaemonCmd::Run),
         } => run_daemon(out),
+        Cmd::Shell { script } => shell::main(&cli, script.as_deref(), out),
         _ => match tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
@@ -83,10 +85,10 @@ fn confirm(out: Out, yes: bool, what: &str) -> JidrResult<()> {
     Err(JidrError::usage(format!("{what}: pass --yes to confirm")))
 }
 
-async fn connect(paths: &JidrPaths, cli: &Cli, out: Out) -> JidrResult<Client> {
+async fn connect(paths: &JidrPaths, restart_stale: bool, out: Out) -> JidrResult<Client> {
     let mut opts = SpawnOptions {
         program: std::env::current_exe().ok(),
-        restart_stale: cli.restart_stale,
+        restart_stale,
         timeout: None,
     };
     match Client::connect_or_spawn(paths, "cli", &opts).await {
@@ -302,22 +304,37 @@ fn proxy_target(s: &str) -> JidrResult<(String, u16)> {
 
 async fn run(cli: Cli, out: Out) -> JidrResult<()> {
     let paths = JidrPaths::discover()?;
+    if before_connect(&paths, &cli.cmd, out).await? {
+        return Ok(());
+    }
+    let client = connect(&paths, cli.restart_stale, out).await?;
+    if let Cmd::Mcp { allow_destructive } = cli.cmd {
+        // MCP owns stdout from here on.
+        let opts = jidr_mcp::McpOptions { allow_destructive };
+        return jidr_mcp::serve_stdio(client, opts).await;
+    }
+    dispatch(&client, cli.cmd, out).await
+}
+
+/// Commands that run without a daemon connection (`daemon stop`,
+/// `uninstall`, `flash`); returns whether `cmd` was one of them.
+async fn before_connect(paths: &JidrPaths, cmd: &Cmd, out: Out) -> JidrResult<bool> {
     if let Cmd::Daemon {
         action: Some(DaemonCmd::Stop),
-    } = &cli.cmd
+    } = cmd
     {
         let socket = paths.socket();
         if !socket.exists() {
             out.ok(&json!({ "stopped": false }), |_| {
                 "The daemon isn't running.".into()
             });
-            return Ok(());
+            return Ok(true);
         }
         jidr_client::shutdown_daemon(&socket).await?;
         out.ok(&json!({ "stopped": true }), |_| "Daemon stopped.".into());
-        return Ok(());
+        return Ok(true);
     }
-    if let Cmd::Uninstall { purge, yes } = &cli.cmd {
+    if let Cmd::Uninstall { purge, yes } = cmd {
         let what = if *purge {
             "Remove Jidr's daemon, MCP entries, caches, logs AND all Jidr devices and its private SDK"
         } else {
@@ -325,7 +342,7 @@ async fn run(cli: Cli, out: Out) -> JidrResult<()> {
         };
         confirm(out, *yes, what)?;
         let home = dirs_home()?;
-        let report = uninstall::run(&paths, &home, *purge).await?;
+        let report = uninstall::run(paths, &home, *purge).await?;
         let v = serde_json::to_value(&report).unwrap_or(Value::Null);
         out.ok(&v, |_| {
             let mut lines = Vec::new();
@@ -344,22 +361,31 @@ async fn run(cli: Cli, out: Out) -> JidrResult<()> {
             lines.push("Android Studio's SDK and devices were not touched. Remove the app itself with `brew uninstall --cask jidr` or by moving Jidr.app to the Trash.".into());
             lines.join("\n")
         });
-        return Ok(());
+        return Ok(true);
     }
-    if let Cmd::Flash { .. } = &cli.cmd {
+    if let Cmd::Flash { .. } = cmd {
         return Err(JidrError::usage(
             "flash isn't available yet: Genymotion's flash semantics are an open research item",
         ));
     }
-    let client = connect(&paths, &cli, out).await?;
-    let c = &client;
-    match cli.cmd {
+    Ok(false)
+}
+
+/// Runs a command that needs the daemon over an open connection (the CLI's
+/// one-shot path and every line of `jidr shell`).
+async fn dispatch(c: &Client, cmd: Cmd, out: Out) -> JidrResult<()> {
+    match cmd {
         Cmd::Completions { .. }
         | Cmd::Flash { .. }
         | Cmd::Uninstall { .. }
         | Cmd::Daemon {
             action: None | Some(DaemonCmd::Run | DaemonCmd::Stop),
         } => {}
+        Cmd::Mcp { .. } | Cmd::Shell { .. } => {
+            return Err(JidrError::usage(
+                "`mcp` and `shell` can't run inside `jidr shell`",
+            ));
+        }
         Cmd::Daemon {
             action: Some(DaemonCmd::Status),
         } => {
@@ -717,11 +743,6 @@ async fn run(cli: Cli, out: Out) -> JidrResult<()> {
             out.ok(&serde_json::to_value(&j).unwrap_or(Value::Null), |_| {
                 format!("Cancelling {job}.")
             });
-        }
-        Cmd::Mcp { allow_destructive } => {
-            // MCP owns stdout from here on.
-            let opts = jidr_mcp::McpOptions { allow_destructive };
-            return jidr_mcp::serve_stdio(client, opts).await;
         }
         Cmd::Pool { cmd } => pool(c, out, cmd).await?,
         Cmd::Base { cmd } => base(c, out, cmd).await?,

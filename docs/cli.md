@@ -49,9 +49,50 @@ jidr --json device start Phone --timeout 300 || exit $?
 | `commands` | Every protocol command (what the GUI and MCP see). |
 | `call <method> [params-json]` | Call any protocol command directly, e.g. `jidr call device.start '{"device":"Phone","cold_boot":true}'`. Follows jobs. |
 | `daemon [run]`, `daemon stop`, `daemon status` | Run the daemon in the foreground, stop it (devices keep running), or show it. |
+| `shell [script]` | Interactive shell, or run a script of commands; see [Shell](#shell). |
 | `completions <shell>` | Shell completions. |
 
 Global flags: `--json`, `-q/--quiet` (no progress), `--restart-stale` (or `JIDR_RESTART_STALE=1`).
+
+## Shell
+
+`jidr shell` is an interactive shell, Jidr's take on Genymotion Shell. Each line is a `jidr` command without the `jidr` (a leading `jidr` is ignored, so pasted lines work). It uses the CLI's own command definitions over one daemon connection, so every command, flag, output and exit code is the same as in the one-shot CLI, and it adds nothing to the protocol.
+
+```text
+$ jidr shell
+jidr> use Phone
+Using Phone.
+jidr (Phone)> device start --timeout 300
+jidr (Phone)> proxy set 8080
+jidr (Phone)> snapshot save before-login
+jidr (Phone)> call sensor.rotate '{"angle":90}'
+jidr (Phone)> --json device details
+jidr (Phone)> exit
+```
+
+| Builtin | What it does |
+|---|---|
+| `use <device>` | Make it the current device, shown in the prompt; `use` alone clears it. |
+| `source <file>` | Run a script (below) inside the shell. |
+| `help [command]` | The builtins and commands, or a command's `--help`. |
+| `exit [code]`, `quit`, Ctrl-D | Leave the shell. |
+
+**The current device** is filled in for commands that take a device first (`device start`, `proxy set`, `snapshot save`, `install`, `logcat`, `root`, `cert` …) when the line doesn't name one: if the first argument is an existing device's name or id it is used as it is, otherwise the current device is put in front of the arguments (`proxy set 8080` runs `proxy set Phone 8080`). Lines with `--all` are left alone. `call <method> [params]` gets `"device"` added to its params when the method takes one and the params don't name it.
+
+**Words** split like a POSIX shell without expansion: `'…'` is literal, `"…"` honours `\"` and `\\`, `\` escapes one character, and `#` at the start of a word begins a comment. There are no variables, pipes or `$(…)`; use your own shell for those.
+
+**Completion and history.** Tab completes builtins, subcommands, flags, value choices (`root set Phone <Tab>`), device names, protocol methods from `commands.list` after `call`, and file paths. History is kept in `shell_history` in Jidr's data directory (`~/Library/Application Support/Jidr`, or `$JIDR_HOME/data`). Ctrl-C stops the running command (a job it started keeps running in the daemon, as when Ctrl-C ends a one-shot `jidr`; `jobs cancel` stops it) and the shell carries on.
+
+**Scripts.** `jidr shell setup.jidr`, piped input (`jidr shell < setup.jidr`, or `-` for stdin) and `source` run the lines in order, skipping blank lines and `#` comments, so `#!/usr/bin/env -S jidr shell` works as a first line. The first failing line stops the script: stderr says `setup.jidr:5: stopped here (exit code 3)` and `jidr shell` exits with that command's [exit code](#exit-codes). `exit <code>` ends a script early. `--json` and `-q` given before `shell` apply to every line; with `--json`, each command prints its own envelope line.
+
+```bash
+# setup.jidr
+device create Phone --image 35 --profile phone-6.1-fhd
+use Phone
+device start --timeout 300
+proxy set 8080
+snapshot save clean
+```
 
 ## HTTP proxy
 
