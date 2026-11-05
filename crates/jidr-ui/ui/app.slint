@@ -70,6 +70,9 @@ export component AppWindow inherits Window {
     in-out property <int> player-frame-h;
     in-out property <bool> player-mock: false;
     in-out property <bool> player-pixel-perfect;
+    /// Player fullscreen (⌃⌘F, Esc leaves). Set from Rust, which also
+    /// switches the native window; UI-only view state.
+    in-out property <bool> player-fullscreen;
     in-out property <float> player-scale: 1.0;
     in-out property <bool> player-recording;
     in-out property <string> player-record-text;
@@ -170,6 +173,16 @@ export component AppWindow inherits Window {
     default-font-size: Theme.type-body-size;
     forward-focus: keys;
 
+    /// ⌃⌘F toggles player fullscreen. Slint swaps ⌘ and ⌃ on macOS
+    /// (⌘ is `control`, ⌃ is `meta`), so the chord is both, either way.
+    function fullscreen-key(text: string, control: bool, meta: bool) -> bool {
+        if (control && meta && (text == "f" || text == "F") && root.active-tab >= 0) {
+            root.shortcut("fullscreen");
+            return true;
+        }
+        return false;
+    }
+
     /// Meta shortcuts, shared by the window and the device screen.
     function meta-key(text: string, alt: bool, shift: bool) -> bool {
         if (alt && (text == "i" || text == "I")) { root.shortcut("overlay"); return true; }
@@ -189,6 +202,13 @@ export component AppWindow inherits Window {
 
     keys := FocusScope {
         key-pressed(ev) => {
+            if (root.fullscreen-key(ev.text, ev.modifiers.control, ev.modifiers.meta)) {
+                return accept;
+            }
+            if (ev.text == Key.Escape && root.player-fullscreen) {
+                root.shortcut("exit-fullscreen");
+                return accept;
+            }
             if (ev.modifiers.meta && root.meta-key(ev.text, ev.modifiers.alt, ev.modifiers.shift)) {
                 return accept;
             }
@@ -209,8 +229,12 @@ export component AppWindow inherits Window {
         }
     }
 
+    /// The active device tab is fullscreen: no title bar, no mini sidebar.
+    property <bool> fs: root.player-fullscreen && root.active-tab >= 0;
+
     titlebar := TitleBar {
         y: 0px;
+        visible: !root.fs;
         tabs: root.tabs;
         active-tab: root.active-tab;
         draw-lights: root.draw-lights;
@@ -236,10 +260,10 @@ export component AppWindow inherits Window {
         }
     }
     body := Rectangle {
-        y: titlebar.height;
-        height: root.height - titlebar.height;
+        y: root.fs ? 0px : titlebar.height;
+        height: root.height - self.y;
         property <bool> library: root.active-tab < 0;
-        property <length> side-w: !library ? 52px : root.sidebar-visible ? Theme.window-sidebar-width : 0px;
+        property <length> side-w: root.fs ? 0px : !library ? 52px : root.sidebar-visible ? Theme.window-sidebar-width : 0px;
         if library && root.sidebar-visible: Sidebar {
             x: Theme.rtl ? parent.width - self.width : 0px;
             height: parent.height;
@@ -255,7 +279,7 @@ export component AppWindow inherits Window {
             open-settings => { root.open-settings(); }
             cancel-job(i) => { root.cancel-job(i); }
         }
-        if !library: MiniSidebar {
+        if !library && !root.fs: MiniSidebar {
             x: Theme.rtl ? parent.width - self.width : 0px;
             height: parent.height;
             devices: root.devices;
@@ -279,6 +303,7 @@ export component AppWindow inherits Window {
                 frame-h: root.player-frame-h > 0 ? root.player-frame-h : root.devices[root.active-device].height-px;
                 mock-screen: root.player-mock;
                 pixel-perfect <=> root.player-pixel-perfect;
+                fullscreen: root.fs;
                 scale: root.player-scale;
                 recording: root.player-recording;
                 record-text: root.player-record-text;
@@ -309,6 +334,7 @@ export component AppWindow inherits Window {
                 log-toggle-follow => { root.log-toggle-follow(); }
                 log-open(o) => { root.log-open(o); }
                 meta-key(t, a, sh) => { root.meta-key(t, a, sh); }
+                fullscreen-key(t, c, m) => { return root.fullscreen-key(t, c, m); }
                 WidgetPanel {
                     tab <=> root.player-panel-tab;
                     tab-changed(i) => { root.widget-tab(i); }

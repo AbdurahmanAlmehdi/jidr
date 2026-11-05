@@ -31,7 +31,7 @@ Users are technical, on macOS (Apple Silicon), and often keep the app open all d
 1. **Launcher window**: the device library. Lists devices, their status, Android version, root mode, disk usage; create, start, stop, clone, delete; jobs in progress (downloads, root setup).
 2. **First-run setup**: detects whether an Android SDK exists; shows Google's SDK license (must be scrolled and explicitly accepted); downloads the emulator and a first system image with progress.
 3. **Create / edit device**: hardware profile, Android version (system image), root mode, RAM, CPU cores, resolution and density, name.
-4. **Device window (player)**: the live Android screen (the hero), a vertical toolbar (volume, rotate, back, home, recents, power, screenshot, record, pixel-perfect) and a **widget panel** that opens beside the screen.
+4. **Device window (player)**: the live Android screen (the hero), a vertical toolbar (volume, rotate, back, home, recents, power, screenshot, record, pixel-perfect, fullscreen) and a **widget panel** that opens beside the screen.
 5. **Widgets**: Battery · GPS (map, coordinates, GPX/KML route replay) · Rotation and motion sensors · Phone and SMS · Network (Wi-Fi/mobile on/off, speed/delay profiles) · Identifiers · Android controls (D-pad, media keys) · Developer tools (root, show taps, layout bounds, animations) · Biometrics (fingerprint touch) · Clipboard · Microphone input · Snapshots · Logcat.
 6. **Root setup flow**: a short, honest progress sequence (download Magisk → patch → reboot → install → verify), with a clear success badge, a clear failure state, and one-click revert.
 7. **Settings**: SDK location and disk usage, cache, MCP setup ("Add Jidr to Claude"), map tile source, default root mode, about and licenses.

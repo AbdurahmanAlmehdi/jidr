@@ -3,6 +3,7 @@
 
 pub mod bench;
 pub mod drop;
+pub mod fullscreen;
 pub mod input;
 pub mod logcat;
 pub mod session;
@@ -38,6 +39,7 @@ pub struct Player {
     log_dirty: bool,
     log_timer: Option<slint::Timer>,
     bench_started: bool,
+    pub fullscreen: fullscreen::Fullscreen,
 }
 
 impl Drop for Player {
@@ -72,6 +74,10 @@ fn active_device(ctx: &Ctx) -> Option<(Uuid, bool, Screen, RootMode)> {
 pub fn sync(ctx: &Rc<Ctx>) {
     let active = active_device(ctx);
     crate::recording::show(ctx, active.as_ref().map(|a| a.0));
+    // Only a device tab is fullscreen: the Library leaves it.
+    if active.is_none() && ctx.player.borrow().fullscreen.on {
+        fullscreen::set(ctx, false);
+    }
     let mut p = ctx.player.borrow_mut();
     let want = active.filter(|a| a.1).map(|a| a.0);
     if p.session.as_ref().map(|s| s.device) != want {
@@ -275,6 +281,7 @@ pub fn wire(ctx: &Rc<Ctx>) {
                     hover(&c, None);
                     handle_drop(&c, p);
                 }
+                WindowEvent::Resized(_) => fullscreen::after_resize(&c),
                 _ => {}
             }
             EventResult::Propagate
@@ -299,12 +306,20 @@ pub fn shortcut(ctx: &Rc<Ctx>, s: &str) -> bool {
             ctx.app.set_player_panel_open(v);
         }
         "screenshot" => tool_action(ctx, "screenshot"),
+        "fullscreen" => fullscreen::toggle(ctx),
+        "exit-fullscreen" => fullscreen::set(ctx, false),
         _ => return false,
     }
     true
 }
 
 fn tool_action(ctx: &Rc<Ctx>, tool: &str) {
+    // View state first: these never reach the device.
+    match tool {
+        "fullscreen" => return fullscreen::toggle(ctx),
+        "exit-fullscreen" => return fullscreen::set(ctx, false),
+        _ => {}
+    }
     let Some((id, ..)) = active_device(ctx) else {
         return;
     };

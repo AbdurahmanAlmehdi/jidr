@@ -67,6 +67,7 @@ export component MockScreen inherits Rectangle {
 /// The vertical device toolbar (`.vtool`), 48 px.
 component Toolbar inherits Rectangle {
     in property <bool> pixel-perfect;
+    in property <bool> fullscreen;
     in property <bool> recording;
     in property <bool> panel-open;
     in property <bool> running;
@@ -96,14 +97,16 @@ component Toolbar inherits Rectangle {
             { id: "screenshot", icon: Icons.camera, sep: false },
             { id: "record", icon: Icons.circle-dot, sep: false },
             { id: "pixel-perfect", icon: Icons.scan, sep: false },
+            { id: "fullscreen", icon: Icons.maximize-2, sep: false },
             { id: "clipboard", icon: Icons.clipboard, sep: false },
         ]: Rectangle {
             height: t.sep ? 43px : 34px;
             IconButton {
                 y: 1px;
-                icon: t.icon;
-                enabled: root.running;
-                on: (t.id == "pixel-perfect" && root.pixel-perfect) || (t.id == "record" && root.recording) || (t.id == "clipboard" && root.clipboard-shared);
+                icon: t.id == "fullscreen" && root.fullscreen ? Icons.minimize-2 : t.icon;
+                // Fullscreen is view state: it works before the device runs.
+                enabled: root.running || t.id == "fullscreen";
+                on: (t.id == "pixel-perfect" && root.pixel-perfect) || (t.id == "fullscreen" && root.fullscreen) || (t.id == "record" && root.recording) || (t.id == "clipboard" && root.clipboard-shared);
                 clicked => { root.tool(t.id); }
             }
             if t.id == "record" && root.recording: Rectangle {
@@ -261,6 +264,11 @@ export component DeviceView inherits Rectangle {
     in property <int> frame-h: device.height-px;
     in property <bool> mock-screen: false;
     in-out property <bool> pixel-perfect: false;
+    /// Fullscreen (⌃⌘F): the screen letterboxed on the whole window, the
+    /// toolbar and widget panel hidden until the pointer reaches their edge.
+    /// The Rust side owns it and the native window state; it is view state
+    /// only, never a protocol command.
+    in property <bool> fullscreen: false;
     in property <float> scale: 1.0;
     in property <bool> recording;
     in property <string> record-text;
@@ -293,17 +301,21 @@ export component DeviceView inherits Rectangle {
     callback log-toggle-follow();
     callback log-open(bool);
     callback meta-key(string, bool, bool);
+    /// (text, control, meta): ⌃⌘F, checked before anything else.
+    callback fullscreen-key(string, bool, bool) -> bool;
 
     background: Theme.surface-base;
     property <bool> running: device.state == DevState.running || device.state == DevState.busy;
     property <length> tool-w: Theme.window-device-toolbar-width;
     property <length> panel-w: root.panel-open ? Theme.window-device-widget-panel-width : 0px;
-    property <length> stage-w: root.width - tool-w - panel-w;
-    property <length> log-h: root.logcat-open ? 232px : 34px;
+    property <length> stage-w: root.fullscreen ? root.width : root.width - tool-w - panel-w;
+    property <length> log-h: root.fullscreen ? 0px : root.logcat-open ? 232px : 34px;
+    /// Fullscreen chrome shown while the pointer is on its edge or over it.
+    property <bool> reveal: root.fullscreen && (edge.has-hover || chrome.has-hover);
 
     // Stage column (`.dv-stagecol`): stage + logcat.
     stagecol := Rectangle {
-        x: Theme.rtl ? tool-w + panel-w : 0px;
+        x: Theme.rtl && !root.fullscreen ? tool-w + panel-w : 0px;
         width: stage-w;
         height: parent.height;
         stage := Rectangle {
@@ -311,8 +323,10 @@ export component DeviceView inherits Rectangle {
             height: parent.height - log-h;
             background: Theme.surface-sunken;
             clip: true;
-            property <length> pad: Theme.frame-stage-padding;
-            property <length> bez: device.form == FormFactor.tablet ? Theme.frame-tablet-bezel : device.form == FormFactor.small-phone ? Theme.frame-small-phone-bezel : Theme.frame-phone-bezel;
+            // Fullscreen drops the stage padding and the bezel: the screen
+            // alone, letterboxed.
+            property <length> pad: root.fullscreen ? 0px : Theme.frame-stage-padding;
+            property <length> bez: root.fullscreen ? 0px : device.form == FormFactor.tablet ? Theme.frame-tablet-bezel : device.form == FormFactor.small-phone ? Theme.frame-small-phone-bezel : Theme.frame-phone-bezel;
             property <length> rad: device.form == FormFactor.tablet ? Theme.frame-tablet-radius : device.form == FormFactor.small-phone ? Theme.frame-small-phone-radius : Theme.frame-phone-radius;
             property <length> srad: device.form == FormFactor.tablet ? Theme.frame-tablet-screen-radius : device.form == FormFactor.small-phone ? Theme.frame-small-phone-screen-radius : Theme.frame-phone-screen-radius;
             property <float> aspect: root.frame-w > 0 && root.frame-h > 0 ? root.frame-w / root.frame-h : 0.45;
@@ -334,8 +348,8 @@ export component DeviceView inherits Rectangle {
                     width: stage.screen-w + 2 * stage.bez;
                     height: stage.screen-h + 2 * stage.bez;
                     border-radius: stage.rad;
-                    background: Theme.surface-device-bezel;
-                    border-width: 1px;
+                    background: root.fullscreen ? transparent : Theme.surface-device-bezel;
+                    border-width: root.fullscreen ? 0px : 1px;
                     border-color: #ffffff14;
                     screen := Rectangle {
                         x: stage.bez;
@@ -403,6 +417,14 @@ export component DeviceView inherits Rectangle {
                 width: 0px;
                 height: 0px;
                 key-pressed(ev) => {
+                    // Esc leaves fullscreen instead of reaching the device.
+                    if (root.fullscreen && ev.text == Key.Escape) {
+                        root.tool("exit-fullscreen");
+                        return accept;
+                    }
+                    if (root.fullscreen-key(ev.text, ev.modifiers.control, ev.modifiers.meta)) {
+                        return accept;
+                    }
                     if (ev.modifiers.meta) {
                         root.meta-key(ev.text, ev.modifiers.alt, ev.modifiers.shift);
                         return accept;
@@ -412,6 +434,7 @@ export component DeviceView inherits Rectangle {
                 }
                 key-released(ev) => {
                     if (ev.modifiers.meta) { return reject; }
+                    if (root.fullscreen && ev.text == Key.Escape) { return accept; }
                     root.key(ev.text, false);
                     return accept;
                 }
@@ -514,7 +537,7 @@ export component DeviceView inherits Rectangle {
             }
         }
         // Logcat: collapsed bar or the panel.
-        if !root.logcat-open: Rectangle {
+        if !root.fullscreen && !root.logcat-open: Rectangle {
             y: parent.height - 34px;
             height: 34px;
             background: Theme.surface-chrome;
@@ -548,7 +571,7 @@ export component DeviceView inherits Rectangle {
                 }
             }
         }
-        if root.logcat-open: Logcat {
+        if !root.fullscreen && root.logcat-open: Logcat {
             y: parent.height - 232px;
             lines: root.log-lines;
             summary: root.log-summary;
@@ -566,29 +589,45 @@ export component DeviceView inherits Rectangle {
             }
         }
     }
-    Toolbar {
-        x: Theme.rtl ? panel-w : stage-w;
+    // Fullscreen: a thin strip on the toolbar's edge reveals the chrome.
+    edge := TouchArea {
+        visible: root.fullscreen;
+        x: Theme.rtl ? 0px : root.width - self.width;
+        width: 6px;
         height: parent.height;
-        pixel-perfect: root.pixel-perfect;
-        recording: root.recording;
-        panel-open: root.panel-open;
-        running: root.running;
-        clipboard-shared: root.clipboard-shared;
-        tool(t) => {
-            if (t == "pixel-perfect") {
-                root.pixel-perfect = !root.pixel-perfect;
-            } else if (t == "panel") {
-                root.panel-open = !root.panel-open;
-            }
-            root.tool(t);
-        }
     }
-    Rectangle {
-        visible: root.panel-open;
-        x: Theme.rtl ? 0px : stage-w + tool-w;
-        width: panel-w;
+    // Toolbar and widget panel; in fullscreen they float over the stage
+    // while revealed and hide again when the pointer leaves them.
+    chrome := TouchArea {
+        visible: !root.fullscreen || root.reveal;
+        x: Theme.rtl ? 0px : root.width - self.width;
+        width: tool-w + panel-w;
         height: parent.height;
-        clip: true;
-        @children
+        Toolbar {
+            x: Theme.rtl ? panel-w : 0px;
+            height: parent.height;
+            pixel-perfect: root.pixel-perfect;
+            fullscreen: root.fullscreen;
+            recording: root.recording;
+            panel-open: root.panel-open;
+            running: root.running;
+            clipboard-shared: root.clipboard-shared;
+            tool(t) => {
+                if (t == "pixel-perfect") {
+                    root.pixel-perfect = !root.pixel-perfect;
+                } else if (t == "panel") {
+                    root.panel-open = !root.panel-open;
+                }
+                root.tool(t);
+            }
+        }
+        Rectangle {
+            visible: root.panel-open;
+            x: Theme.rtl ? 0px : tool-w;
+            width: panel-w;
+            height: parent.height;
+            clip: true;
+            @children
+        }
     }
 }

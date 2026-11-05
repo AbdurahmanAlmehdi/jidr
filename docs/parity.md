@@ -51,11 +51,11 @@ Tests named `*_emulator` run on a real emulator: on Linux KVM in CI (API 30, 33,
 | Snapshot manager | — (Jidr only) | ✅ | `crates/jidr-widgets/tests/snapshot_emulator.rs` `snapshot_round_trip_and_cross_root_refusal` |
 | Shared folders | — (Jidr only) | ⏭️ | [#27](https://github.com/AbdurahmanAlmehdi/jidr/issues/27) |
 | Multitouch via modifiers | Free | 🚧 | ⌥ pinch and ⇧⌥ pan: `crates/jidr-ui/src/player/input.rs` `gestures_add_a_second_finger` (unit test only) |
-| Pixel-perfect, fullscreen, resize | Free | 🚧 | Pixel-perfect and resize (golden `player-pixel-perfect`); fullscreen: ⏭️ [#71](https://github.com/AbdurahmanAlmehdi/jidr/issues/71) |
+| Pixel-perfect, fullscreen, resize | Free | ✅ | Pixel-perfect and resize (golden `player-pixel-perfect`); fullscreen ⌃⌘F, Esc leaves (goldens `player-fullscreen`, `player-fullscreen-reveal`; `crates/jidr-ui/src/player/fullscreen.rs` unit tests; native window: manual check on a Mac) |
 | MCP server for AI agents | — (Jidr only) | ✅ | `crates/jidr-mcp/tests/mcp.rs:25` `tools_are_listed_with_annotations`, `mcp.rs:163` `destructive_policy_d5`; `crates/jidr-mcp/tests/agent_tasks.rs:175` `five_agent_tasks` (real emulator) |
 | Shell REPL (Genymotion Shell) | Free | ✅ | `jidr shell` ([#73](https://github.com/AbdurahmanAlmehdi/jidr/issues/73)): `apps/jidr/tests/shell.rs` `piped_lines_run_with_the_current_device`, `a_script_stops_at_its_first_failure`, `source_runs_a_file_inside_the_shell`; device context and completion: `apps/jidr/src/shell/line.rs` `fills_in_the_current_device`, `apps/jidr/src/shell/complete.rs` `completes_commands_devices_and_methods` |
 
-**Breadth:** 27 / 43 ✅ (63%). Of the other 16: 8 🚧, 7 ⏭️, 1 ❌. Five rows are Jidr-only (not in Genymotion); three of them are ✅.
+**Breadth:** 28 / 43 ✅ (65%). Of the other 15: 7 🚧, 7 ⏭️, 1 ❌. Five rows are Jidr-only (not in Genymotion); three of them are ✅.
 
 **Ready for real work: about 70% for the core use case, lower for Genymotion power users.**
 
@@ -65,4 +65,4 @@ Tests named `*_emulator` run on a real emulator: on Linux KVM in CI (API 30, 33,
   - Quick boot is slower than its target.
   - A few emulator tests are still flaky on shared CI runners.
   - Several paid-tier niches are partial or post-MVP: motion presets, file-based camera, biometric scenarios, network loss and DNS, identifiers, disk limits, gamepad.
-  - Fullscreen and clipboard sharing in the player aren't finished.
+  - Clipboard sharing in the player isn't finished.
