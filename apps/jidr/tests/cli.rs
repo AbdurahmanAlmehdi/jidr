@@ -62,6 +62,15 @@ fn exit_codes_are_error_codes() {
             .contains("aren't available"),
         "{err}"
     );
+    // `root auto-grant` parses and reaches the daemon as `root.auto_grant`.
+    let err = e.fail(&["root", "auto-grant", "P", "true"], 2);
+    assert!(
+        err["message"]
+            .as_str()
+            .unwrap()
+            .contains("(root.auto_grant)"),
+        "{err}"
+    );
     // clap usage errors exit 2 too.
     assert_eq!(e.jidr(&["device", "frobnicate"]).status.code(), Some(2));
 }

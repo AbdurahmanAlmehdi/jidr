@@ -39,7 +39,7 @@ jidr --json device start Phone --timeout 300 || exit $?
 | `profile list` | Built-in hardware profiles (D24). `agent-lean` (720×1280, 2 GB, 2 cores, no audio or cameras) costs ~4 GB of host RAM instead of ~7.6 GB. |
 | `budget` | Host RAM, the device budget (`settings set --budget-percent`, 75% by default) and what each running device is expected to use and uses now (D42). |
 | `sdk status`, `sdk licenses <pkgs…>`, `sdk install <pkgs…> [--accept-licenses]` | The SDK Jidr uses (its private one; Android Studio's is only read, D3). |
-| `root set <name> none\|adb\|magisk`, `root verify <name>`, `root status <name>` | Root modes (provided by the root engine). |
+| `root set <name> none\|adb\|magisk`, `root verify <name>`, `root status <name>`, `root auto-grant <name> true\|false` | Root modes (provided by the root engine). `auto-grant` grants every app root without a prompt on a Full-root device (D22, off by default; `root.auto_grant`). |
 | `root writable-system <name> on\|off` | A writable `/system` on an `adb`-root device (`-writable-system` + `adb remount`); `off` goes back to the read-only stock image. Cold boots a running device (D29); refused with exit code 2 on `none`/`magisk` devices, Play Store images and images older than API 31. See docs/root.md. |
 | `snapshot list\|save\|load\|delete <name> [snapshot]` | Snapshots tagged with their root mode (provided by the widgets provider). |
 | `base create <device> <name>`, `base ls`, `base rm <name> --yes` | Bases (D42): `create` saves a running device (root none or adb) as a read-only base with snapshot `jidr-base`, animations off, and stops the device. A base can't be started; `rm` refuses while clones of it are leased. |

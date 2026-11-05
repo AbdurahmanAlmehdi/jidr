@@ -519,6 +519,13 @@ pub enum RootCmd {
     Verify { device: String },
     /// Root mode and health.
     Status { device: String },
+    /// Grant every app root without a prompt on a Full-root device (D22, off by default).
+    AutoGrant {
+        device: String,
+        /// `true` grants every app root; `false` restores Magisk's prompt.
+        #[arg(action = clap::ArgAction::Set, value_parser = clap::value_parser!(bool))]
+        enabled: bool,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -610,6 +617,28 @@ mod tests {
         assert_eq!(parse_duration("1d"), Ok(86_400));
         for bad in ["", "h", "0m", "-1h", "2 hours"] {
             assert!(parse_duration(bad).is_err(), "{bad:?}");
+        }
+    }
+
+    /// Regression: docs/root.md shows `jidr root auto-grant <device> true|false`,
+    /// which used to fail to parse.
+    #[test]
+    fn root_auto_grant_parses() {
+        for (arg, want) in [("true", true), ("false", false)] {
+            let cli = Cli::try_parse_from(["jidr", "root", "auto-grant", "Phone", arg]).unwrap();
+            match cli.cmd {
+                Cmd::Root {
+                    cmd: RootCmd::AutoGrant { device, enabled },
+                } => {
+                    assert_eq!(device, "Phone");
+                    assert_eq!(enabled, want);
+                }
+                other => panic!("{other:?}"),
+            }
+        }
+        for bad in [vec!["Phone"], vec!["Phone", "maybe"]] {
+            let args = ["jidr", "root", "auto-grant"].into_iter().chain(bad);
+            assert!(Cli::try_parse_from(args).is_err());
         }
     }
 }
