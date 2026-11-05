@@ -15,6 +15,7 @@ jidr-proto.workspace = true
 jidr-adb.workspace = true
 jidr-sdk.workspace = true
 tokio.workspace = true
+tokio-stream.workspace = true
 tonic.workspace = true
 serde.workspace = true
 serde_json.workspace = true

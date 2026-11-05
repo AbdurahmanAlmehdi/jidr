@@ -117,6 +117,11 @@ pub enum Cmd {
         #[command(subcommand)]
         cmd: ProxyCmd,
     },
+    /// Play an audio file as a device's microphone (WAV, or raw 16-bit PCM).
+    Audio {
+        #[command(subcommand)]
+        cmd: AudioCmd,
+    },
     /// The download cache (Magisk APKs and other pinned files, by SHA-256).
     Cache {
         #[command(subcommand)]
@@ -559,6 +564,30 @@ pub enum ProxyCmd {
 }
 
 #[derive(Debug, Subcommand)]
+pub enum AudioCmd {
+    /// Play a WAV file (8–48 kHz, mono or stereo) as the microphone of a
+    /// running device; waits until it ends.
+    Inject {
+        device: String,
+        file: PathBuf,
+        /// Start again at the end, until `jidr audio stop`.
+        #[arg(long = "loop")]
+        repeat: bool,
+        /// Headerless 16-bit little-endian PCM: its sample rate in Hz.
+        #[arg(long)]
+        rate: Option<u32>,
+        /// Headerless PCM: 1 (default) or 2 channels.
+        #[arg(long, requires = "rate")]
+        channels: Option<u16>,
+        /// Print the job id and return; stop it with `jidr audio stop`.
+        #[arg(long)]
+        no_wait: bool,
+    },
+    /// Stop the audio playing into the microphone.
+    Stop { device: String },
+}
+
+#[derive(Debug, Subcommand)]
 pub enum JobsCmd {
     /// Running jobs.
     List {
@@ -599,6 +628,46 @@ mod tests {
         assert!(
             Cli::try_parse_from(["jidr", "root", "writable-system", "Phone", "maybe"]).is_err()
         );
+    }
+
+    #[test]
+    fn audio_inject_flags() {
+        let cli = Cli::try_parse_from([
+            "jidr",
+            "audio",
+            "inject",
+            "Phone",
+            "a.pcm",
+            "--rate",
+            "16000",
+            "--channels",
+            "2",
+            "--loop",
+        ])
+        .unwrap();
+        let Cmd::Audio {
+            cmd:
+                AudioCmd::Inject {
+                    rate,
+                    channels,
+                    repeat,
+                    no_wait,
+                    ..
+                },
+        } = cli.cmd
+        else {
+            panic!("not audio inject");
+        };
+        assert_eq!(
+            (rate, channels, repeat, no_wait),
+            (Some(16_000), Some(2), true, false)
+        );
+        // --channels describes headerless PCM, so it needs --rate.
+        assert!(
+            Cli::try_parse_from(["jidr", "audio", "inject", "P", "a.wav", "--channels", "2"])
+                .is_err()
+        );
+        assert!(Cli::try_parse_from(["jidr", "audio", "stop", "P"]).is_ok());
     }
 
     #[test]

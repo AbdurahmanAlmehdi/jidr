@@ -3,6 +3,7 @@
 
 pub mod adopt;
 pub mod aosp;
+pub mod audio;
 pub mod console;
 pub mod crash;
 pub mod discovery;

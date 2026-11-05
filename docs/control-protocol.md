@@ -104,7 +104,7 @@ These act on the calling connection and aren't in `commands.list`:
 
 ## Commands
 
-Providers register commands with an id, a label, a params JSON Schema and three flags: `destructive` (MCP refuses it unless allowed, D5), `longRunning` and `locksDevice`. The daemon core provides the commands below; `jidr-widgets` (sensors, phone, network, media, snapshots) and `jidr-root` (root modes) add theirs when they land. `commands.list` is always the source of truth.
+Providers register commands with an id, a label, a params JSON Schema and three flags: `destructive` (MCP refuses it unless allowed, D5), `longRunning` and `locksDevice`. The daemon core provides the commands below; `jidr-widgets` (sensors, phone, network, media, microphone, snapshots) and `jidr-root` (root modes) add theirs when they land. `commands.list` is always the source of truth.
 
 <!-- commands:begin (generated from commands.list; JIDR_UPDATE_DOCS=1 cargo nextest run -p jidr protocol_doc) -->
 
@@ -136,6 +136,28 @@ Uninstall an app and its data · locks the device · **destructive**
 |---|---|---|---|
 | `device` | string | yes |  |
 | `package` | string | yes | Package name, e.g. `com.example.shop`. |
+
+### `audio.*`
+
+#### `audio.inject`
+
+Play a WAV (or raw PCM) file as the device's microphone until it ends or audio.stop · long-running (job)
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `path` | string | yes | A WAV file on this machine: 8-, 16-, 24- or 32-bit PCM or 32/64-bit float, mono or stereo, 8–48 kHz. Or headerless 16-bit little-endian PCM with `sample_rate`. |
+| `loop` | boolean |  | Start again at the end, until `audio.stop`. |
+| `sample_rate` | integer |  | Headerless PCM only: its sample rate in Hz (8000–48000). |
+| `channels` | integer |  | Headerless PCM only: 1 (mono, the default) or 2 (stereo). |
+
+#### `audio.stop`
+
+Stop the audio playing into the microphone
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes | Device name or id. |
 
 ### `base.*`
 
@@ -995,3 +1017,4 @@ Save a snapshot of a running device · long-running (job) · locks the device
 | 0.1 (additive) | Phase 13d (D42): new commands from the pool provider: `base.create {from_device, name}` (long-running), `base.list`, `base.delete {base}` (destructive), `pool.get {base, ttl_s?, timeout_s?}` (long-running) → `{lease, device, serial, connect}`, `pool.release {lease \| device}`, `pool.renew {lease, ttl_s?}`, `pool.list`. A lease without `ttl_s` is tied to the calling connection and expires 2 minutes after it closes; the daemon reaps expired leases every 30 s and stays up while any exist (D4). `Device` gains `base` (read-only; `device.start` refuses it) and `pool_base`. Events `pool.leased`, `pool.released`. A full budget makes `pool.get` wait, then fail with `resource_exhausted`. |
 | 0.1 (fix) | `root.set` (mode `magisk`) and `root.verify`: `magisk_version` is now the version alone (`30.7`), not the raw `magisk -v` output (`30.7:MAGISK:R`). The field and its type are unchanged. |
 | 0.1 (additive) | #25: `root.writable_system {device, enabled}` (long-running, locks the device) → `{device, writable_system, changed, applied: "unchanged" \| "next_boot" \| "live", system_writable?}`: a writable `/system` on an `adb`-root device (`-writable-system` launch option, then `adb remount` from the boot hook), stored in the existing `RootState.writable_system`. Enabling is refused with `usage` unless the device is in `adb` mode on an image that allows adb root, at API 31 or later; changing it forces a cold boot (D29). `root.set` to `none` or `magisk` resets `writable_system` to `false`, and `base.create` refuses a source with it on (`usage`). No existing field changed meaning. |
+| 0.1 (additive) | #70: `audio.inject {device, path, loop?, sample_rate?, channels?}` (long-running) plays a WAV (8/16/24/32-bit PCM or float, mono or stereo, 8–48 kHz; 24/32-bit and float are converted to 16-bit) or headerless 16-bit PCM as the device's microphone over gRPC `injectAudio`, and ends with `{path, duration_s, played_s, loops, stopped, sample_rate, channels, format, converted_from}`; `audio.stop {device}` → `{stopped}` ends it. Unsupported files are `usage`; a microphone another client already feeds is `busy`. From the widgets provider; no existing command changed. |

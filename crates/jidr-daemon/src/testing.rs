@@ -7,6 +7,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use jidr_backend::fake::FakeBackend;
+use jidr_core::provider::CommandProvider;
 use jidr_core::{ImageRef, JidrPaths, JidrResult};
 use jidr_sdk::host::HostMemory;
 
@@ -86,6 +87,31 @@ impl TestDaemon {
 
     /// Like [`start`](Self::start), on a host with this much RAM.
     pub async fn start_with_memory(root: &Path, memory: HostMemory) -> JidrResult<Self> {
+        Self::start_inner(root, memory, Vec::new()).await
+    }
+
+    /// Like [`start`](Self::start), with extra command providers (e.g. the
+    /// widgets provider, to test it against the fake backend).
+    pub async fn start_with_providers(
+        root: &Path,
+        providers: Vec<Arc<dyn CommandProvider>>,
+    ) -> JidrResult<Self> {
+        Self::start_inner(
+            root,
+            HostMemory {
+                total_mb: 1 << 20,
+                available_mb: 1 << 19,
+            },
+            providers,
+        )
+        .await
+    }
+
+    async fn start_inner(
+        root: &Path,
+        memory: HostMemory,
+        providers: Vec<Arc<dyn CommandProvider>>,
+    ) -> JidrResult<Self> {
         let paths = JidrPaths::under(root.join("j"));
         let studio = fake_studio(&root.join("studio"))
             .map_err(|e| jidr_core::JidrError::unexpected(format!("fake SDK: {e}")))?;
@@ -100,7 +126,7 @@ impl TestDaemon {
             })
             .map_err(|e| jidr_core::JidrError::unexpected(format!("fake repo: {e}")))?;
         let backend = Arc::new(FakeBackend::new());
-        let daemon = Daemon::builder(
+        let mut builder = Daemon::builder(
             DaemonConfig {
                 paths: paths.clone(),
                 studio_sdk: Some(studio.clone()),
@@ -109,8 +135,11 @@ impl TestDaemon {
             },
             backend.clone(),
         )
-        .host_memory(memory)
-        .build()?;
+        .host_memory(memory);
+        for p in providers {
+            builder = builder.provider(p);
+        }
+        let daemon = builder.build()?;
         let (tx, rx) = tokio::sync::oneshot::channel();
         let d = daemon.clone();
         let task = tokio::spawn(async move {

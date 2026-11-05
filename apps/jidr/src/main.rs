@@ -12,8 +12,8 @@ use std::time::Duration;
 
 use clap::{CommandFactory, Parser};
 use cli::{
-    BaseCmd, CacheCmd, CertCmd, Cli, Cmd, DaemonCmd, DeviceCmd, Hardware, ImageCmd, JobsCmd,
-    PoolCmd, ProfileCmd, ProxyCmd, RootCmd, SdkCmd, Selection, SettingsCmd, SnapshotCmd,
+    AudioCmd, BaseCmd, CacheCmd, CertCmd, Cli, Cmd, DaemonCmd, DeviceCmd, Hardware, ImageCmd,
+    JobsCmd, PoolCmd, ProfileCmd, ProxyCmd, RootCmd, SdkCmd, Selection, SettingsCmd, SnapshotCmd,
 };
 use jidr_client::{Client, SpawnOptions};
 use jidr_core::{ErrorCode, JidrError, JidrPaths, JidrResult, Job, JobState};
@@ -725,6 +725,53 @@ async fn dispatch(c: &Client, cmd: Cmd, out: Out) -> JidrResult<()> {
             out.ok(&v, |v| match v["proxy"].as_str() {
                 Some(p) => format!("HTTP proxy: {p}"),
                 None => "No HTTP proxy.".to_string(),
+            });
+        }
+        Cmd::Audio {
+            cmd:
+                AudioCmd::Inject {
+                    device,
+                    file,
+                    repeat,
+                    rate,
+                    channels,
+                    no_wait,
+                },
+        } => {
+            let file = std::path::absolute(&file).unwrap_or(file);
+            let mut p = json!({ "device": device, "path": file, "loop": repeat });
+            if let Some(r) = rate {
+                p["sample_rate"] = json!(r);
+            }
+            if let Some(ch) = channels {
+                p["channels"] = json!(ch);
+            }
+            let v = c
+                .call("audio.inject", p)
+                .await
+                .map_err(|e| missing_provider("audio.inject", e))?;
+            if no_wait {
+                out.ok(&v, |v| {
+                    format!(
+                        "Audio job {}; stop it with `jidr audio stop {device}`",
+                        v["job"].as_str().unwrap_or("?")
+                    )
+                });
+            } else {
+                let v = follow(c, out, v, None).await?;
+                out.ok(&v, output::audio);
+            }
+        }
+        Cmd::Audio {
+            cmd: AudioCmd::Stop { device },
+        } => {
+            let v = c.call("audio.stop", json!({ "device": device })).await?;
+            out.ok(&v, |v| {
+                if v["stopped"] == true {
+                    format!("Stopping the audio on {device}.")
+                } else {
+                    format!("No audio is playing on {device}.")
+                }
             });
         }
         Cmd::Jobs {

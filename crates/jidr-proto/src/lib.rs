@@ -137,6 +137,7 @@ mod tests {
             "getClipboard",
             "streamLogcat",
             "sendFingerprint",
+            "injectAudio",
         ] {
             assert!(
                 text.contains(&format!("rpc {rpc}(")),

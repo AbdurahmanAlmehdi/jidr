@@ -1,6 +1,7 @@
 //! `CommandProvider` for sensors, phone, network, dev tools, screenshots,
-//! recording and snapshots (plan Phases 8a, 8b, 10a, 10b). Registered in
-//! the daemon by Stream A through [`provider`] (gap A1). Apache-2.0, no Slint.
+//! recording, microphone injection and snapshots (plan Phases 8a, 8b, 10a,
+//! 10b; #70). Registered in the daemon by Stream A through [`provider`]
+//! (gap A1). Apache-2.0, no Slint.
 
 use std::sync::Arc;
 
@@ -11,6 +12,7 @@ use serde_json::Value;
 
 pub mod apk;
 pub mod apps;
+pub mod audio;
 pub mod battery;
 pub mod device;
 pub mod devtools;
@@ -31,6 +33,7 @@ pub fn provider() -> Arc<dyn CommandProvider> {
 pub struct WidgetsProvider {
     routes: gps::Routes,
     recordings: media::Recordings,
+    injections: audio::Injections,
 }
 
 #[async_trait]
@@ -42,6 +45,7 @@ impl CommandProvider for WidgetsProvider {
     fn commands(&self) -> Vec<CommandSpec> {
         let mut v = Vec::new();
         v.extend(apps::specs());
+        v.extend(audio::specs());
         v.extend(battery::specs());
         v.extend(sensors::specs());
         v.extend(network::specs());
@@ -57,6 +61,7 @@ impl CommandProvider for WidgetsProvider {
     async fn call(&self, ctx: &CallCtx, method: &str, params: Value) -> JidrResult<Value> {
         match method.split('.').next().unwrap_or_default() {
             "app" => apps::call(ctx, method, params).await,
+            "audio" => audio::call(ctx, &self.injections, method, params).await,
             "battery" => battery::call(ctx, method, params).await,
             "sensor" => sensors::call(ctx, method, params).await,
             "network" => network::call(ctx, method, params).await,

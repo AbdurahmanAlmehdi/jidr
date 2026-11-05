@@ -63,6 +63,7 @@ Tips:
 - `ui_dump` takes several seconds. Use screenshots to follow progress and the tree only to find what to tap.
 - If the app crashed or the screen didn't change, read the log before trying again: `jidr logcat Phone -n 200` (look for `FATAL EXCEPTION` or `AndroidRuntime`).
 - A rotation check: `jidr call sensor.rotate '{"device":"Phone","angle":90}'`, screenshot, then back to `0`.
+- A voice or speech flow: start it in the app, then play a WAV into the microphone with `jidr audio inject Phone ~/prompt.wav --no-wait` (8–48 kHz, mono or stereo); it plays as the app reads the microphone. End it with `jidr audio stop Phone`. Devices made with the `agent-lean` profile have no audio.
 - To retry a flow from the same state, save a snapshot before it and load it between tries (`jidr snapshot save Phone start`, `jidr snapshot load Phone start`).
 
 Report what you checked with the final screenshot, and the log lines for any failure.
