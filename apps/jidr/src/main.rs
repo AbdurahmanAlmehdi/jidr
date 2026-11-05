@@ -670,6 +670,10 @@ async fn dispatch(c: &Client, cmd: Cmd, out: Out) -> JidrResult<()> {
                 ),
                 RootCmd::Verify { device } => ("root.verify", json!({ "device": device })),
                 RootCmd::Status { device } => ("root.status", json!({ "device": device })),
+                RootCmd::AutoGrant { device, state } => (
+                    "root.auto_grant",
+                    json!({ "device": device, "enabled": state.enabled() }),
+                ),
             };
             let v = exec(c, out, method, params).await?;
             out.ok(&v, output::pretty);
