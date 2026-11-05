@@ -2,10 +2,9 @@
 //!
 //! The emulator's `-writable-system` launch option boots a writable copy of
 //! the system image. After `adb root`, `adb remount` mounts `/system`
-//! read-write (an overlayfs on API 29+). The first remount on a device needs
-//! a reboot: it turns verity off and asks for one, or (API 30) reports success
-//! while `/system` stays read-only. After that reboot (and `adb root` again)
-//! a second remount succeeds. Changing the setting forces a cold boot (D29):
+//! read-write (an overlayfs). The first remount on a device turns verity off
+//! and asks for a reboot; after that reboot (and `adb root` again) a second
+//! remount succeeds. Changing the setting forces a cold boot (D29):
 //! a quick-boot snapshot taken with one system image never resumes on the
 //! other.
 //!
@@ -14,6 +13,10 @@
 //! read-only stock system image again. A device that is reverted while
 //! stopped gets the same teardown at its next adb-root boot if an overlay is
 //! still mounted.
+//!
+//! Supported from API 31: on the API 30 image CI runs, the first remount
+//! reports success while `/system` stays read-only, and the emulator never
+//! comes back from the reboot that would fix it, so older images are refused.
 //!
 //! Sources: the emulator's public command-line docs (`-writable-system`) and
 //! AOSP's public adb / overlayfs docs (`adb remount`, `adb enable-verity`).
@@ -29,6 +32,8 @@ use serde_json::{Value, json};
 
 use crate::{adb_ready, magisk, verify};
 
+/// The oldest API level with a writable `/system`.
+pub(crate) const MIN_API: u32 = 31;
 /// How long the guest may take to reboot after verity is turned off.
 const REBOOT_TIMEOUT: Duration = Duration::from_secs(240);
 /// How long adbd may take to answer as root again.
@@ -46,7 +51,7 @@ const OVERLAY_PROBE: &str =
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SetParams {
-    /// Device name or id (must be in `adb` root mode to enable).
+    /// Device name or id (must be in `adb` root mode, on API 31 or later, to enable).
     pub device: String,
     /// `true`: boot with a writable `/system` (`-writable-system` +
     /// `adb remount`). `false`: back to the read-only stock system image.
@@ -59,6 +64,12 @@ pub(crate) fn ineligible(device: &Device) -> Option<JidrError> {
         return Some(JidrError::usage(format!(
             "{} images don't allow adb root, so /system can't be made writable; use a google_apis, default or aosp_atd image",
             device.image.tag
+        )));
+    }
+    if device.image.api < MIN_API {
+        return Some(JidrError::usage(format!(
+            "{} runs API {}; writable /system needs API {MIN_API} or later",
+            device.name, device.image.api
         )));
     }
     match device.root.mode {
@@ -226,10 +237,9 @@ async fn has_overlay(adb: &Adb) -> bool {
 
 /// Remounts `/system` read-write unless it already is, then checks a file
 /// can be written there. The first remount on a device may need a reboot
-/// before `/system` becomes writable, whether or not its output says so: on
-/// API 30 it reports success while the new overlay only takes effect after a
-/// reboot. So a remount that leaves `/system` read-only gets one reboot and
-/// a second remount.
+/// before `/system` becomes writable, whether or not its output says so, so
+/// a remount that leaves `/system` read-only gets one reboot and a second
+/// remount.
 async fn ensure_writable(ctx: &CallCtx, adb: &Adb) -> JidrResult<()> {
     if is_writable(adb).await {
         return Ok(());

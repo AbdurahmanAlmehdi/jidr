@@ -186,6 +186,25 @@ async fn only_adb_root_devices_qualify() {
     assert_eq!(err.code, ErrorCode::Usage);
     assert!(err.message.contains("google_apis_playstore"), "{err}");
 
+    // API 30 and older: the remount leaves /system read-only and the guest
+    // doesn't come back from the reboot that would fix it (CI, #85).
+    let d = env.create("old", "35:google_apis", Some("adb")).await;
+    env.ctx
+        .daemon
+        .update_device(d.id, Box::new(|d: &mut Device| d.image.api = 30))
+        .await
+        .unwrap();
+    let err = env
+        .call(
+            "root.writable_system",
+            json!({ "device": "old", "enabled": true }),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(err.code, ErrorCode::Usage);
+    assert!(err.message.contains("API 31 or later"), "{err}");
+    assert!(!env.device("old").await.root.writable_system);
+
     // Full root (Magisk).
     let d = env.create("full", "35:google_apis", Some("adb")).await;
     env.ctx

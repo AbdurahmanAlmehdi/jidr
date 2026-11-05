@@ -1,7 +1,8 @@
 //! #25 acceptance on a real emulator: an adb-root device gets a writable
 //! `/system` (`-writable-system` + `adb remount`, with the reboot the first
 //! remount asks for), keeps it across a stop/start, and is reverted to the
-//! read-only stock system image.
+//! read-only stock system image. On images older than API 31 it checks that
+//! the command is refused.
 //!
 //! The image comes from `JIDR_TEST_IMAGE` (default: API 31 `google_apis` for
 //! the host ABI) in `JIDR_TEST_SDK` (default: Android Studio's SDK, opened
@@ -17,7 +18,7 @@ use jidr_adb::Adb;
 use jidr_backend::AospBackend;
 use jidr_backend::testing::{AvdGuard, kill_orphans, unique_avd};
 use jidr_core::provider::{CallCtx, DaemonContext};
-use jidr_core::{JidrPaths, RootMode};
+use jidr_core::{ErrorCode, JidrPaths, RootMode};
 use jidr_daemon::{Daemon, DaemonConfig};
 use serde_json::{Value, json};
 
@@ -93,7 +94,26 @@ async fn writable_system_on_survives_a_restart_then_reverts() {
         json!({ "name": name, "image": image, "profile": "small-phone-5", "root_mode": "adb" }),
     )
     .await;
-    let _guard = AvdGuard::new(&state.device(&name).await.unwrap().avd);
+    let created = state.device(&name).await.unwrap();
+    let _guard = AvdGuard::new(&created.avd);
+
+    // Images older than API 31 are refused before anything boots.
+    if created.image.api < 31 {
+        let (p, _) = daemon.registry().get("root.writable_system").unwrap();
+        let err = p
+            .call(
+                &ctx,
+                "root.writable_system",
+                json!({ "device": name, "enabled": true }),
+            )
+            .await
+            .unwrap_err();
+        assert_eq!(err.code, ErrorCode::Usage, "{err}");
+        assert!(err.message.contains("API 31 or later"), "{err}");
+        assert!(!state.device(&name).await.unwrap().root.writable_system);
+        call(&daemon, &ctx, "device.delete", json!({ "device": name })).await;
+        return;
+    }
 
     // 1. Stock: /system is read-only even as root.
     call(&daemon, &ctx, "device.start", json!({ "device": name })).await;

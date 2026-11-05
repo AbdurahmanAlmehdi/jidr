@@ -124,8 +124,9 @@ emulator pass it.
 
 ## Writable /system (adb mode)
 
-A shell-root (`adb`) device can boot with a writable `/system`, so you can push
-files into the system partitions (`adb push … /system/…`):
+A shell-root (`adb`) device on API 31 or later can boot with a writable
+`/system`, so you can push files into the system partitions
+(`adb push … /system/…`):
 
 ```bash
 jidr root writable-system <device> on    # -writable-system + adb remount
@@ -136,13 +137,17 @@ jidr root writable-system <device> off   # back to the read-only stock image
 root state (`writable_system`). Changing it forces a cold boot (D29): a running
 device is restarted at once; a stopped one applies it at its next start.
 
+It needs API 31 or later. Older images are refused with `usage` (exit code 2):
+on API 30, `adb remount` leaves `/system` read-only and the emulator doesn't
+come back from the reboot that would fix it.
+
 How it works: with the setting on, the device launches with the emulator's
 `-writable-system` option, which boots a writable copy of the system image.
 After every boot the root hook runs `adb root`, then `adb remount`. The first
 remount on a device needs a reboot before `/system` becomes writable (it
-turns verity off and asks for one, or, on API 30, reports success while
-`/system` stays read-only). Jidr then reboots the guest once, waits for the
-boot to complete, roots adbd again and remounts. It
+turns verity off and asks for one). If `/system` is still read-only after a
+remount, Jidr reboots the guest once, waits for the boot to complete, roots
+adbd again and remounts. It
 then checks that a file can be created under `/system`, and the command fails
 with `root_failed` (exit code 7) if it can't. Later boots only remount.
 
