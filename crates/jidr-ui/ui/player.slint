@@ -416,6 +416,7 @@ export component DeviceView inherits Rectangle {
             keys := FocusScope {
                 width: 0px;
                 height: 0px;
+                // ⌘ arrives as `control` on macOS (see `meta-key` in app.slint).
                 key-pressed(ev) => {
                     // Esc leaves fullscreen instead of reaching the device.
                     if (root.fullscreen && ev.text == Key.Escape) {
@@ -425,7 +426,7 @@ export component DeviceView inherits Rectangle {
                     if (root.fullscreen-key(ev.text, ev.modifiers.control, ev.modifiers.meta)) {
                         return accept;
                     }
-                    if (ev.modifiers.meta) {
+                    if (ev.modifiers.control) {
                         root.meta-key(ev.text, ev.modifiers.alt, ev.modifiers.shift);
                         return accept;
                     }
@@ -433,7 +434,9 @@ export component DeviceView inherits Rectangle {
                     return accept;
                 }
                 key-released(ev) => {
-                    if (ev.modifiers.meta) { return reject; }
+                    // Slint clears `control` before ⌘'s own release, so the
+                    // key is matched too: its press never reached the device.
+                    if (ev.modifiers.control || ev.text == Key.Control) { return reject; }
                     if (root.fullscreen && ev.text == Key.Escape) { return accept; }
                     root.key(ev.text, false);
                     return accept;

@@ -389,6 +389,7 @@ mod tests {
     use super::*;
     use crate::RootUi;
     use jidr_core::RootMode;
+    use slint::platform::{Key, PointerEventButton, WindowEvent};
 
     #[test]
     fn a_new_full_root_device_starts_its_setup_when_the_list_brings_it_in() {
@@ -430,5 +431,74 @@ mod tests {
             app.global::<RootUi>().get_open(),
             "the Root sheet opens and root.set runs once the device is listed"
         );
+    }
+
+    /// Presses `text` with ⌘ held. On macOS Slint's winit backend reports ⌘
+    /// as Control (it swaps ⌘ and ⌃ like Qt), so ⌘ is dispatched as
+    /// `Key::Control` here, the way the real window delivers it.
+    fn press_cmd(app: &AppWindow, text: &str) {
+        let w = app.window();
+        let ctrl: slint::SharedString = Key::Control.into();
+        w.dispatch_event(WindowEvent::KeyPressed { text: ctrl.clone() });
+        w.dispatch_event(WindowEvent::KeyPressed { text: text.into() });
+        w.dispatch_event(WindowEvent::KeyReleased { text: text.into() });
+        w.dispatch_event(WindowEvent::KeyReleased { text: ctrl });
+    }
+
+    fn record_shortcuts(app: &AppWindow) -> Rc<RefCell<Vec<String>>> {
+        let fired = Rc::new(RefCell::new(Vec::new()));
+        let f = fired.clone();
+        app.on_shortcut(move |s| f.borrow_mut().push(s.to_string()));
+        fired
+    }
+
+    #[test]
+    fn cmd_shortcuts_fire_from_the_window() {
+        // Regression: shortcuts checked `modifiers.meta`, which is ⌃ on macOS,
+        // so ⌘L, ⌘J, ⌘W… never fired.
+        crate::offscreen::init().unwrap();
+        let app = crate::goldens::populated(crate::goldens::Variant::Dark).unwrap();
+        app.show().unwrap();
+        let fired = record_shortcuts(&app);
+
+        press_cmd(&app, "1");
+        press_cmd(&app, "j");
+        assert_eq!(*fired.borrow(), ["tab-1", "panel"]);
+    }
+
+    #[test]
+    fn cmd_shortcuts_fire_from_the_device_screen_and_do_not_reach_the_device() {
+        crate::offscreen::init().unwrap();
+        let app = crate::goldens::device_tab(crate::goldens::Variant::Dark, 0).unwrap();
+        app.show().unwrap();
+        crate::offscreen::render(app.window(), 1440, 900).unwrap();
+        let fired = record_shortcuts(&app);
+        let keys = Rc::new(RefCell::new(Vec::new()));
+        let k = keys.clone();
+        app.on_player_key(move |t, down| k.borrow_mut().push((t.to_string(), down)));
+
+        // A click on the screen focuses its key scope.
+        let size = app.window().size();
+        let at = slint::LogicalPosition::new(size.width as f32 * 0.4, size.height as f32 * 0.4);
+        let w = app.window();
+        let button = PointerEventButton::Left;
+        w.dispatch_event(WindowEvent::PointerPressed {
+            position: at,
+            button,
+        });
+        w.dispatch_event(WindowEvent::PointerReleased {
+            position: at,
+            button,
+        });
+        w.dispatch_event(WindowEvent::KeyPressed { text: "x".into() });
+        assert_eq!(
+            *keys.borrow(),
+            [("x".to_string(), true)],
+            "the screen has focus"
+        );
+
+        press_cmd(&app, "l");
+        assert_eq!(*fired.borrow(), ["logcat"]);
+        assert_eq!(keys.borrow().len(), 1, "⌘L is not sent to the device");
     }
 }

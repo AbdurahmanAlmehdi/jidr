@@ -183,7 +183,9 @@ export component AppWindow inherits Window {
         return false;
     }
 
-    /// Meta shortcuts, shared by the window and the device screen.
+    /// ⌘ shortcuts, shared by the window and the device screen. Slint reports
+    /// ⌘ as `modifiers.control` on macOS (its winit backend swaps ⌘ and ⌃ the
+    /// way Qt does), and Ctrl is the same shortcut key on Linux and Windows.
     function meta-key(text: string, alt: bool, shift: bool) -> bool {
         if (alt && (text == "i" || text == "I")) { root.shortcut("overlay"); return true; }
         if (alt && text == "0") { root.shortcut("pixel-perfect"); return true; }
@@ -209,7 +211,7 @@ export component AppWindow inherits Window {
                 root.shortcut("exit-fullscreen");
                 return accept;
             }
-            if (ev.modifiers.meta && root.meta-key(ev.text, ev.modifiers.alt, ev.modifiers.shift)) {
+            if (ev.modifiers.control && root.meta-key(ev.text, ev.modifiers.alt, ev.modifiers.shift)) {
                 return accept;
             }
             if (ev.text == Key.Escape) {
