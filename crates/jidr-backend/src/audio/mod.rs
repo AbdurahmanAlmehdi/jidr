@@ -8,14 +8,18 @@
 //! experimental and overwrites the buffer) and also paces packets to real
 //! time, at most [`LEAD`] ahead, so progress tracks what the device heard
 //! and a stop takes effect within a packet or two. `FAILED_PRECONDITION`
-//! means another client already feeds the microphone.
+//! means another client already feeds the microphone. Right after a stream
+//! ends the emulator can still report the microphone as taken for a moment,
+//! so a refused start is retried for [`BUSY_GRACE`] before it is `busy`.
 
 pub mod wav;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
-use jidr_core::{Cancel, JidrError, JidrResult};
+use std::future::Future;
+
+use jidr_core::{Cancel, ErrorCode, JidrError, JidrResult};
 use jidr_proto::Controller;
 use jidr_proto::control as pb;
 use tokio::sync::mpsc;
@@ -35,6 +39,13 @@ pub const RESYNC: Duration = Duration::from_millis(500);
 const POLL: Duration = Duration::from_millis(100);
 /// How long to wait for the emulator's answer once the stream has ended.
 const ANSWER_TIMEOUT: Duration = Duration::from_secs(5);
+/// How long a start refused with `FAILED_PRECONDITION` is retried. Right
+/// after a stream ends, the emulator can still say the microphone is taken
+/// ("There can be only one microphone active"): on the API 30 image CI
+/// runs, `audio.stop` then `audio.inject` was refused every time.
+pub const BUSY_GRACE: Duration = Duration::from_secs(3);
+/// The wait between those retries.
+const BUSY_RETRY: Duration = Duration::from_millis(200);
 
 /// The proto `AudioFormat` for a clip (input: blocking delivery).
 // The build may use the installed SDK's newer protos, which can add fields.
@@ -209,8 +220,65 @@ pub fn inject_error(s: tonic::Status) -> JidrError {
     }
 }
 
-/// Plays `clip` as the device's microphone over `injectAudio`.
+/// Whether `e` is the emulator refusing the stream because the microphone
+/// is taken (`FAILED_PRECONDITION`, see [`inject_error`]).
+fn refused_as_busy(e: &JidrError) -> bool {
+    e.code == ErrorCode::Busy
+        && e.data
+            .as_ref()
+            .and_then(|d| d.get("grpc_code"))
+            .and_then(|v| v.as_str())
+            == Some("FailedPrecondition")
+}
+
+/// Runs `attempt` again while the emulator refuses it as busy, every `step`,
+/// until `grace` has passed since the first try, a stop or a cancel.
+async fn retry_while_busy<T, F, Fut>(
+    grace: Duration,
+    step: Duration,
+    stop: &AtomicBool,
+    cancel: &Cancel,
+    mut attempt: F,
+) -> JidrResult<T>
+where
+    F: FnMut() -> Fut,
+    Fut: Future<Output = JidrResult<T>>,
+{
+    let deadline = Instant::now() + grace;
+    loop {
+        match attempt().await {
+            Err(e)
+                if refused_as_busy(&e)
+                    && !stop.load(Ordering::Relaxed)
+                    && Instant::now() + step < deadline =>
+            {
+                cancel.check()?;
+                tracing::debug!("injectAudio refused as busy; retrying");
+                tokio::time::sleep(step).await;
+            }
+            r => return r,
+        }
+    }
+}
+
+/// Plays `clip` as the device's microphone over `injectAudio`. A start the
+/// emulator refuses as busy is retried for [`BUSY_GRACE`].
 pub async fn inject(
+    controller: Controller,
+    clip: &Clip,
+    play: Playback,
+    stop: &AtomicBool,
+    cancel: &Cancel,
+    progress: &(dyn Fn(Duration, u32) + Send + Sync),
+) -> JidrResult<Played> {
+    retry_while_busy(BUSY_GRACE, BUSY_RETRY, stop, cancel, || {
+        inject_once(controller.clone(), clip, play, stop, cancel, progress)
+    })
+    .await
+}
+
+/// One `injectAudio` call.
+async fn inject_once(
     mut controller: Controller,
     clip: &Clip,
     play: Playback,
@@ -453,5 +521,79 @@ mod tests {
         let e = inject_error(tonic::Status::invalid_argument("rate too high"));
         assert_eq!(e.code, jidr_core::ErrorCode::Usage);
         assert!(e.message.contains("rate too high"));
+    }
+
+    fn busy() -> JidrError {
+        inject_error(tonic::Status::failed_precondition(
+            "There can be only one microphone active",
+        ))
+    }
+
+    /// Calls `retry_while_busy` with an attempt that fails with the first
+    /// errors of `script`, then succeeds; returns the result and how many
+    /// attempts ran.
+    async fn retried(
+        script: Vec<JidrError>,
+        grace: Duration,
+        stop: bool,
+    ) -> (JidrResult<u32>, usize) {
+        let tries = Arc::new(Mutex::new(0usize));
+        let script = Arc::new(Mutex::new(script));
+        let stop = AtomicBool::new(stop);
+        let r = retry_while_busy(grace, ms(5), &stop, &Cancel::new(), || {
+            let tries = tries.clone();
+            let script = script.clone();
+            async move {
+                *tries.lock().unwrap() += 1;
+                let mut s = script.lock().unwrap();
+                if s.is_empty() {
+                    Ok(7)
+                } else {
+                    Err(s.remove(0))
+                }
+            }
+        })
+        .await;
+        let n = *tries.lock().unwrap();
+        (r, n)
+    }
+
+    /// Regression (#89 CI, API 30): `audio.stop` then `audio.inject` was
+    /// refused with "There can be only one microphone active" while the
+    /// emulator released the previous stream.
+    #[tokio::test]
+    async fn a_start_refused_as_busy_is_retried() {
+        let (r, n) = retried(vec![busy(), busy()], ms(2_000), false).await;
+        assert_eq!(r.unwrap(), 7);
+        assert_eq!(n, 3);
+    }
+
+    #[tokio::test]
+    async fn busy_after_the_grace_period_is_reported() {
+        let script = (0..1_000).map(|_| busy()).collect();
+        let (r, n) = retried(script, ms(60), false).await;
+        let e = r.unwrap_err();
+        assert_eq!(e.code, jidr_core::ErrorCode::Busy);
+        assert!(n > 1 && n < 1_000, "{n} attempts");
+    }
+
+    #[tokio::test]
+    async fn other_errors_and_stops_are_not_retried() {
+        let (r, n) = retried(
+            vec![JidrError::sdk("no emulator"), busy()],
+            ms(2_000),
+            false,
+        )
+        .await;
+        assert_eq!(r.unwrap_err().code, jidr_core::ErrorCode::Sdk);
+        assert_eq!(n, 1);
+        // A Jidr-level busy (another injection on this device) has no
+        // gRPC code and isn't retried either.
+        let (r, n) = retried(vec![JidrError::busy("playing")], ms(2_000), false).await;
+        assert_eq!(r.unwrap_err().code, jidr_core::ErrorCode::Busy);
+        assert_eq!(n, 1);
+        let (r, n) = retried(vec![busy(), busy()], ms(2_000), true).await;
+        assert_eq!(r.unwrap_err().code, jidr_core::ErrorCode::Busy);
+        assert_eq!(n, 1);
     }
 }
