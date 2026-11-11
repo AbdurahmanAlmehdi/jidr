@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.4.0](https://github.com/AbdurahmanAlmehdi/jidr/compare/v0.3.1...v0.4.0) (2026-11-05)
+
+
+### Features
+
+* **backend:** -writable-system launch option ([f4fc850](https://github.com/AbdurahmanAlmehdi/jidr/commit/f4fc85005b3fb2452a15cc460c1c516aea38c837))
+* **backend:** parse WAV/PCM clips and stream them to injectAudio ([#70](https://github.com/AbdurahmanAlmehdi/jidr/issues/70)) ([822cbcd](https://github.com/AbdurahmanAlmehdi/jidr/commit/822cbcd180a2d0144fa3335e560e29ef243d4c8c))
+* **cli:** add `jidr root auto-grant <device> on|off` ([d0115e1](https://github.com/AbdurahmanAlmehdi/jidr/commit/d0115e1c7640197418fdab5ef03a42c8208074ac))
+* **cli:** add `jidr root auto-grant <device> true|false` ([63d85b8](https://github.com/AbdurahmanAlmehdi/jidr/commit/63d85b805e45a816992926be13b3e8523f2552a4))
+* **cli:** add jidr shell, an interactive shell and script runner ([56695a6](https://github.com/AbdurahmanAlmehdi/jidr/commit/56695a69ce78b9e81f83340d7a10e9e06d96b943))
+* **cli:** add jidr shell, an interactive shell and script runner ([8fb44f5](https://github.com/AbdurahmanAlmehdi/jidr/commit/8fb44f5cbbb39ef4e30d40d4328bd1d25380b097)), closes [#73](https://github.com/AbdurahmanAlmehdi/jidr/issues/73)
+* **cli:** jidr audio inject and jidr audio stop ([#70](https://github.com/AbdurahmanAlmehdi/jidr/issues/70)) ([108fcbe](https://github.com/AbdurahmanAlmehdi/jidr/commit/108fcbe07f25ee3d07eb90d2d92b13a795c30083))
+* **cli:** jidr root writable-system &lt;device&gt; on|off ([1c650a2](https://github.com/AbdurahmanAlmehdi/jidr/commit/1c650a278c0fa8b41d4be62109a26837ca16cac3))
+* **gui:** fullscreen player ([c61cf4a](https://github.com/AbdurahmanAlmehdi/jidr/commit/c61cf4aecb8d2bb4056670bdedb9ac3a2309cb11))
+* **gui:** fullscreen player ([4e5ae6b](https://github.com/AbdurahmanAlmehdi/jidr/commit/4e5ae6b39dd740e8c96659e8924e2f359f307e74)), closes [#71](https://github.com/AbdurahmanAlmehdi/jidr/issues/71)
+* inject an audio file as the device's microphone ([49cb114](https://github.com/AbdurahmanAlmehdi/jidr/commit/49cb114454f9d70d14acd27578db63282ac26d3e))
+* **root:** writable /system for adb-root devices ([50609f6](https://github.com/AbdurahmanAlmehdi/jidr/commit/50609f6355f4f4763a68d6c3521a4d515ae62c4e))
+* **root:** writable /system for adb-root devices ([d5fada0](https://github.com/AbdurahmanAlmehdi/jidr/commit/d5fada0d518618cc672d1cdd817f2ec63955cd41)), closes [#25](https://github.com/AbdurahmanAlmehdi/jidr/issues/25)
+* **root:** writable /system needs API 31 or later ([5ae8181](https://github.com/AbdurahmanAlmehdi/jidr/commit/5ae81819207d4e1c08bab987349dacc18dacfad4)), closes [#25](https://github.com/AbdurahmanAlmehdi/jidr/issues/25)
+* **skills:** add the jidr-root skill ([25490fa](https://github.com/AbdurahmanAlmehdi/jidr/commit/25490fa1ad9cd15b467e17a2e570163ab1a5258b))
+* **skills:** add the jidr-root skill ([c1c1781](https://github.com/AbdurahmanAlmehdi/jidr/commit/c1c17819c29b24a6a1710f1c75b7646c7dbef299)), closes [#69](https://github.com/AbdurahmanAlmehdi/jidr/issues/69)
+* **widgets:** audio.inject and audio.stop ([#70](https://github.com/AbdurahmanAlmehdi/jidr/issues/70)) ([08f5ab0](https://github.com/AbdurahmanAlmehdi/jidr/commit/08f5ab0d4a6b473b943f6f5f35f35cb0ff50071e))
+
+
+### Bug Fixes
+
+* **backend:** retry an audio injection the emulator refuses as busy ([6b66c84](https://github.com/AbdurahmanAlmehdi/jidr/commit/6b66c847ce23d1f7b775d3bc93a9e64e22cef27b)), closes [#70](https://github.com/AbdurahmanAlmehdi/jidr/issues/70)
+* **backend:** use as_chunks for fixed-size WAV samples ([#70](https://github.com/AbdurahmanAlmehdi/jidr/issues/70)) ([8239f51](https://github.com/AbdurahmanAlmehdi/jidr/commit/8239f51013ec951f6a2985bde7cc80a97b2e3c90))
+* **daemon:** flush guest storage before a graceful stop ([b9f4904](https://github.com/AbdurahmanAlmehdi/jidr/commit/b9f4904d893f6c5db49f27847f5d5fcdb6baec27))
+* **daemon:** flush guest storage before a graceful stop ([2efe537](https://github.com/AbdurahmanAlmehdi/jidr/commit/2efe5372371b4a81fc4e29e9fbc86f4451f4bc63)), closes [#79](https://github.com/AbdurahmanAlmehdi/jidr/issues/79)
+* **root:** reboot once when adb remount leaves /system read-only ([ef870ac](https://github.com/AbdurahmanAlmehdi/jidr/commit/ef870ac1fde4ebecbf9623475c94a17359f650a8)), closes [#25](https://github.com/AbdurahmanAlmehdi/jidr/issues/25)
+* **ui:** fire ⌘ shortcuts on macOS ([728475e](https://github.com/AbdurahmanAlmehdi/jidr/commit/728475ece48a40e120806ca03546e4fa3a8f2876))
+* **ui:** fire ⌘ shortcuts on macOS ([b2c4a88](https://github.com/AbdurahmanAlmehdi/jidr/commit/b2c4a88d08d041c2dd36ae08101709be33dc693f))
+
 ## [0.3.1](https://github.com/AbdurahmanAlmehdi/jidr/compare/v0.3.0...v0.3.1) (2026-11-03)
 
 
