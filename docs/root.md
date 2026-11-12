@@ -215,6 +215,33 @@ Only Full-root (Magisk) devices are supported: `adb root` can't change the
 system store of a running device. An app that pins its certificates still
 refuses the proxy; that needs Frida or similar on top.
 
+## Magisk bases
+
+A Full-root device can be made into a pool base (D42, Phase 13f), so agents
+can lease throwaway rooted clones:
+
+```bash
+jidr base create <device> <base>   # the device must be running and rooted
+jidr --json pool get <base>        # su -c id → uid 0 on the clone's serial
+```
+
+`base create` first checks the source: its patched ramdisk must exist and the
+adb shell's `su -c id` must answer uid 0 without a prompt (`root_failed`
+otherwise), because every clone resumes that state. The base keeps its own
+copy of `<avd>/jidr/ramdisk.magisk-<ver>.img`, and each `pool get` clone gets
+another copy (copy-on-write, so it costs no space until written) with
+`launch.ramdisk` pointing at it. No two devices boot the same file, and the
+SDK's `ramdisk.img` is never touched. The root mode, the Magisk version and
+Magisk's settings (auto-grant included) carry over from the snapshot. A clone
+resumes in seconds with `magiskd` already running, and the boot hook never
+re-patches it: a clone always runs its base's Magisk version, even after a
+newer one is pinned. Make a new base to move to it.
+
+On a Play Store image the shell's grant is the one the person gave on the
+source in the guided tap below. Choose **Forever** in Magisk's prompt before
+making the base. A grant with a time limit runs out in the clones, and Jidr
+never grants it for them (ADR-0002).
+
 ## Play Store images (beta)
 
 `google_apis_playstore` images refuse `adb root`, so the shell grant cannot be

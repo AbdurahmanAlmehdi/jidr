@@ -285,6 +285,24 @@ fn default_root(setting: RootMode, image: &ImageRef) -> RootMode {
     }
 }
 
+/// Points a copied device's per-device files (a Magisk patched ramdisk under
+/// `<avd>/jidr/`) at the copies in `dst_dir`, so no two devices share one.
+/// Paths outside `src_dir` stay as they are.
+pub(crate) fn move_device_files(
+    launch: &mut LaunchPrefs,
+    root: &mut RootState,
+    src_dir: &std::path::Path,
+    dst_dir: &std::path::Path,
+) {
+    for path in [&mut launch.ramdisk, &mut root.patched_ramdisk_path] {
+        if let Some(p) = path
+            && let Ok(rel) = p.strip_prefix(src_dir)
+        {
+            *p = dst_dir.join(rel);
+        }
+    }
+}
+
 /// The folder id of the snapshot a user named: a tag's label in
 /// `<avd>/jidr/snapshots.json` (the snapshot manager's tags), else the name.
 fn snapshot_id_for(avd_dir: &std::path::Path, sel: &str) -> String {
@@ -641,18 +659,8 @@ impl CoreProvider {
         };
         let dst_dir = avds.dir(&avd);
         let mut launch = src.launch.clone();
-        // Per-device files (e.g. a patched ramdisk) move with the copy.
-        if let Some(r) = &launch.ramdisk
-            && let Ok(rel) = r.strip_prefix(&src_dir)
-        {
-            launch.ramdisk = Some(dst_dir.join(rel));
-        }
         let mut root = src.root.clone();
-        if let Some(r) = &root.patched_ramdisk_path
-            && let Ok(rel) = r.strip_prefix(&src_dir)
-        {
-            root.patched_ramdisk_path = Some(dst_dir.join(rel));
-        }
+        move_device_files(&mut launch, &mut root, &src_dir, &dst_dir);
         launch.force_cold_boot = kept.is_none();
         launch.resume_snapshot = kept;
         let device = Device {

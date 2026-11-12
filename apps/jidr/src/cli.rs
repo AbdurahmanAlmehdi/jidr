@@ -392,7 +392,7 @@ pub enum PoolCmd {
 
 #[derive(Debug, Subcommand)]
 pub enum BaseCmd {
-    /// Save a running device (root none or adb) as a base: snapshot
+    /// Save a running device (any root mode) as a base: snapshot
     /// `jidr-base` with animations off. The device is stopped.
     Create { device: String, name: String },
     /// Bases and their leased clones.

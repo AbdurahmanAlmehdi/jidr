@@ -392,6 +392,11 @@ pub(crate) async fn clear_patch(
 /// next boot when the pristine image or the pinned version changed. Best
 /// effort — it never fails the boot, because the current boot already worked.
 pub(crate) async fn on_booted(ctx: &CallCtx, device: &Device) -> JidrResult<()> {
+    // A pool clone resumes its base's running Magisk (settings included) and
+    // is never cold-booted: re-patching it would only make its version lie.
+    if device.pool_base.is_some() {
+        return Ok(());
+    }
     let Ok(pin) = pins::default_pin() else {
         return Ok(());
     };

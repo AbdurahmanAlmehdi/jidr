@@ -6,6 +6,7 @@
 //! `pool.get` wait, then fail with `resource_exhausted`. Persistent agent
 //! devices stay on `device.create`.
 
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -19,6 +20,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
+use crate::core_provider::move_device_files;
 use crate::leases::{Holder, Lease};
 use crate::state::{State, lock};
 
@@ -32,8 +34,8 @@ pub const DEFAULT_WAIT: Duration = Duration::from_secs(120);
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct BaseCreateParams {
-    /// A running device to make the base from (root `none` or `adb`). It is
-    /// stopped; the base is a copy of it.
+    /// A running device to make the base from (any root mode; a Magisk
+    /// source must pass `su -c id`). It is stopped; the base is a copy of it.
     pub from_device: String,
     /// The base's name.
     pub name: String,
@@ -198,6 +200,38 @@ impl State {
     }
 }
 
+/// A Magisk base needs its patched ramdisk and a shell `su` that works
+/// without a prompt, because every clone resumes that state. On a Play Store
+/// image that is the grant the person gave in Magisk's prompt (ADR-0002);
+/// Jidr never grants it for them.
+async fn check_magisk_source(src: &Device, adb: &Adb) -> JidrResult<()> {
+    if !src.launch.ramdisk.as_deref().is_some_and(Path::is_file) {
+        return Err(JidrError::usage(format!(
+            "{} has no patched ramdisk; run `root set {} magisk` again first",
+            src.name, src.name
+        )));
+    }
+    let out = adb
+        .clone()
+        .with_timeout(Duration::from_secs(20))
+        .shell_status("su -c id")
+        .await
+        .map(|(_, out)| out)
+        .unwrap_or_default();
+    if out.contains("uid=0(") {
+        return Ok(());
+    }
+    let hint = if src.image.allows_adb_root() {
+        "check it with `root verify`"
+    } else {
+        "on a Play Store image, tap Grant in Magisk's prompt and choose Forever"
+    };
+    Err(JidrError::root_failed(format!(
+        "{}'s shell `su -c id` isn't root, so its clones wouldn't be either; {hint}",
+        src.name
+    )))
+}
+
 impl PoolProvider {
     async fn base_create(&self, ctx: &CallCtx, p: BaseCreateParams) -> JidrResult<Value> {
         let st = &self.state;
@@ -207,11 +241,6 @@ impl PoolProvider {
                 "{} is already a base or a pool device",
                 src.name
             )));
-        }
-        if src.root.mode == RootMode::Magisk {
-            return Err(JidrError::usage(
-                "bases are root none or adb for now; Magisk bases come later (Phase 13f)",
-            ));
         }
         if src.root.writable_system {
             // #25: the writable system copy isn't part of the base snapshot.
@@ -235,9 +264,13 @@ impl PoolProvider {
         }
         let _guard = st.locks.try_lock(src.id, &src.name, "base.create", None)?;
 
+        let adb = Adb::new(info.adb_path.clone()).device(info.adb_serial.clone());
+        if src.root.mode == RootMode::Magisk {
+            ctx.report(Some(0.05), "Checking Magisk root");
+            check_magisk_source(&src, &adb).await?;
+        }
         // Agents' clones shouldn't wait on animations.
         ctx.report(Some(0.1), "Turning animations off");
-        let adb = Adb::new(info.adb_path.clone()).device(info.adb_serial.clone());
         for key in [
             "window_animation_scale",
             "transition_animation_scale",
@@ -264,17 +297,25 @@ impl PoolProvider {
         // The source keeps running as an ordinary device; its copy of the
         // snapshot isn't needed.
         let _ = std::fs::remove_dir_all(src_dir.join("snapshots").join(BASE_SNAPSHOT));
+        // A Magisk base keeps its own copy of the patched ramdisk (13f).
+        let mut launch = LaunchPrefs {
+            force_cold_boot: false,
+            resume_snapshot: None,
+            ..src.launch.clone()
+        };
+        let mut root = src.root.clone();
+        if root.mode == RootMode::Magisk {
+            move_device_files(&mut launch, &mut root, &src_dir, &avds.dir(&avd));
+        } else {
+            launch.ramdisk = None;
+        }
         let base = Device {
             id: Uuid::new_v4(),
             name,
             avd: avd.clone(),
             created_at: Utc::now(),
-            launch: LaunchPrefs {
-                ramdisk: None,
-                force_cold_boot: false,
-                resume_snapshot: None,
-                ..src.launch.clone()
-            },
+            launch,
+            root,
             status: Default::default(),
             runtime: None,
             agent_owned: false,
@@ -345,16 +386,35 @@ impl PoolProvider {
         let avds = st.avds();
         let avd = st.with_store(|s| s.avd_id_for(&name, |id| avds.exists(id)));
         avds.clone_with_snapshot(&base.avd, &avd, &name, BASE_SNAPSHOT)?;
+        let mut launch = LaunchPrefs {
+            resume_snapshot: Some(BASE_SNAPSHOT.into()),
+            force_cold_boot: false,
+            ..base.launch.clone()
+        };
+        // Each clone of a Magisk base boots its own copy of the patched
+        // ramdisk; the root tag and Magisk version carry over (13f).
+        let mut root = base.root.clone();
+        move_device_files(
+            &mut launch,
+            &mut root,
+            &avds.dir(&base.avd),
+            &avds.dir(&avd),
+        );
+        if let Some(r) = launch.ramdisk.as_deref().filter(|r| !r.is_file()) {
+            let _ = avds.delete(&avd);
+            return Err(JidrError::not_found(format!(
+                "{} lost its patched ramdisk ({}); make the base again",
+                base.name,
+                r.display()
+            )));
+        }
         let device = Device {
             id: Uuid::new_v4(),
             name,
             avd: avd.clone(),
             created_at: now,
-            launch: LaunchPrefs {
-                resume_snapshot: Some(BASE_SNAPSHOT.into()),
-                force_cold_boot: false,
-                ..base.launch.clone()
-            },
+            launch,
+            root,
             status: Default::default(),
             runtime: None,
             agent_owned: true,
