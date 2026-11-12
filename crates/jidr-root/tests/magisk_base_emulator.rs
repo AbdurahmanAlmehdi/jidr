@@ -157,7 +157,8 @@ async fn magisk_base_three_clones_resume_rooted() {
 
         let adb = Adb::new(r["connect"]["adb_path"].as_str().unwrap())
             .device(r["serial"].as_str().unwrap());
-        let out = adb.shell(&format!("ls {MARKER}")).await.unwrap();
+        // The marker is root-owned; the plain shell user can't stat it.
+        let out = adb.shell(&format!("su -c 'ls {MARKER}'")).await.unwrap();
         assert!(out.contains(MARKER), "{name} was cold-booted: {out}");
         let id = adb.shell("su -c id").await.unwrap();
         assert!(id.contains("uid=0("), "{name}: su -c id → {id}");
