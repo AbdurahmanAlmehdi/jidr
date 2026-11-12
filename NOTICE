@@ -31,3 +31,7 @@ Third-party attributions:
   (https://github.com/ejfkdev/avdroot). Magisk itself is GPL-3.0-only and is
   never bundled; only its documented, machine-observable ramdisk layout is
   reproduced (see docs/clean-room.md).
+- The on-device helper (`jidr-helper`, ADR-0003) is a static executable that
+  includes musl libc from Rust's `*-unknown-linux-musl` targets, Copyright ©
+  2005-2020 Rich Felker, et al., licensed under the MIT License
+  (https://musl.libc.org, COPYRIGHT file).

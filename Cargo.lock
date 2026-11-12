@@ -3016,6 +3016,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "jidr-helper"
+version = "0.4.0"
+dependencies = [
+ "hex",
+ "jidr-adb",
+ "jidr-core",
+ "rustix 1.1.5",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "jidr-mcp"
 version = "0.4.0"
 dependencies = [
@@ -3056,10 +3072,13 @@ dependencies = [
  "chrono",
  "jidr-adb",
  "jidr-backend",
+ "jidr-client",
  "jidr-core",
  "jidr-cpio",
  "jidr-daemon",
+ "jidr-helper",
  "jidr-sdk",
+ "jidr-widgets",
  "md-5",
  "schemars",
  "serde",
@@ -3136,6 +3155,7 @@ dependencies = [
  "jidr-client",
  "jidr-core",
  "jidr-daemon",
+ "jidr-helper",
  "jidr-proto",
  "jidr-sdk",
  "objc2 0.6.5",
