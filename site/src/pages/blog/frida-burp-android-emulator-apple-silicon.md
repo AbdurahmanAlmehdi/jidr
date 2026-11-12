@@ -37,12 +37,6 @@ That took two minutes. Jidr patches Magisk into a per-device copy of the ramdisk
 
 The commands below also need `adb` on your PATH. `brew install --cask android-platform-tools` works, or use the `platform-tools` folder of the SDK that `jidr sdk status` lists.
 
-On a new device, the root setup can leave Wi-Fi with no saved network: no Wi-Fi icon, and `adb shell ip route` prints nothing. If so, connect it to the emulator's virtual access point once. The network is saved from then on:
-
-```bash
-adb shell cmd wifi connect-network AndroidWifi open
-```
-
 ## 2. frida-server
 
 `frida-server` must have the same version as the Frida on your Mac, and the device needs the `android-arm64` build:
