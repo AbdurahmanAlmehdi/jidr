@@ -7,5 +7,6 @@
 |---|---|
 | [0001](0001-frame-transport.md) | Frame transport for the player (Phase 1 spike) |
 | [0002](0002-play-store-root.md) | Full root on Play Store images (Phase 9a) |
+| [0003](0003-on-device-helper.md) | A rooted on-device helper for privileged widgets (#26, Proposed) |
 
 To propose a new decision or change one, open an issue first.
