@@ -4,8 +4,10 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock, Weak};
+use std::time::Duration;
 
 use async_trait::async_trait;
+use jidr_adb::Adb;
 use jidr_backend::{Backend, BootStage, InstanceInfo, LaunchOptions, LaunchSpec};
 use jidr_core::provider::{CallCtx, CommandProvider, DaemonContext, DeviceUpdate};
 use jidr_core::{
@@ -21,12 +23,13 @@ use uuid::Uuid;
 use crate::budget::{Budget, DeviceUse};
 use crate::locks::DeviceLocks;
 use crate::store::DeviceStore;
-use jidr_adb::Adb;
 use jidr_core::rpc::Event;
 
 /// How long the guest `sync` before a stop may take; the stop goes ahead
 /// after it either way.
 const STOP_SYNC_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+/// How long Android gets to shut down and power off before a cold boot.
+const ANDROID_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(90);
 
 #[derive(Debug, Clone)]
 pub struct DaemonConfig {
@@ -407,6 +410,91 @@ impl State {
         }
     }
 
+    /// `stop_device`, or with `shut_down` the Android shutdown of
+    /// `shut_down_device`.
+    async fn stop(&self, id: Uuid, shut_down: bool) -> JidrResult<Device> {
+        let current = self.with_store(|s| s.get(id).cloned())?;
+        if matches!(current.status, DeviceStatus::Hibernated) {
+            // Already stopped, with its state saved for the next start.
+            return Ok(current);
+        }
+        if let Some(w) = lock(&self.watchers).remove(&id) {
+            w.abort();
+        }
+        let info = lock(&self.instances).remove(&id);
+        if let Some(info) = info {
+            self.set_status(id, DeviceStatus::Stopping, None);
+            let resumed = lock(&self.resumed).remove(&id);
+            let stopped = if shut_down && self.shut_down_guest(&info).await {
+                // Powered off: there is nothing left to save.
+                self.backend.stop_without_save(&info).await
+            } else {
+                self.flush_guest_storage(&current.name, &info).await;
+                if resumed
+                    && !shut_down
+                    && self.settings().quick_boot
+                    && current.pool_base.is_none()
+                {
+                    // This run started from a named snapshot with no exit save:
+                    // save the quick-boot state explicitly (best effort).
+                    let dir = self.avds().dir(&current.avd);
+                    if let Err(e) = self
+                        .backend
+                        .save_snapshot(&info, "default_boot", &dir)
+                        .await
+                    {
+                        tracing::warn!(device = %current.name, "quick-boot save after a resume failed: {e}");
+                    }
+                }
+                self.backend.stop(&info).await
+            };
+            if let Err(e) = stopped {
+                // Put it back: we don't know its state.
+                lock(&self.instances).insert(id, info.clone());
+                self.watch_crash(id, info);
+                return Err(e);
+            }
+        }
+        self.finish_footprint(id);
+        crate::state::lock(&self.activity).remove(&id);
+        self.set_status(id, DeviceStatus::Stopped, Some(None));
+        self.with_store(|s| s.get(id).cloned())
+    }
+
+    /// Asks Android to shut down (the framework path, which saves what its
+    /// services still buffer; a bare `reboot` doesn't) and waits for the
+    /// guest to power off. False if it didn't.
+    async fn shut_down_guest(&self, info: &InstanceInfo) -> bool {
+        let adb = match self.adb_path() {
+            Ok(bin) => Adb::new(bin)
+                .device(&info.adb_serial)
+                .with_timeout(Duration::from_secs(30)),
+            Err(e) => {
+                tracing::warn!(avd = %info.avd, "no adb for the Android shutdown: {e}");
+                return false;
+            }
+        };
+        // The request only returns once adbd goes down with Android (often
+        // as an error), so its result says nothing: check the shell first.
+        if let Err(e) = adb.shell("true").await {
+            tracing::warn!(avd = %info.avd, "can't ask Android to shut down: {e}");
+            return false;
+        }
+        let _ = adb.shell("svc power shutdown").await;
+        let off = self
+            .backend
+            .wait_powered_off(info, ANDROID_SHUTDOWN_TIMEOUT)
+            .await;
+        if !off {
+            tracing::warn!(
+                avd = %info.avd,
+                "Android didn't power off within {} s; stopping the emulator",
+                ANDROID_SHUTDOWN_TIMEOUT.as_secs()
+            );
+        }
+        off
+    }
+
     fn launch_spec(&self, d: &Device) -> JidrResult<(LaunchSpec, Sdk)> {
         let sdks = self.sdks();
         let image_sdk = sdks.find_image(&d.image).cloned().ok_or_else(|| {
@@ -593,42 +681,11 @@ impl DaemonContext for State {
     }
 
     async fn stop_device(&self, id: Uuid) -> JidrResult<Device> {
-        let current = self.with_store(|s| s.get(id).cloned())?;
-        if matches!(current.status, DeviceStatus::Hibernated) {
-            // Already stopped, with its state saved for the next start.
-            return Ok(current);
-        }
-        if let Some(w) = lock(&self.watchers).remove(&id) {
-            w.abort();
-        }
-        let info = lock(&self.instances).remove(&id);
-        if let Some(info) = info {
-            self.set_status(id, DeviceStatus::Stopping, None);
-            self.flush_guest_storage(&current.name, &info).await;
-            let resumed = lock(&self.resumed).remove(&id);
-            if resumed && self.settings().quick_boot && current.pool_base.is_none() {
-                // This run started from a named snapshot with no exit save:
-                // save the quick-boot state explicitly (best effort).
-                let dir = self.avds().dir(&current.avd);
-                if let Err(e) = self
-                    .backend
-                    .save_snapshot(&info, "default_boot", &dir)
-                    .await
-                {
-                    tracing::warn!(device = %current.name, "quick-boot save after a resume failed: {e}");
-                }
-            }
-            if let Err(e) = self.backend.stop(&info).await {
-                // Put it back: we don't know its state.
-                lock(&self.instances).insert(id, info.clone());
-                self.watch_crash(id, info);
-                return Err(e);
-            }
-        }
-        self.finish_footprint(id);
-        crate::state::lock(&self.activity).remove(&id);
-        self.set_status(id, DeviceStatus::Stopped, Some(None));
-        self.with_store(|s| s.get(id).cloned())
+        self.stop(id, false).await
+    }
+
+    async fn shut_down_device(&self, id: Uuid) -> JidrResult<Device> {
+        self.stop(id, true).await
     }
 
     fn emit(&self, topic: &str, data: Value) {

@@ -44,6 +44,11 @@ dropped back so the final check exercises Magisk's own `su`. Apps still get
 Magisk's normal per-app prompt; the opt-in "auto-grant all" toggle is off by
 default.
 
+Before each cold boot, Jidr asks Android to shut down (`svc power shutdown`)
+and waits for the guest to power off. Stopping only the emulator would drop
+what Android hasn't written yet, such as the `AndroidWifi` network a new
+device's first boot adds, which Wi-Fi saves 10 s later (#78).
+
 ## Revert
 
 `root.set none` (or `adb`) on a Magisk device clears `launch.ramdisk`, deletes

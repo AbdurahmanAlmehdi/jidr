@@ -109,9 +109,18 @@ async fn magisk_root_cycle_none_magisk_none() {
     // 2. The shared SDK ramdisk is byte-identical.
     assert_eq!(jidr_sdk::cache::sha256_file(&pristine).unwrap(), before);
 
-    // 2b. auto-grant all (D22/G15): on → Magisk's setting reads "grant", off → "prompt".
     let info = state.connect_info(d.id).await.unwrap();
     let adb = Adb::new(info.adb_path).device(info.adb_serial);
+
+    // 2a. #78: the new device's first boot saved the emulator's Wi-Fi network
+    // and the setup's cold boots kept it.
+    let networks = adb.shell("cmd wifi list-networks").await.unwrap();
+    assert!(
+        networks.contains("AndroidWifi"),
+        "AndroidWifi is still saved: {networks}"
+    );
+
+    // 2b. auto-grant all (D22/G15): on → Magisk's setting reads "grant", off → "prompt".
     let prefs =
         "/data/user_de/0/com.topjohnwu.magisk/shared_prefs/com.topjohnwu.magisk_preferences.xml";
 

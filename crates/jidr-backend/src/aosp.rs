@@ -25,6 +25,13 @@ use crate::{
 const DISCOVERY_TIMEOUT: Duration = Duration::from_secs(90);
 /// How long a graceful shutdown (which saves the quick-boot snapshot) may take.
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(120);
+/// Once the guest powers off, the emulator keeps running: it starts a
+/// quick-boot save (VM state `SAVE_VM`) that never finishes, and may stop
+/// answering gRPC (and its console) altogether. Either counts as off; for
+/// the latter, this many unanswered probes in a row, each given
+/// `POWER_OFF_PROBE`.
+const POWER_OFF_MISSES: u32 = 3;
+const POWER_OFF_PROBE: Duration = Duration::from_secs(2);
 
 /// Exit status of an emulator we spawned: `None` while running.
 pub type ExitWatch = watch::Receiver<Option<Option<i32>>>;
@@ -459,6 +466,39 @@ impl Backend for AospBackend {
             .remove(&instance.pid);
         self.ports.release(instance.ports());
         Ok(())
+    }
+
+    async fn wait_powered_off(&self, instance: &InstanceInfo, within: Duration) -> bool {
+        let deadline = Instant::now() + within;
+        let mut controller = None;
+        let mut misses = 0;
+        while Instant::now() < deadline {
+            if !self.is_alive(instance).await {
+                return true;
+            }
+            if controller.is_none() {
+                controller = grpc::connect(instance).await.ok().map(|(c, _)| c);
+            }
+            let state = match controller.as_mut() {
+                Some(c) => match timeout(POWER_OFF_PROBE, c.get_vm_state(())).await {
+                    Ok(Ok(r)) => Some(r.get_ref().state()),
+                    _ => None,
+                },
+                None => None,
+            };
+            match state {
+                Some(RunState::Running | RunState::RestoreVm) => misses = 0,
+                Some(_) => return true,
+                None => {
+                    misses += 1;
+                    if misses >= POWER_OFF_MISSES {
+                        return true;
+                    }
+                }
+            }
+            sleep(Duration::from_secs(1)).await;
+        }
+        false
     }
 
     async fn has_clients(&self, instance: &InstanceInfo) -> bool {
