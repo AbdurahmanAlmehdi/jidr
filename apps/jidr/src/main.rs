@@ -13,7 +13,8 @@ use std::time::Duration;
 use clap::{CommandFactory, Parser};
 use cli::{
     AudioCmd, BaseCmd, CacheCmd, CertCmd, Cli, Cmd, DaemonCmd, DeviceCmd, Hardware, ImageCmd,
-    JobsCmd, PoolCmd, ProfileCmd, ProxyCmd, RootCmd, SdkCmd, Selection, SettingsCmd, SnapshotCmd,
+    JobsCmd, NetworkCmd, PoolCmd, ProfileCmd, ProxyCmd, RootCmd, SdkCmd, Selection, SettingsCmd,
+    SnapshotCmd,
 };
 use jidr_client::{Client, SpawnOptions};
 use jidr_core::{ErrorCode, JidrError, JidrPaths, JidrResult, Job, JobState};
@@ -670,6 +671,7 @@ async fn dispatch(c: &Client, cmd: Cmd, out: Out) -> JidrResult<()> {
                 ),
                 RootCmd::Verify { device } => ("root.verify", json!({ "device": device })),
                 RootCmd::Status { device } => ("root.status", json!({ "device": device })),
+                RootCmd::Helper { device } => ("root.helper.status", json!({ "device": device })),
                 RootCmd::AutoGrant { device, state } => (
                     "root.auto_grant",
                     json!({ "device": device, "enabled": state.enabled() }),
@@ -730,6 +732,24 @@ async fn dispatch(c: &Client, cmd: Cmd, out: Out) -> JidrResult<()> {
                 Some(p) => format!("HTTP proxy: {p}"),
                 None => "No HTTP proxy.".to_string(),
             });
+        }
+        Cmd::Network {
+            cmd: NetworkCmd::Loss { device, percent },
+        } => {
+            let v = match percent {
+                Some(p) => {
+                    c.call(
+                        "network.shaping.set",
+                        json!({ "device": device, "loss_pct": p }),
+                    )
+                    .await?
+                }
+                None => {
+                    c.call("network.shaping.get", json!({ "device": device }))
+                        .await?
+                }
+            };
+            out.ok(&v, output::packet_loss);
         }
         Cmd::Audio {
             cmd:

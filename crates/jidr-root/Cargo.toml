@@ -12,6 +12,7 @@ publish.workspace = true
 [dependencies]
 jidr-core.workspace = true
 jidr-adb.workspace = true
+jidr-helper = { workspace = true, features = ["host"] }
 jidr-sdk.workspace = true
 jidr-cpio.workspace = true
 async-trait.workspace = true
@@ -31,6 +32,9 @@ uuid.workspace = true
 [dev-dependencies]
 jidr-backend.workspace = true
 jidr-daemon.workspace = true
+# The helper tests also drive `network.shaping.*` (ADR-0003).
+jidr-widgets.workspace = true
+jidr-client.workspace = true
 jidr-cpio.workspace = true
 zip.workspace = true
 tempfile.workspace = true

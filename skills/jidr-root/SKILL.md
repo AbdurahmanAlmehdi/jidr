@@ -1,6 +1,6 @@
 ---
 name: jidr-root
-description: "Root a Jidr Android emulator and work with root: choose a root mode (none, adb, magisk), switch with `jidr root set` and check uid 0 with `jidr root verify`, install Magisk modules, handle Magisk's su prompt and the opt-in auto-grant, revert to stock, trust a proxy's CA as a system certificate (`jidr cert`) and route traffic through Burp or mitmproxy (`jidr proxy`). Use when the user asks for a rooted emulator, su, Magisk, a Magisk module, intercepting an app's HTTPS traffic, or asks why Play Integrity fails. Load jidr for the basics."
+description: "Root a Jidr Android emulator and work with root: choose a root mode (none, adb, magisk), switch with `jidr root set` and check uid 0 with `jidr root verify`, install Magisk modules, handle Magisk's su prompt and the opt-in auto-grant, revert to stock, trust a proxy's CA as a system certificate (`jidr cert`) route traffic through Burp or mitmproxy (`jidr proxy`), and drop a share of the device's packets (`jidr network loss`). Use when the user asks for a rooted emulator, su, Magisk, a Magisk module, intercepting an app's HTTPS traffic, testing an app on a lossy network, or asks why Play Integrity fails. Load jidr for the basics."
 ---
 
 # Root on a Jidr device
@@ -103,6 +103,21 @@ jidr cert remove Phone --all            # every CA Jidr added
 ```
 
 With MCP: `ca_cert_install {device, path}`, `proxy_set {device, port, host?}` and `proxy_clear {device}`; other `root.cacert.*` commands go through `command_run`.
+
+## Packet loss (on-device helper)
+
+On a running `adb` or `magisk` device, Jidr can drop a share of the device's outgoing packets, to test an app on a bad network:
+
+```bash
+jidr network loss Phone 10              # drop 10% on Wi-Fi and mobile data
+jidr network loss Phone                 # show it per interface
+jidr network loss Phone 0               # remove it
+jidr root helper Phone                  # the rooted helper that does it: version, uid 0, SELinux context
+```
+
+- It runs through Jidr's own on-device helper, which the daemon starts as root when needed. A `none` device refuses it (exit 2); set `adb` first.
+- A cold boot clears the loss; remove it when you're done anyway.
+- Through MCP: `command_run` with `network.shaping.set {device, loss_pct}` and `network.shaping.get {device}`.
 
 ## Revert
 
