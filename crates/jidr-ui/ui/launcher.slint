@@ -5,7 +5,7 @@ import { Theme } from "theme.slint";
 import { Icons } from "icons.slint";
 import { T, Role, Tone, Tones, Icon, Button, ButtonKind, Panel, Pill, Tag, KV, Kbd, Scroll } from "components/base.slint";
 import { StatusPill, RootBadge } from "components/status.slint";
-import { DeviceVm, SnapshotVm, DevState, RootKind, FormFactor } from "types.slint";
+import { DeviceVm, SnapshotVm, DevState, DevKind, RootKind, FormFactor } from "types.slint";
 
 /// Neutral device silhouette (`.dd-sil`); no brand shape.
 export component Silhouette inherits Rectangle {
@@ -105,6 +105,8 @@ export component DeviceDetail inherits Rectangle {
     callback open();
     callback start();
     callback stop();
+    callback hibernate();
+    callback save-base();
     callback more();
     callback verify-root();
     callback revert-root();
@@ -135,13 +137,28 @@ export component DeviceDetail inherits Rectangle {
                 kbd: "↵";
                 clicked => { root.open(); }
             }
-            if device.state == DevState.stopped || device.state == DevState.crashed: Button {
+            if (device.state == DevState.stopped || device.state == DevState.crashed) && device.kind != DevKind.base: Button {
                 kind: ButtonKind.primary;
                 has-icon: true;
                 icon: Icons.play;
                 text: @tr("Start");
                 kbd: "↵";
                 clicked => { root.start(); }
+            }
+            // D42: a hibernated device resumes from its saved state.
+            if device.state == DevState.hibernated: Button {
+                kind: ButtonKind.primary;
+                has-icon: true;
+                icon: Icons.play;
+                text: @tr("Resume");
+                kbd: "↵";
+                clicked => { root.start(); }
+            }
+            if device.state == DevState.running && device.kind == DevKind.device: Button {
+                has-icon: true;
+                icon: Icons.moon;
+                text: @tr("Hibernate");
+                clicked => { root.hibernate(); }
             }
             if device.state == DevState.running || device.state == DevState.booting: Button {
                 has-icon: true;
@@ -201,6 +218,21 @@ export component DeviceDetail inherits Rectangle {
                     color: Theme.text-secondary;
                 }
             }
+        }
+
+        // What hibernated, base and pool mean, under the badges (D42).
+        property <string> note: device.state == DevState.hibernated ? @tr("Its whole state is saved and it uses no RAM. Resume picks up where it left off, in seconds.")
+            : device.kind == DevKind.base ? @tr("A read-only base: agents lease throwaway clones of it with pool.get. It never starts itself.")
+            : device.kind == DevKind.pool ? @tr("A throwaway clone of {}, leased by an agent. Releasing it deletes it.", device.base-name)
+            : "";
+        if note != "": T {
+            x: tx;
+            y: 130px;
+            width: tw;
+            height: 18px;
+            text: note;
+            role: Role.caption;
+            color: Theme.text-secondary;
         }
 
         // Three panels: Android, Hardware, Root health.
@@ -305,6 +337,16 @@ export component DeviceDetail inherits Rectangle {
             width: cw;
             text: @tr("Session");
         }
+        if device.can-base: Button {
+            x: Theme.rtl ? px : px + cw - self.width;
+            y: 471px;
+            small: true;
+            kind: ButtonKind.tertiary;
+            has-icon: true;
+            icon: Icons.layers;
+            text: @tr("Save as base…");
+            clicked => { root.save-base(); }
+        }
         VerticalLayout {
             x: Theme.rtl ? px + cw - self.width : px;
             y: 504px;
@@ -314,6 +356,9 @@ export component DeviceDetail inherits Rectangle {
             KV { key: @tr("Uptime"); value: device.uptime; mono: true; key-width: 120px; role: Role.body; }
             KV { key: @tr("Last started"); value: device.last-started; key-width: 120px; role: Role.body; }
             KV { key: @tr("Driven by"); value: root.driven-by; key-width: 120px; role: Role.body; }
+            if device.kind == DevKind.pool: KV { key: @tr("Lease"); value: device.lease; key-width: 120px; role: Role.body; }
+            if device.kind == DevKind.pool: KV { key: @tr("Base"); value: device.base-name; key-width: 120px; role: Role.body; }
+            if device.kind == DevKind.base: KV { key: @tr("Clones"); value: device.lease; key-width: 120px; role: Role.body; }
         }
     }
 }

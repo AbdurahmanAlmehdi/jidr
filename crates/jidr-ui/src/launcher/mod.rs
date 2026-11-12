@@ -1,16 +1,20 @@
-//! Launcher wiring: selection, tabs, lifecycle actions, the create/edit
-//! sheet, the command palette and the confirmation dialog.
+//! Launcher wiring: selection, tabs, lifecycle actions (hibernate, Save as
+//! base, the RAM-budget refusal), the create/edit sheet, the command
+//! palette and the confirmation dialog.
 
 use std::rc::Rc;
+use std::sync::Arc;
 
-use jidr_core::{HardwareProfile, SystemImage};
+use jidr_core::{ErrorCode, HardwareProfile, JidrResult, SystemImage};
 use serde_json::{Value, json};
-use slint::{ComponentHandle, ModelRc, VecModel};
+use slint::{ComponentHandle, ModelRc, VecModel, Weak};
 use uuid::Uuid;
 
 use crate::app::{Ctx, report, toast};
+use crate::bridge::Bridge;
 use crate::device_form;
-use crate::{DeviceForm, PaletteItem, RootChoice};
+use crate::model::Exhausted;
+use crate::{AppWindow, DeviceForm, PaletteItem, RootChoice};
 
 fn models<T: Clone + 'static>(v: Vec<T>) -> ModelRc<T> {
     ModelRc::new(VecModel::from(v))
@@ -78,6 +82,54 @@ pub fn wire(ctx: &Rc<Ctx>) {
         if let Some(id) = c.device_id(i) {
             stop(&c, id);
         }
+    });
+
+    let c = ctx.clone();
+    app.on_hibernate_device(move |i| {
+        if let Some(id) = c.device_id(i) {
+            hibernate(&c, id);
+        }
+    });
+
+    let c = ctx.clone();
+    app.on_save_base(move |i| {
+        if let Some(id) = c.device_id(i) {
+            save_as_base(&c, id);
+        }
+    });
+
+    let c = ctx.clone();
+    app.on_exhausted_hibernate(move || {
+        let Some((id, x)) = c.pending_exhausted.borrow_mut().take() else {
+            return;
+        };
+        let picks = x.picks();
+        let names: Vec<String> = x
+            .hibernate_candidates
+            .iter()
+            .filter(|d| picks.contains(&d.id))
+            .map(|d| d.name.clone())
+            .collect();
+        let w = c.app.as_weak();
+        toast(&w, format!("Hibernating {} to make room", names.join(", ")));
+        let bridge = c.bridge.clone();
+        let b2 = bridge.clone();
+        hibernate_all(&bridge, picks, move |r| match r {
+            Ok(()) => start_device(&b2, &w, id, false),
+            Err(e) => toast(&w, e.message),
+        });
+    });
+
+    let c = ctx.clone();
+    app.on_exhausted_force(move || {
+        if let Some((id, _)) = c.pending_exhausted.borrow_mut().take() {
+            start_device(&c.bridge, &c.app.as_weak(), id, true);
+        }
+    });
+
+    let c = ctx.clone();
+    app.on_exhausted_cancel(move || {
+        c.pending_exhausted.borrow_mut().take();
     });
 
     let c = ctx.clone();
@@ -171,6 +223,22 @@ pub fn wire(ctx: &Rc<Ctx>) {
     });
 
     let c = ctx.clone();
+    app.on_form_profile_changed(move |mut form, i| {
+        if let Ok(i) = usize::try_from(i) {
+            device_form::apply_profile(&mut form, &c.catalog.borrow().profiles, i);
+        }
+        form
+    });
+
+    let c = ctx.clone();
+    app.on_form_lean(move |mut form| {
+        if let Err(e) = device_form::apply_lean(&mut form, &c.catalog.borrow().profiles) {
+            form.error = e.into();
+        }
+        form
+    });
+
+    let c = ctx.clone();
     app.on_submit_form(move |form| submit(&c, form));
 
     let c = ctx.clone();
@@ -241,13 +309,138 @@ fn close_tab(c: &Rc<Ctx>, i: Option<usize>) {
     c.rerender();
 }
 
+/// Starts (or resumes) a device. A start past the RAM budget opens the
+/// `resource_exhausted` dialog instead of a toast (D42).
 pub fn start(c: &Rc<Ctx>, id: Uuid) {
+    start_device(&c.bridge, &c.app.as_weak(), id, false);
+}
+
+/// `device.start` from any thread; `force` starts past the budget.
+pub fn start_device(bridge: &Bridge, w: &Weak<AppWindow>, id: Uuid, force: bool) {
+    let mut params = json!({ "device": id });
+    if force {
+        params["force"] = json!(true);
+    }
+    let w = w.clone();
+    bridge.run(
+        "device.start",
+        params,
+        |_| {},
+        move |r| {
+            if let Some(x) = exhausted(&r) {
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(c) = crate::app::ctx() {
+                        show_exhausted(&c, id, x);
+                    }
+                });
+            } else {
+                report(&w, "")(r);
+            }
+        },
+    );
+}
+
+/// The details of a `resource_exhausted` refusal, if that's what `r` is.
+pub fn exhausted(r: &JidrResult<Value>) -> Option<Exhausted> {
+    match r {
+        Err(e) if e.code == ErrorCode::ResourceExhausted => {
+            e.data.clone().and_then(|d| serde_json::from_value(d).ok())
+        }
+        _ => None,
+    }
+}
+
+/// Opens the "not enough RAM" dialog for a refused start of `id`.
+pub fn show_exhausted(c: &Rc<Ctx>, id: Uuid, x: Exhausted) {
+    let name = c.info(id).map(|d| d.device.name).unwrap_or_default();
+    set_exhausted(&c.app, &name, &x);
+    *c.pending_exhausted.borrow_mut() = Some((id, x));
+    c.app.set_exhausted_open(true);
+}
+
+/// Fills the dialog's view model (also used by the goldens).
+pub fn set_exhausted(app: &AppWindow, name: &str, x: &Exhausted) {
+    let picks = x.picks();
+    let first = x
+        .hibernate_candidates
+        .iter()
+        .find(|d| picks.contains(&d.id))
+        .map(|d| d.name.clone())
+        .unwrap_or_default();
+    app.set_exhausted_name(name.into());
+    app.set_exhausted_need(crate::model::ram_gb(x.needed_mb).into());
+    app.set_exhausted_free(crate::model::ram_gb(x.free_mb()).into());
+    app.set_exhausted_budget(crate::model::ram_gb(x.budget_mb).into());
+    app.set_exhausted_rows(models(x.rows()));
+    app.set_exhausted_picks(picks.len() as i32);
+    app.set_exhausted_first_pick(first.into());
+}
+
+/// Hibernates `ids` one after another, then calls `done`.
+fn hibernate_all(
+    bridge: &Arc<Bridge>,
+    mut ids: Vec<Uuid>,
+    done: impl FnOnce(JidrResult<()>) + Send + 'static,
+) {
+    if ids.is_empty() {
+        return done(Ok(()));
+    }
+    let next = ids.remove(0);
+    let b = bridge.clone();
+    bridge.run(
+        "device.hibernate",
+        json!({ "device": next }),
+        |_| {},
+        move |r| match r {
+            Ok(_) => hibernate_all(&b, ids, done),
+            Err(e) => done(Err(e)),
+        },
+    );
+}
+
+/// `device.hibernate`: saves the whole state and frees its RAM.
+pub fn hibernate(c: &Rc<Ctx>, id: Uuid) {
+    let name = c.info(id).map(|d| d.device.name).unwrap_or_default();
     let w = c.app.as_weak();
     c.bridge.run(
-        "device.start",
+        "device.hibernate",
         json!({ "device": id }),
         |_| {},
-        report(&w, ""),
+        report(&w, format!("Hibernated {name}")),
+    );
+}
+
+/// `base.create` from a running device, after a confirmation.
+pub fn save_as_base(c: &Rc<Ctx>, id: Uuid) {
+    let Some(info) = c.info(id) else { return };
+    let name = info.device.name.clone();
+    let taken: Vec<String> = c
+        .state
+        .borrow()
+        .data
+        .devices
+        .iter()
+        .map(|d| d.device.name.clone())
+        .collect();
+    let base = device_form::free_name(&format!("{name} base"), &taken);
+    let c2 = c.clone();
+    confirm_with(
+        c,
+        &format!("Save {name} as a base?"),
+        &format!(
+            "Agents lease throwaway clones of a base with pool.get. {name} stops, and \"{base}\" becomes a read-only copy of it, animations off."
+        ),
+        "Save as base",
+        false,
+        move || {
+            let w = c2.app.as_weak();
+            c2.bridge.run(
+                "base.create",
+                json!({ "from_device": id, "name": base }),
+                |_| {},
+                report(&w, format!("Saved {base} as a base")),
+            );
+        },
     );
 }
 
@@ -259,10 +452,23 @@ pub fn stop(c: &Rc<Ctx>, id: Uuid) {
 
 /// Shows the confirmation dialog; `ok` runs on confirm.
 pub fn confirm(c: &Rc<Ctx>, title: &str, body: &str, action: &str, ok: impl Fn() + 'static) {
+    confirm_with(c, title, body, action, true, ok);
+}
+
+/// [`confirm`] with a non-destructive (primary) action button.
+pub fn confirm_with(
+    c: &Rc<Ctx>,
+    title: &str,
+    body: &str,
+    action: &str,
+    destructive: bool,
+    ok: impl Fn() + 'static,
+) {
     *c.pending_confirm.borrow_mut() = Some(Box::new(ok));
     c.app.set_confirm_title(title.into());
     c.app.set_confirm_body(body.into());
     c.app.set_confirm_action(action.into());
+    c.app.set_confirm_destructive(destructive);
     c.app.set_confirm_open(true);
 }
 
@@ -324,13 +530,19 @@ fn new_device(c: &Rc<Ctx>) {
 pub fn edit_device(c: &Rc<Ctx>, id: Uuid) {
     load_catalog(c, move |c| {
         let Some(info) = c.info(id) else { return };
+        let global = c.prefs.borrow().auto_hibernate_minutes;
+        let hib = device_form::HibernateChoices::device(global, info.device.auto_hibernate_minutes);
         let cat = c.catalog.borrow();
         c.app
             .set_profiles(models(device_form::profile_options(&cat.profiles)));
-        c.app.set_form(device_form::edit_form(&info, &cat.profiles));
+        c.app
+            .set_form(device_form::edit_form(&info, &cat.profiles, &hib));
+        c.app.set_hibernate_options(models(hib.options.clone()));
         c.app.set_sheet_open(true);
         drop(cat);
-        c.catalog.borrow_mut().editing = Some(id);
+        let mut cat = c.catalog.borrow_mut();
+        cat.editing = Some(id);
+        cat.hibernate = hib;
     });
 }
 
@@ -345,7 +557,8 @@ fn submit(c: &Rc<Ctx>, form: DeviceForm) {
     let w = c.app.as_weak();
     if let Some(id) = editing {
         let Some(info) = c.info(id) else { return };
-        match device_form::edit_params(&form, &info) {
+        let params = device_form::edit_params(&form, &info, &c.catalog.borrow().hibernate);
+        match params {
             Err(e) => set_form_error(c, e),
             Ok(params) => {
                 c.app.set_sheet_open(false);
@@ -399,13 +612,13 @@ fn submit(c: &Rc<Ctx>, form: DeviceForm) {
                         .and_then(|s| uuid::Uuid::parse_str(s).ok())
                 {
                     crate::root::start_later(id, jidr_core::RootMode::Magisk);
-                } else if start && let Some(id) = dev.get("id").cloned() {
-                    b2.run(
-                        "device.start",
-                        json!({ "device": id }),
-                        |_| {},
-                        report(&w, ""),
-                    );
+                } else if start
+                    && let Some(id) = dev
+                        .get("id")
+                        .and_then(|v| v.as_str())
+                        .and_then(|s| uuid::Uuid::parse_str(s).ok())
+                {
+                    start_device(&b2, &w, id, false);
                 }
             }
             Err(e) => toast(&w, e.message),
@@ -451,6 +664,8 @@ fn run_palette(c: &Rc<Ctx>, item: &PaletteItem) {
         ("open", Some(id)) => open_tab(c, id),
         ("start", Some(id)) => start(c, id),
         ("stop", Some(id)) => stop(c, id),
+        ("hibernate", Some(id)) => hibernate(c, id),
+        ("base", Some(id)) => save_as_base(c, id),
         ("edit", Some(id)) => edit_device(c, id),
         ("new", _) => new_device(c),
         ("setup", _) => crate::wizard::open(c),

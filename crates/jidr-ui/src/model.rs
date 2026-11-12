@@ -4,9 +4,14 @@
 
 use chrono::{DateTime, FixedOffset, Utc};
 use jidr_core::{Device, DeviceStatus, ImageRef, Job, JobState, RootHealth, RootMode};
+use serde::Deserialize;
 use slint::SharedString;
+use uuid::Uuid;
 
-use crate::{DevState, DeviceVm, FormFactor, JobTone, JobVm, RootKind, SnapshotVm, TabVm};
+use crate::{
+    BudgetLevel, BudgetVm, DevKind, DevState, DeviceVm, ExhaustedRow, FormFactor, JobTone, JobVm,
+    RootKind, SnapshotVm, TabVm,
+};
 
 /// "Now" and the local time zone, injected so goldens don't depend on the
 /// machine's clock or zone.
@@ -48,6 +53,21 @@ pub struct DeviceInfo {
     pub busy_holder: Option<String>,
     /// A root job (`root.set`) is running on it.
     pub root_job: bool,
+    /// Pool clone: its lease (`pool.list`).
+    pub lease: Option<Lease>,
+    /// Pool clone: the name of its base.
+    pub base_name: Option<String>,
+    /// Base: how many of its clones are leased (`base.list`).
+    pub base_leases: usize,
+}
+
+/// A pool clone's lease, from `pool.list` (D42).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Lease {
+    /// A fixed lifetime (`ttl_s`); otherwise tied to the agent's connection.
+    pub ttl: bool,
+    /// When the daemon releases it; `None` while the agent is connected.
+    pub expires_at: Option<DateTime<Utc>>,
 }
 
 impl DeviceInfo {
@@ -64,7 +84,41 @@ impl DeviceInfo {
             boot_progress: None,
             busy_holder: None,
             root_job: false,
+            lease: None,
+            base_name: None,
+            base_leases: 0,
         }
+    }
+
+    pub fn kind(&self) -> DevKind {
+        if self.device.base {
+            DevKind::Base
+        } else if self.device.pool_base.is_some() {
+            DevKind::Pool
+        } else {
+            DevKind::Device
+        }
+    }
+
+    /// What the budget expects it to cost: its last measured peak, or its
+    /// guest RAM plus the emulator's own ~2 GB (the daemon's cost model).
+    pub fn expected_mb(&self) -> u64 {
+        match self.device.footprint_mb {
+            Some(mb) if mb > 0 => u64::from(mb),
+            _ => u64::from(self.ram_mb) + EMULATOR_OVERHEAD_MB,
+        }
+    }
+}
+
+/// The emulator's cost on top of guest RAM (jidr-daemon `budget.rs`).
+pub const EMULATOR_OVERHEAD_MB: u64 = 2048;
+
+/// Sidebar order: people's devices, then the agent pool, then bases.
+pub fn group_rank(info: &DeviceInfo) -> u8 {
+    match info.kind() {
+        DevKind::Device => 0,
+        DevKind::Pool => 1,
+        DevKind::Base => 2,
     }
 }
 
@@ -152,7 +206,8 @@ fn state_of(info: &DeviceInfo) -> DevState {
         return DevState::Busy;
     }
     match &info.device.status {
-        DeviceStatus::Stopped | DeviceStatus::Hibernated => DevState::Stopped,
+        DeviceStatus::Stopped => DevState::Stopped,
+        DeviceStatus::Hibernated => DevState::Hibernated,
         DeviceStatus::Starting => DevState::Starting,
         DeviceStatus::Booting => DevState::Booting,
         DeviceStatus::Running => DevState::Running,
@@ -161,10 +216,38 @@ fn state_of(info: &DeviceInfo) -> DevState {
     }
 }
 
+/// A pool clone's lease: "1 h 12 m left", "While its agent is connected".
+pub fn lease_label(lease: &Lease, now: DateTime<Utc>) -> String {
+    match (lease.ttl, lease.expires_at) {
+        (_, Some(t)) if t <= now => "Releasing…".into(),
+        (true, Some(t)) => format!("{} left", duration((t - now).num_seconds())),
+        (false, Some(t)) => format!(
+            "Agent gone · released in {}",
+            duration((t - now).num_seconds())
+        ),
+        (_, None) => "While its agent is connected".into(),
+    }
+}
+
+/// "2 clones leased", "No clones leased".
+fn base_label(leases: usize) -> String {
+    match leases {
+        0 => "No clones leased".into(),
+        1 => "1 clone leased".into(),
+        n => format!("{n} clones leased"),
+    }
+}
+
 /// The status line: "Running · 2 h 14 m", "Booting Android… 62%", …
 pub fn status_label(info: &DeviceInfo, now: DateTime<Utc>) -> String {
     if let Some(h) = &info.busy_holder {
         return format!("Busy · in use by {h}");
+    }
+    if info.device.base {
+        return format!("Base · {}", base_label(info.base_leases));
+    }
+    if let (Some(l), DeviceStatus::Running) = (&info.lease, &info.device.status) {
+        return format!("Leased · {}", lease_label(l, now));
     }
     match &info.device.status {
         DeviceStatus::Stopped => "Stopped".into(),
@@ -311,6 +394,169 @@ pub fn device_vm(info: &DeviceInfo, clock: &Clock) -> DeviceVm {
         width_px: info.width as i32,
         height_px: info.height as i32,
         play_store,
+        kind: info.kind(),
+        lease: match info.kind() {
+            DevKind::Pool => info
+                .lease
+                .as_ref()
+                .map(|l| lease_label(l, now))
+                .unwrap_or_default(),
+            DevKind::Base => base_label(info.base_leases),
+            DevKind::Device => String::new(),
+        }
+        .into(),
+        base_name: info.base_name.clone().unwrap_or_default().into(),
+        can_base: info.kind() == DevKind::Device
+            && matches!(d.status, DeviceStatus::Running)
+            && d.root.mode != RootMode::Magisk
+            && !d.root.writable_system
+            && info.busy_holder.is_none(),
+    }
+}
+
+/// One device counted against the budget (`host.budget` `devices`).
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+pub struct BudgetUse {
+    pub id: Uuid,
+    pub name: String,
+    pub expected_mb: u64,
+    #[serde(default)]
+    pub measured_mb: Option<u64>,
+}
+
+impl BudgetUse {
+    /// The larger of the expectation and the latest measurement (the
+    /// daemon's rule).
+    pub fn counted_mb(&self) -> u64 {
+        self.expected_mb.max(self.measured_mb.unwrap_or(0))
+    }
+}
+
+/// `host.budget` (D42).
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+pub struct HostBudget {
+    pub budget_mb: u64,
+    pub used_mb: u64,
+    #[serde(default)]
+    pub devices: Vec<BudgetUse>,
+}
+
+/// What one more device is expected to cost: the mean over the person's
+/// devices (bases and pool clones aside), else a 4 GB phone.
+pub fn typical_mb(devices: &[DeviceInfo]) -> u64 {
+    let costs: Vec<u64> = devices
+        .iter()
+        .filter(|d| {
+            d.kind() == DevKind::Device && (d.ram_mb > 0 || d.device.footprint_mb.is_some())
+        })
+        .map(DeviceInfo::expected_mb)
+        .collect();
+    if costs.is_empty() {
+        4096 + EMULATOR_OVERHEAD_MB
+    } else {
+        costs.iter().sum::<u64>() / costs.len() as u64
+    }
+}
+
+/// RAM in binary GB with one decimal ("9.0 GB"), for budget numbers.
+pub fn ram_gb(mb: u64) -> String {
+    format!("{:.1} GB", mb as f64 / 1024.0)
+}
+
+/// The launcher meter: how many devices fit, and how full the budget is.
+/// Fits while two or more could still start, near with room for one,
+/// full when the next start would be refused.
+pub fn budget_vm(b: &HostBudget, typical: u64) -> BudgetVm {
+    let running = b.devices.len();
+    let free = b.budget_mb.saturating_sub(b.used_mb);
+    let more = (free / typical.max(1)) as usize;
+    BudgetVm {
+        known: true,
+        running: running as i32,
+        fit: (running + more) as i32,
+        level: match more {
+            0 => BudgetLevel::Full,
+            1 => BudgetLevel::Near,
+            _ => BudgetLevel::Fits,
+        },
+        fraction: if b.budget_mb > 0 {
+            (b.used_mb as f32 / b.budget_mb as f32).min(1.0)
+        } else {
+            1.0
+        },
+        used: ram_gb(b.used_mb).into(),
+        budget: ram_gb(b.budget_mb).into(),
+    }
+}
+
+/// A running device the daemon suggests hibernating (`hibernate_candidates`).
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+pub struct IdleDevice {
+    pub id: Uuid,
+    pub name: String,
+    pub idle_s: u64,
+}
+
+/// `resource_exhausted` details from `device.start` (D42).
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+pub struct Exhausted {
+    pub needed_mb: u64,
+    pub used_mb: u64,
+    pub budget_mb: u64,
+    #[serde(default)]
+    pub devices: Vec<BudgetUse>,
+    #[serde(default)]
+    pub hibernate_candidates: Vec<IdleDevice>,
+}
+
+impl Exhausted {
+    pub fn free_mb(&self) -> u64 {
+        self.budget_mb.saturating_sub(self.used_mb)
+    }
+
+    fn cost_of(&self, id: Uuid) -> u64 {
+        self.devices
+            .iter()
+            .find(|d| d.id == id)
+            .map(BudgetUse::counted_mb)
+            .unwrap_or(0)
+    }
+
+    /// The idle devices to hibernate, longest-idle first, until the start
+    /// fits. Empty when hibernating all of them still wouldn't make room.
+    pub fn picks(&self) -> Vec<Uuid> {
+        let mut free = self.free_mb();
+        let mut picked = Vec::new();
+        for c in &self.hibernate_candidates {
+            if free >= self.needed_mb {
+                break;
+            }
+            free += self.cost_of(c.id);
+            picked.push(c.id);
+        }
+        if free >= self.needed_mb {
+            picked
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// The dialog's rows: every candidate with its idle time and cost.
+    pub fn rows(&self) -> Vec<ExhaustedRow> {
+        let picks = self.picks();
+        self.hibernate_candidates
+            .iter()
+            .map(|c| ExhaustedRow {
+                name: c.name.clone().into(),
+                detail: format!(
+                    "Idle {} · {}",
+                    duration(i64::try_from(c.idle_s).unwrap_or(i64::MAX)),
+                    ram_gb(self.cost_of(c.id))
+                )
+                .into(),
+                picked: picks.contains(&c.id),
+            })
+            .collect()
     }
 }
 
@@ -510,5 +756,102 @@ mod tests {
         };
         let vm = snapshot_vm(&quick, RootMode::None, None, &Clock::system());
         assert!(vm.auto && !vm.refused);
+    }
+
+    #[test]
+    fn hibernated_is_its_own_state() {
+        let info = DeviceInfo::new(device(DeviceStatus::Hibernated));
+        let vm = device_vm(&info, &Clock::system());
+        assert_eq!(vm.state, DevState::Hibernated);
+        assert_eq!(vm.status, "Hibernated");
+        assert!(!vm.can_base);
+    }
+
+    #[test]
+    fn budget_meter_levels() {
+        let infos = crate::fixtures::device_infos();
+        let typical = typical_mb(&infos);
+        assert_eq!(typical, 5632);
+        let fits = budget_vm(&crate::fixtures::budget(64), typical);
+        assert_eq!(
+            (fits.running, fits.fit, fits.level),
+            (3, 8, BudgetLevel::Fits)
+        );
+        let near = budget_vm(&crate::fixtures::budget(32), typical);
+        assert_eq!(
+            (near.running, near.fit, near.level),
+            (3, 4, BudgetLevel::Near)
+        );
+        let full = budget_vm(&crate::fixtures::budget(24), typical);
+        assert_eq!((full.fit, full.level), (3, BudgetLevel::Full));
+        assert_eq!(
+            (full.used.as_str(), full.budget.as_str()),
+            ("16.0 GB", "18.0 GB")
+        );
+        assert_eq!(typical_mb(&[]), 6144);
+    }
+
+    #[test]
+    fn exhausted_offers_the_longest_idle_devices_that_make_room() {
+        let mut x = crate::fixtures::exhausted();
+        assert_eq!(x.picks(), vec![Uuid::from_u128(1)]);
+        let rows = x.rows();
+        assert!(rows[0].picked && !rows[1].picked);
+        assert_eq!(rows[0].detail, "Idle 1\u{a0}h 12\u{a0}m · 6.0 GB");
+        x.needed_mb = 12_000;
+        assert_eq!(x.picks().len(), 2);
+        x.needed_mb = 20_000;
+        assert!(
+            x.picks().is_empty(),
+            "hibernating everything still won't fit"
+        );
+
+        // The daemon's refusal data (budget.rs `refusal` + state.rs).
+        let id = Uuid::from_u128(1);
+        let parsed: Exhausted = serde_json::from_value(serde_json::json!({
+            "needed_mb": 6144, "used_mb": 16384, "budget_mb": 18432, "total_mb": 24576,
+            "devices": [{"id": id, "name": "Pixel-ish 6.1", "expected_mb": 6144, "measured_mb": 6500}],
+            "suggestions": ["hibernate", "stop", "lean_profile", "force"],
+            "hibernate_candidates": [{"id": id, "name": "Pixel-ish 6.1", "idle_s": 600}]
+        }))
+        .unwrap();
+        assert_eq!(parsed.free_mb(), 2048);
+        assert_eq!(parsed.picks(), vec![id]);
+        assert_eq!(parsed.rows()[0].detail, "Idle 10\u{a0}m · 6.3 GB");
+    }
+
+    #[test]
+    fn pool_clones_and_bases_are_grouped_and_labelled() {
+        let infos = crate::fixtures::pool_infos();
+        let names: Vec<_> = infos.iter().map(|i| i.device.name.as_str()).collect();
+        assert_eq!(names[4..], ["Shop base 1", "Shop base 2", "Shop base"]);
+        let vms = crate::fixtures::vms(&infos);
+        assert_eq!(vms[4].kind, DevKind::Pool);
+        assert_eq!(vms[4].status, "Leased · 1\u{a0}h 12\u{a0}m left");
+        assert_eq!(vms[4].base_name, "Shop base");
+        assert_eq!(vms[5].lease, "While its agent is connected");
+        assert_eq!(vms[6].kind, DevKind::Base);
+        assert_eq!(vms[6].status, "Base · 2 clones leased");
+        assert!(!vms[4].can_base, "a pool clone can't become a base");
+        let now = crate::fixtures::now();
+        let gone = Lease {
+            ttl: false,
+            expires_at: Some(now + chrono::Duration::seconds(90)),
+        };
+        assert_eq!(lease_label(&gone, now), "Agent gone · released in 1\u{a0}m");
+    }
+
+    #[test]
+    fn only_running_unrooted_or_shell_devices_can_become_bases() {
+        let mut info = DeviceInfo::new(device(DeviceStatus::Running));
+        assert!(device_vm(&info, &Clock::system()).can_base);
+        info.device.root.mode = RootMode::Magisk;
+        assert!(!device_vm(&info, &Clock::system()).can_base);
+        info.device.root.mode = RootMode::Adb;
+        info.device.root.writable_system = true;
+        assert!(!device_vm(&info, &Clock::system()).can_base);
+        info.device.root.writable_system = false;
+        info.device.status = DeviceStatus::Stopped;
+        assert!(!device_vm(&info, &Clock::system()).can_base);
     }
 }

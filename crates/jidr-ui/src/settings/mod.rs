@@ -30,6 +30,8 @@ pub struct Prefs {
     pub tile_url: String,
     /// A copy of the daemon's `quick_boot` setting (D29, gap B4).
     pub quick_boot: bool,
+    /// A copy of the daemon's `auto_hibernate_minutes` (D42); `0` = off.
+    pub auto_hibernate_minutes: u32,
 }
 
 impl Default for Prefs {
@@ -39,6 +41,7 @@ impl Default for Prefs {
             default_root: "adb".into(),
             tile_url: String::new(),
             quick_boot: true,
+            auto_hibernate_minutes: 0,
         }
     }
 }
@@ -72,6 +75,13 @@ impl Prefs {
         }
         if let Some(q) = v.get("quick_boot").and_then(Value::as_bool) {
             self.quick_boot = q;
+        }
+        if let Some(m) = v
+            .get("auto_hibernate_minutes")
+            .and_then(Value::as_u64)
+            .and_then(|m| u32::try_from(m).ok())
+        {
+            self.auto_hibernate_minutes = m;
         }
     }
 
@@ -256,6 +266,7 @@ pub fn open(ctx: &std::rc::Rc<crate::app::Ctx>, tab: i32) {
     win.set_tile_url(prefs.tile_url.clone().into());
     win.set_appearance(i32::from(prefs.appearance));
     win.set_quick_boot(prefs.quick_boot);
+    set_hibernate(&win, prefs.auto_hibernate_minutes);
     let devices = ctx.state.borrow().data.devices.clone();
     win.set_device_usage(models(device_usage(&devices, &[])));
     let cache = dir_size(&ctx.paths.cache);
@@ -307,6 +318,7 @@ pub fn open(ctx: &std::rc::Rc<crate::app::Ctx>, tab: i32) {
         let prefs = c.prefs.borrow();
         win.set_default_root(prefs.root_choice());
         win.set_quick_boot(prefs.quick_boot);
+        set_hibernate(&win, prefs.auto_hibernate_minutes);
     });
     ctx.bridge.call("settings.get", json!({}), move |r| {
         crate::app::fire(token, r.ok());
@@ -344,6 +356,20 @@ pub fn open(ctx: &std::rc::Rc<crate::app::Ctx>, tab: i32) {
         c.prefs.borrow_mut().quick_boot = v;
         let _ = c.prefs.borrow().save(&c.paths.data);
         set_daemon_setting(&c, json!({ "quick_boot": v }));
+    });
+    let c = ctx.clone();
+    let w = win.as_weak();
+    win.on_hibernate_changed(move |i| {
+        let current = c.prefs.borrow().auto_hibernate_minutes;
+        let Some(Some(m)) = crate::device_form::HibernateChoices::global(current).value(i) else {
+            return;
+        };
+        c.prefs.borrow_mut().auto_hibernate_minutes = m;
+        let _ = c.prefs.borrow().save(&c.paths.data);
+        if let Some(win) = w.upgrade() {
+            set_hibernate(&win, m);
+        }
+        set_daemon_setting(&c, json!({ "auto_hibernate_minutes": m }));
     });
     let data = ctx.paths.data.clone();
     win.on_show_sdk(move || {
@@ -404,6 +430,13 @@ pub fn open(ctx: &std::rc::Rc<crate::app::Ctx>, tab: i32) {
 
     let _ = win.show();
     ctx.windows.borrow_mut().push(Box::new(win));
+}
+
+/// Settings › General › Auto-hibernate: the choices and the current one.
+pub fn set_hibernate(win: &crate::SettingsWindow, minutes: u32) {
+    let choices = crate::device_form::HibernateChoices::global(minutes);
+    win.set_hibernate_choice(choices.index_of(Some(minutes)));
+    win.set_hibernate_options(models(choices.options));
 }
 
 /// Bytes under `dir` (cache size).
@@ -480,6 +513,7 @@ mod tests {
             default_root: "magisk".into(),
             tile_url: "https://t.example/{z}/{x}/{y}.png".into(),
             quick_boot: false,
+            auto_hibernate_minutes: 30,
         };
         p.save(tmp.path()).unwrap();
         let back = Prefs::load(tmp.path());
@@ -519,9 +553,10 @@ mod tests {
     #[test]
     fn daemon_settings_update_the_cached_prefs() {
         let mut p = Prefs::default();
-        p.apply_daemon_settings(&json!({ "default_root_mode": "magisk", "quick_boot": false }));
+        p.apply_daemon_settings(&json!({ "default_root_mode": "magisk", "quick_boot": false, "auto_hibernate_minutes": 30 }));
         assert_eq!(p.root_choice(), RootChoice::Full);
         assert!(!p.quick_boot);
+        assert_eq!(p.auto_hibernate_minutes, 30);
         p.apply_daemon_settings(&json!({ "default_root_mode": "bogus" }));
         assert_eq!(p.default_root, "magisk");
         assert!(!p.quick_boot);

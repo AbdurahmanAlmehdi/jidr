@@ -5,7 +5,7 @@ import { Theme } from "theme.slint";
 import { Icons } from "icons.slint";
 import { T, Role, Tone, Tones, Icon, IconButton, Button, ButtonKind, Kbd, Bar, SectionHeader, TrafficLights, Pill } from "components/base.slint";
 import { StatusText, StatusStyle, RootBadge } from "components/status.slint";
-import { DeviceVm, JobVm, TabVm, DevState, RootKind, JobTone, ConnState, FormFactor } from "types.slint";
+import { DeviceVm, JobVm, TabVm, DevState, DevKind, RootKind, JobTone, ConnState, FormFactor, BudgetVm, BudgetLevel } from "types.slint";
 
 /// One title-bar tab (`.tab`).
 export component TabItem inherits Rectangle {
@@ -156,50 +156,115 @@ export component TitleBar inherits Rectangle {
     }
 }
 
-/// Sidebar device row (`.j-dev`): name + root badge, then status.
+/// Sidebar device row (`.j-dev`): name + root badge, then status. The
+/// first row of a group (agent pool, bases) carries the group's header.
 export component SidebarDevice inherits Rectangle {
     in property <DeviceVm> device;
     in property <bool> selected;
+    in property <string> header;
     callback clicked();
     callback double-clicked();
-    height: device.state == DevState.booting ? 61px : 52px;
-    border-radius: Theme.radius-md;
-    background: selected ? Theme.surface-selected : ta.has-hover ? Theme.surface-control-hover.with-alpha(0.4) : transparent;
-    badge := RootBadge {
-        x: Theme.rtl ? 8px : parent.width - 8px - self.width;
-        y: 8px;
-        small: true;
-        kind: device.root;
-        text: device.root-short;
-        beta: device.beta;
+    property <length> hh: header != "" ? 30px : 0px;
+    height: hh + (device.state == DevState.booting ? 61px : 52px);
+    if header != "": SectionHeader {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        text: root.header;
+    }
+    row := Rectangle {
+        y: root.hh;
+        height: parent.height - root.hh;
+        border-radius: Theme.radius-md;
+        background: selected ? Theme.surface-selected : ta.has-hover ? Theme.surface-control-hover.with-alpha(0.4) : transparent;
+        badge := RootBadge {
+            x: Theme.rtl ? 8px : parent.width - 8px - self.width;
+            y: 8px;
+            small: true;
+            kind: device.root;
+            text: device.root-short;
+            beta: device.beta;
+        }
+        T {
+            x: Theme.rtl ? badge.x + badge.width + 6px : 8px;
+            y: 8px;
+            height: 20px;
+            width: parent.width - 22px - badge.width;
+            text: device.name;
+            role: Role.label;
+            font-weight: 600;
+        }
+        StatusText {
+            x: Theme.rtl ? parent.width - 8px - self.width : 8px;
+            y: 30px;
+            height: 16px;
+            state: device.state;
+            text: device.status;
+            icon: device.kind == DevKind.base ? Icons.layers : StatusStyle.icon(device.state);
+        }
+        if device.state == DevState.booting: Bar {
+            x: 8px;
+            y: 50px;
+            width: parent.width - 16px;
+            height: 3px;
+            value: device.progress;
+        }
+        ta := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.clicked(); }
+            double-clicked => { root.double-clicked(); }
+        }
+    }
+}
+
+/// The host RAM budget (`host.budget`, D42): how many devices fit, a bar,
+/// and what is in use. The label carries the level, not just the colour.
+export component BudgetMeter inherits Rectangle {
+    in property <BudgetVm> budget;
+    property <Tone> tone: budget.level == BudgetLevel.full ? Tone.negative
+        : budget.level == BudgetLevel.near ? Tone.warning
+        : Tone.positive;
+    height: 82px;
+    border-radius: Theme.radius-lg;
+    background: Theme.surface-raised;
+    border-width: 1px;
+    border-color: Theme.border-default;
+    Icon {
+        x: Theme.rtl ? parent.width - 12px - self.width : 12px;
+        y: 12px;
+        size: Theme.icon-sm;
+        source: Icons.gauge;
+        colorize: Tones.on(root.tone);
     }
     T {
-        x: Theme.rtl ? badge.x + badge.width + 6px : 8px;
-        y: 8px;
-        height: 20px;
-        width: parent.width - 22px - badge.width;
-        text: device.name;
+        x: Theme.rtl ? 12px : 32px;
+        y: 10px;
+        width: parent.width - 44px;
+        height: 18px;
+        text: @tr("{} of ~{} devices fit", root.budget.running, root.budget.fit);
         role: Role.label;
         font-weight: 600;
     }
-    StatusText {
-        x: Theme.rtl ? parent.width - 8px - self.width : 8px;
-        y: 30px;
-        height: 16px;
-        state: device.state;
-        text: device.status;
+    Bar {
+        x: 12px;
+        y: 34px;
+        width: parent.width - 24px;
+        value: root.budget.fraction;
+        fill: Tones.on(root.tone);
     }
-    if device.state == DevState.booting: Bar {
-        x: 8px;
-        y: 50px;
-        width: parent.width - 16px;
-        height: 3px;
-        value: device.progress;
-    }
-    ta := TouchArea {
-        mouse-cursor: pointer;
-        clicked => { root.clicked(); }
-        double-clicked => { root.double-clicked(); }
+    T {
+        x: 12px;
+        y: 44px;
+        width: parent.width - 24px;
+        height: 32px;
+        wrap: word-wrap;
+        overflow: clip;
+        vertical-alignment: top;
+        text: root.budget.level == BudgetLevel.full ? @tr("Full: hibernate or stop a device to start another.")
+            : root.budget.level == BudgetLevel.near ? @tr("{} of {} in use · room for one more", root.budget.used, root.budget.budget)
+            : @tr("{} of {} RAM budget in use", root.budget.used, root.budget.budget);
+        role: Role.caption;
+        color: Theme.text-secondary;
     }
 }
 
@@ -288,6 +353,7 @@ export component Sidebar inherits Rectangle {
     in property <int> selected: -1;
     in property <bool> sdk-ready: true;
     in property <string> sdk-label: @tr("Not installed");
+    in property <BudgetVm> budget;
     callback select(int);
     callback open(int);
     callback new-device();
@@ -336,7 +402,7 @@ export component Sidebar inherits Rectangle {
         x: 8px;
         y: cmd.y + cmd.height + 6px;
         width: parent.width - 16px;
-        height: foot.y - self.y - 4px;
+        height: foot.y - self.y - 4px - (root.budget.known ? meter.height + 8px : 0px);
         spacing: 2px;
         alignment: start;
         SectionHeader {
@@ -364,6 +430,10 @@ export component Sidebar inherits Rectangle {
         }
         for d[i] in root.devices: SidebarDevice {
             device: d;
+            // Devices come grouped (Rust sorts them); a new group gets a header.
+            header: (i == 0 && d.kind != DevKind.device) || (i > 0 && d.kind != root.devices[i - 1].kind)
+                ? (d.kind == DevKind.pool ? @tr("Agent pool") : d.kind == DevKind.base ? @tr("Bases") : "")
+                : "";
             selected: i == root.selected;
             clicked => { root.select(i); }
             double-clicked => { root.open(i); }
@@ -388,6 +458,13 @@ export component Sidebar inherits Rectangle {
                 text: root.sdk-label;
             }
         }
+    }
+    meter := BudgetMeter {
+        visible: root.budget.known;
+        x: 8px;
+        y: foot.y - 8px - self.height;
+        width: parent.width - 16px;
+        budget: root.budget;
     }
     foot := Rectangle {
         x: 8px;
@@ -447,7 +524,7 @@ export component MiniSidebar inherits Rectangle {
                 width: 6px;
                 height: 6px;
                 border-radius: 3px;
-                visible: d.state != DevState.stopped;
+                visible: d.state != DevState.stopped && d.state != DevState.hibernated;
                 background: Tones.on(StatusStyle.tone(d.state));
             }
         }

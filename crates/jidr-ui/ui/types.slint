@@ -2,7 +2,11 @@
 // (crates/jidr-ui/src/model.rs) so the UI holds no business logic.
 
 /// Device status as the user sees it (PRODUCT.md §5).
-export enum DevState { stopped, starting, booting, running, paused, stopping, crashed, busy }
+export enum DevState { stopped, starting, booting, running, paused, stopping, crashed, busy, hibernated }
+
+/// What a device is for (D42): a person's device, a read-only base that
+/// agents' pool clones are made from, or a leased pool clone.
+export enum DevKind { device, base, pool }
 
 /// Root badge state (RootBadge spec).
 export enum RootKind { none, shell, full, setting-up, verified, unverified, failed }
@@ -49,6 +53,41 @@ export struct DeviceVm {
     width-px: int,
     height-px: int,
     play-store: bool,
+    kind: DevKind,
+    /// Pool clone: "1 h 12 m left", "While its agent is connected". Base:
+    /// "2 clones leased".
+    lease: string,
+    /// Pool clone: the base it was made from.
+    base-name: string,
+    /// Running with root none or adb: `base.create` accepts it.
+    can-base: bool,
+}
+
+/// How full the host RAM budget is (`host.budget`, D42).
+export enum BudgetLevel { fits, near, full }
+
+/// The launcher's budget meter.
+export struct BudgetVm {
+    /// `host.budget` answered.
+    known: bool,
+    running: int,
+    /// About how many devices fit in all (running ones included).
+    fit: int,
+    level: BudgetLevel,
+    fraction: float,
+    /// "9.0 GB"
+    used: string,
+    /// "12.0 GB"
+    budget: string,
+}
+
+/// A running device in the `resource_exhausted` dialog.
+export struct ExhaustedRow {
+    name: string,
+    /// "Idle 42 m · 6.0 GB"
+    detail: string,
+    /// Hibernating it is part of the offer.
+    picked: bool,
 }
 
 export struct JobVm {
@@ -119,6 +158,10 @@ export struct DeviceForm {
     screen: string,
     density: string,
     start-after: bool,
+    /// Index into the auto-hibernate options.
+    hibernate: int,
+    /// The lean profile (`agent-lean`) or its numbers are applied.
+    lean: bool,
     error: string,
     // Editing: the device's image is a Play Store one (no adb root).
     play-store: bool,

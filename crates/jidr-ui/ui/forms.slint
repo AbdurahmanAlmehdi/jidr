@@ -3,7 +3,7 @@
 import { Theme } from "theme.slint";
 import { Icons } from "icons.slint";
 import { T, Role, Tone, Tones, Icon, Button, ButtonKind, Tag, Hint, FieldLabel, Pill } from "components/base.slint";
-import { ImageRowVm, OptionVm } from "types.slint";
+import { ImageRowVm, OptionVm, ExhaustedRow } from "types.slint";
 
 /// Dropdown (`Select` spec): shows the current option, opens a menu.
 export component Select inherits Rectangle {
@@ -261,6 +261,129 @@ export component ConfirmDialog inherits Sheet {
                 kind: root.destructive ? ButtonKind.destructive : ButtonKind.primary;
                 text: root.action;
                 clicked => { root.ok(); }
+            }
+        }
+    }
+}
+
+/// "Not enough RAM" (`resource_exhausted`, D42): what the start needs, the
+/// idle devices that would make room, and the ways forward.
+export component ExhaustedDialog inherits Sheet {
+    in property <string> device-name;
+    in property <string> need;
+    in property <string> free;
+    in property <string> budget;
+    in property <[ExhaustedRow]> rows;
+    /// How many rows are picked to hibernate (0: hibernating can't make room).
+    in property <int> picks;
+    in property <string> first-pick;
+    callback hibernate();
+    callback force();
+    callback cancel();
+    title: @tr("Not enough RAM to start {}", device-name);
+    subtitle: @tr("It needs about {}, and {} of the {} RAM budget is free.", need, free, budget);
+    sheet-width: 520px;
+    property <length> cw: root.sheet-width - 40px;
+    property <length> list-h: rows.length > 0 ? 22px + rows.length * 34px + 2px : 40px;
+    body-height: list-h + 52px;
+    dismiss => { root.cancel(); }
+
+    if rows.length > 0: FieldLabel {
+        x: Theme.rtl ? 20px + cw - self.preferred-width : 20px;
+        y: 0px;
+        width: self.preferred-width;
+        height: 16px;
+        text: @tr("Running devices, longest idle first");
+    }
+    if rows.length > 0: Rectangle {
+        x: 20px;
+        y: 22px;
+        width: cw;
+        height: root.rows.length * 34px + 2px;
+        border-radius: Theme.radius-md;
+        border-width: 1px;
+        border-color: Theme.border-default;
+        background: Theme.surface-raised;
+        clip: true;
+        for r[i] in root.rows: Rectangle {
+            y: 1px + i * 34px;
+            height: 34px;
+            if i > 0: Rectangle {
+                y: 0px;
+                height: 1px;
+                background: Theme.border-subtle;
+            }
+            Icon {
+                x: Theme.rtl ? parent.width - 12px - self.width : 12px;
+                size: Theme.icon-sm;
+                source: Icons.smartphone;
+            }
+            name := T {
+                x: Theme.rtl ? parent.width - 34px - self.width : 34px;
+                width: min(self.preferred-width, parent.width - 230px);
+                text: r.name;
+                role: Role.label;
+                font-weight: 600;
+            }
+            if r.picked: Tag {
+                x: Theme.rtl ? name.x - 8px - self.width : name.x + name.width + 8px;
+                tone: Tone.neutral;
+                text: @tr("Hibernates");
+            }
+            T {
+                x: Theme.rtl ? 12px : parent.width - 12px - self.width;
+                width: self.preferred-width;
+                text: r.detail;
+                role: Role.caption;
+                color: Theme.text-secondary;
+            }
+        }
+    }
+    if rows.length == 0: T {
+        x: 20px;
+        y: 0px;
+        width: cw;
+        height: 40px;
+        text: @tr("No running device has sat idle. Stop one in the Library, or start anyway.");
+        color: Theme.text-secondary;
+        wrap: word-wrap;
+        vertical-alignment: top;
+    }
+    Hint {
+        x: 20px;
+        y: list-h + 8px;
+        width: cw;
+        height: 30px;
+        text: @tr("Hibernating saves a device's whole state; Resume brings it back in seconds. Starting anyway can make the Mac swap and slow down.");
+    }
+    SheetFooter {
+        y: root.body-height;
+        width: root.sheet-width;
+        HorizontalLayout {
+            x: Theme.rtl ? 20px : parent.width - 20px - self.preferred-width;
+            width: self.preferred-width;
+            height: 30px;
+            spacing: 8px;
+            property <int> n: root.picks > 0 ? 3 : 2;
+            for slot[j] in n: Rectangle {
+                property <int> i: Theme.rtl ? n - 1 - j : j;
+                width: i == 0 ? cancel-b.width : i == 1 ? force-b.width : go-b.width;
+                cancel-b := Button {
+                    visible: i == 0;
+                    text: @tr("Cancel");
+                    clicked => { root.cancel(); }
+                }
+                force-b := Button {
+                    visible: i == 1;
+                    text: @tr("Start anyway");
+                    clicked => { root.force(); }
+                }
+                go-b := Button {
+                    visible: i == 2;
+                    kind: ButtonKind.primary;
+                    text: root.picks == 1 ? @tr("Hibernate {} and start", root.first-pick) : @tr("Hibernate {} devices and start", root.picks);
+                    clicked => { root.hibernate(); }
+                }
             }
         }
     }

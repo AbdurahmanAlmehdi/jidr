@@ -79,7 +79,9 @@ fn create_sheet(
     app.set_images(model(device_form::image_rows(&images, &jobs)));
     let mut form = device_form::new_form(&profiles, &images, &[], RootChoice::Shell);
     if edit {
-        form = device_form::edit_form(&fixtures::device_infos()[1], &profiles);
+        let hib = device_form::HibernateChoices::device(30, None);
+        form = device_form::edit_form(&fixtures::device_infos()[1], &profiles, &hib);
+        app.set_hibernate_options(model(hib.options));
     } else if play_store {
         form.name = "Play Store test 2".into();
         form.image = images
@@ -204,7 +206,39 @@ fn settings_window(v: Variant, tab: i32) -> Result<SettingsWindow, String> {
         &infos,
     )));
     w.set_cache_size("0.4 GB".into());
+    settings::set_hibernate(&w, 30);
     Ok(w)
+}
+
+/// The launcher with the budget meter for a Mac with `total_gb` of RAM.
+fn with_budget(v: Variant, total_gb: u64) -> Result<AppWindow, String> {
+    let app = populated(v)?;
+    set_budget(&app, &fixtures::device_infos(), total_gb);
+    Ok(app)
+}
+
+fn set_budget(app: &AppWindow, infos: &[model::DeviceInfo], total_gb: u64) {
+    app.set_budget(model::budget_vm(
+        &fixtures::budget(total_gb),
+        model::typical_mb(infos),
+    ));
+}
+
+/// The launcher showing `infos`, `selected` picked, budget near (32 GB).
+fn launcher_with(
+    v: Variant,
+    infos: &[model::DeviceInfo],
+    selected: &str,
+) -> Result<AppWindow, String> {
+    let app = app(v)?;
+    let vms = fixtures::vms(infos);
+    let sel = vms.iter().position(|d| d.name == selected).unwrap_or(0);
+    app.set_tabs(model(vec![model::tab_vm(&vms[0])]));
+    app.set_devices(model(vms));
+    app.set_jobs(model(fixtures::jobs()));
+    app.set_selected(sel as i32);
+    set_budget(&app, infos, 32);
+    Ok(app)
 }
 
 /// The device tab for `device` (0 = Pixel-ish 6.1) with the mock screen.
@@ -571,6 +605,60 @@ pub fn cases() -> Vec<Case> {
                 w.set_update_label(label.into());
                 w.set_update_url(url.into());
                 shot(&w, 820, 640)
+            },
+        },
+        Case {
+            name: "budget-fits",
+            render: |v| shot(&with_budget(v, 64)?, 1440, 900),
+        },
+        Case {
+            name: "budget-near",
+            render: |v| shot(&with_budget(v, 32)?, 1440, 900),
+        },
+        Case {
+            name: "budget-full",
+            render: |v| shot(&with_budget(v, 24)?, 1440, 900),
+        },
+        Case {
+            name: "launcher-hibernated",
+            render: |v| {
+                let app = launcher_with(v, &fixtures::hibernated_infos(), "Tablet 11")?;
+                app.set_snapshots(model(Vec::new()));
+                shot(&app, 1440, 900)
+            },
+        },
+        Case {
+            name: "launcher-pool",
+            render: |v| {
+                let app = launcher_with(v, &fixtures::pool_infos(), "Shop base 1")?;
+                app.set_snapshots(model(Vec::new()));
+                shot(&app, 1440, 900)
+            },
+        },
+        Case {
+            name: "start-exhausted",
+            render: |v| {
+                let app = with_budget(v, 24)?;
+                app.set_selected(1);
+                crate::launcher::set_exhausted(&app, "Tablet 11", &fixtures::exhausted());
+                app.set_exhausted_open(true);
+                shot(&app, 1440, 900)
+            },
+        },
+        Case {
+            name: "create-lean",
+            render: |v| {
+                let app = populated(v)?;
+                let profiles = fixtures::profiles();
+                let images = fixtures::system_images();
+                app.set_profiles(model(device_form::profile_options(&profiles)));
+                app.set_images(model(device_form::image_rows(&images, &[])));
+                let mut form = device_form::new_form(&profiles, &images, &[], RootChoice::Shell);
+                form.name = "Agent scratch".into();
+                device_form::apply_lean(&mut form, &profiles)?;
+                app.set_form(form);
+                app.set_sheet_open(true);
+                shot(&app, 1440, 900)
             },
         },
         Case {
