@@ -1,5 +1,6 @@
 //! Create / edit device form: options from `profile.list` and `image.list`,
-//! defaults (D7), validation, and the `device.create` / `device.edit` params.
+//! defaults (D7), the lean preset and auto-hibernate choices (D42),
+//! validation, and the `device.create` / `device.edit` params.
 
 use jidr_core::{HardwareProfile, Job, Support, SystemImage};
 use serde_json::{Map, Value, json};
@@ -155,10 +156,113 @@ pub fn new_form(
 pub fn apply_profile(form: &mut DeviceForm, profiles: &[HardwareProfile], index: usize) {
     form.profile = index as i32;
     if let Some(p) = profiles.get(index) {
-        form.ram_gb = format_gb(p.ram_mb).into();
-        form.cpus = p.cpus.to_string().into();
-        form.screen = format!("{}×{}", p.width, p.height).into();
-        form.density = p.density.to_string().into();
+        fill_hardware(form, p);
+        form.lean = p.id == LEAN_PROFILE;
+    }
+}
+
+fn fill_hardware(form: &mut DeviceForm, p: &HardwareProfile) {
+    form.ram_gb = format_gb(p.ram_mb).into();
+    form.cpus = p.cpus.to_string().into();
+    form.screen = format!("{}×{}", p.width, p.height).into();
+    form.density = p.density.to_string().into();
+}
+
+/// The built-in lean profile (D42): 720×1280, 2 GB, 2 cores, no audio or
+/// cameras; about 4 GB of host RAM instead of about 6.
+pub const LEAN_PROFILE: &str = "agent-lean";
+
+/// The Lean preset. A new device takes the lean profile; an existing one
+/// can't change profile (`device.edit`), so it takes the lean profile's
+/// RAM, cores and screen. `Err` when the daemon has no lean profile.
+pub fn apply_lean(form: &mut DeviceForm, profiles: &[HardwareProfile]) -> Result<(), String> {
+    let i = profiles
+        .iter()
+        .position(|p| p.id == LEAN_PROFILE)
+        .ok_or_else(|| "This daemon has no lean profile; update Jidr.".to_string())?;
+    if form.edit {
+        fill_hardware(form, &profiles[i]);
+        form.lean = true;
+    } else {
+        apply_profile(form, profiles, i);
+    }
+    Ok(())
+}
+
+/// Auto-hibernate choices (D42) with the value each one stands for: in the
+/// edit sheet `None` follows the global setting, `Some(0)` is never.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct HibernateChoices {
+    pub options: Vec<OptionVm>,
+    pub values: Vec<Option<u32>>,
+}
+
+const HIBERNATE_MINUTES: [u32; 4] = [15, 30, 60, 120];
+
+/// "After 30 min idle", "After 2 h idle".
+pub fn idle_after(minutes: u32) -> String {
+    if minutes >= 60 && minutes.is_multiple_of(60) {
+        format!("After {}\u{a0}h idle", minutes / 60)
+    } else {
+        format!("After {minutes}\u{a0}min idle")
+    }
+}
+
+impl HibernateChoices {
+    fn push(&mut self, label: String, value: Option<u32>) {
+        self.options.push(OptionVm {
+            id: value.map(|m| m.to_string()).unwrap_or_default().into(),
+            label: label.into(),
+        });
+        self.values.push(value);
+    }
+
+    /// The per-device choices, given the global setting and the device's
+    /// current value (kept as a choice when it isn't a preset).
+    pub fn device(global: u32, current: Option<u32>) -> Self {
+        let mut c = Self::default();
+        let setting = if global == 0 {
+            "Off".to_string()
+        } else {
+            idle_after(global).to_lowercase()
+        };
+        c.push(format!("Same as Settings ({setting})"), None);
+        c.push("Never".into(), Some(0));
+        for m in HIBERNATE_MINUTES {
+            c.push(idle_after(m), Some(m));
+        }
+        if let Some(m) = current.filter(|m| *m > 0 && !HIBERNATE_MINUTES.contains(m)) {
+            c.push(idle_after(m), Some(m));
+        }
+        c
+    }
+
+    /// The global choices (Settings › General); `0` is off.
+    pub fn global(current: u32) -> Self {
+        let mut c = Self::default();
+        c.push("Off".into(), Some(0));
+        for m in HIBERNATE_MINUTES {
+            c.push(idle_after(m), Some(m));
+        }
+        if current > 0 && !HIBERNATE_MINUTES.contains(&current) {
+            c.push(idle_after(current), Some(current));
+        }
+        c
+    }
+
+    pub fn index_of(&self, value: Option<u32>) -> i32 {
+        self.values
+            .iter()
+            .position(|v| *v == value)
+            .map(|i| i as i32)
+            .unwrap_or(0)
+    }
+
+    pub fn value(&self, index: i32) -> Option<Option<u32>> {
+        usize::try_from(index)
+            .ok()
+            .and_then(|i| self.values.get(i))
+            .copied()
     }
 }
 
@@ -171,7 +275,11 @@ fn format_gb(mb: u32) -> String {
 }
 
 /// The edit form for an existing device.
-pub fn edit_form(info: &DeviceInfo, profiles: &[HardwareProfile]) -> DeviceForm {
+pub fn edit_form(
+    info: &DeviceInfo,
+    profiles: &[HardwareProfile],
+    hibernate: &HibernateChoices,
+) -> DeviceForm {
     DeviceForm {
         edit: true,
         name: info.device.name.clone().into(),
@@ -190,6 +298,8 @@ pub fn edit_form(info: &DeviceInfo, profiles: &[HardwareProfile]) -> DeviceForm 
         screen: format!("{}×{}", info.width, info.height).into(),
         density: info.density.to_string().into(),
         start_after: false,
+        hibernate: hibernate.index_of(info.device.auto_hibernate_minutes),
+        lean: info.device.profile == LEAN_PROFILE,
         error: Default::default(),
         play_store: !info.device.image.allows_adb_root(),
     }
@@ -200,6 +310,7 @@ struct Hardware {
     cpus: u32,
     width: u32,
     height: u32,
+    density: Option<u32>,
 }
 
 fn parse_hardware(form: &DeviceForm) -> Result<Hardware, String> {
@@ -238,6 +349,7 @@ fn parse_hardware(form: &DeviceForm) -> Result<Hardware, String> {
         cpus,
         width: w,
         height: h,
+        density: form.density.trim().parse().ok(),
     })
 }
 
@@ -296,7 +408,11 @@ pub fn create_params(
 }
 
 /// `device.edit` params for the fields that changed.
-pub fn edit_params(form: &DeviceForm, info: &DeviceInfo) -> Result<Value, String> {
+pub fn edit_params(
+    form: &DeviceForm,
+    info: &DeviceInfo,
+    hibernate: &HibernateChoices,
+) -> Result<Value, String> {
     let name = check_name(&form.name)?;
     let hw = parse_hardware(form)?;
     let mut p = Map::new();
@@ -313,6 +429,15 @@ pub fn edit_params(form: &DeviceForm, info: &DeviceInfo) -> Result<Value, String
     if (hw.width, hw.height) != (info.width, info.height) {
         p.insert("width".into(), json!(hw.width));
         p.insert("height".into(), json!(hw.height));
+    }
+    if let Some(d) = hw.density.filter(|d| *d != info.density && *d > 0) {
+        p.insert("density".into(), json!(d));
+    }
+    // `null` goes back to following the global setting.
+    if let Some(v) = hibernate.value(form.hibernate)
+        && v != info.device.auto_hibernate_minutes
+    {
+        p.insert("auto_hibernate_minutes".into(), json!(v));
     }
     Ok(Value::Object(p))
 }
@@ -448,11 +573,92 @@ mod tests {
     fn edit_form_knows_play_store_devices() {
         let profiles = profiles();
         let mut info = crate::fixtures::device_infos()[1].clone();
-        assert!(!edit_form(&info, &profiles).play_store);
+        let hib = HibernateChoices::device(0, None);
+        assert!(!edit_form(&info, &profiles, &hib).play_store);
         info.device.image.tag = "google_apis_playstore".into();
         info.device.root.mode = jidr_core::RootMode::Magisk;
-        let form = edit_form(&info, &profiles);
+        let form = edit_form(&info, &profiles, &hib);
         assert!(form.play_store && form.edit);
         assert_eq!(form.root, RootChoice::Full);
+    }
+
+    fn with_lean(mut v: Vec<HardwareProfile>) -> Vec<HardwareProfile> {
+        let mut lean = v[0].clone();
+        lean.id = LEAN_PROFILE.into();
+        lean.name = "Agent lean".into();
+        v.push(lean);
+        v
+    }
+
+    #[test]
+    fn lean_preset_picks_the_lean_profile_for_a_new_device() {
+        let plain = profiles();
+        let profiles = with_lean(plain.clone());
+        let images = sorted_images(&[img(35, "google_apis", true)]);
+        let mut f = new_form(&profiles, &images, &[], RootChoice::Shell);
+        assert!(!f.lean);
+        apply_lean(&mut f, &profiles).unwrap();
+        assert!(f.lean);
+        assert_eq!(f.profile, 2);
+        assert_eq!((f.ram_gb.as_str(), f.screen.as_str()), ("2", "720×1280"));
+        let p = create_params(&f, &profiles, &images).unwrap();
+        assert_eq!(p["profile"], LEAN_PROFILE);
+        assert!(p.get("ram_mb").is_none());
+        // Another profile clears it.
+        apply_profile(&mut f, &profiles, 1);
+        assert!(!f.lean);
+        assert!(apply_lean(&mut f, &plain).is_err());
+    }
+
+    #[test]
+    fn lean_preset_on_an_existing_device_edits_its_hardware() {
+        let profiles = with_lean(profiles());
+        let info = crate::fixtures::device_infos()[1].clone();
+        let hib = HibernateChoices::device(0, None);
+        let mut f = edit_form(&info, &profiles, &hib);
+        apply_lean(&mut f, &profiles).unwrap();
+        assert!(f.lean && f.edit);
+        let p = edit_params(&f, &info, &hib).unwrap();
+        assert_eq!(p["ram_mb"], 2048);
+        assert_eq!(p["cpus"], 2);
+        assert_eq!(
+            (p["width"].as_u64(), p["height"].as_u64()),
+            (Some(720), Some(1280))
+        );
+        assert!(p.get("profile").is_none());
+        assert!(p.get("auto_hibernate_minutes").is_none());
+    }
+
+    #[test]
+    fn auto_hibernate_choices_round_trip() {
+        let hib = HibernateChoices::device(30, Some(45));
+        let labels: Vec<_> = hib.options.iter().map(|o| o.label.to_string()).collect();
+        assert_eq!(labels[0], "Same as Settings (after 30\u{a0}min idle)");
+        assert_eq!(labels[1], "Never");
+        assert_eq!(labels.last().unwrap(), "After 45\u{a0}min idle");
+        assert_eq!(hib.index_of(Some(45)), 6);
+        assert_eq!(idle_after(120), "After 2\u{a0}h idle");
+        assert_eq!(HibernateChoices::global(0).options[0].label, "Off");
+
+        let profiles = profiles();
+        let mut info = crate::fixtures::device_infos()[1].clone();
+        info.device.auto_hibernate_minutes = Some(15);
+        let hib = HibernateChoices::device(0, Some(15));
+        let mut f = edit_form(&info, &profiles, &hib);
+        assert_eq!(hib.value(f.hibernate), Some(Some(15)));
+        assert!(
+            edit_params(&f, &info, &hib)
+                .unwrap()
+                .get("auto_hibernate_minutes")
+                .is_none()
+        );
+        f.hibernate = 0;
+        let p = edit_params(&f, &info, &hib).unwrap();
+        assert!(p["auto_hibernate_minutes"].is_null() && p.get("auto_hibernate_minutes").is_some());
+        f.hibernate = 1;
+        assert_eq!(
+            edit_params(&f, &info, &hib).unwrap()["auto_hibernate_minutes"],
+            0
+        );
     }
 }

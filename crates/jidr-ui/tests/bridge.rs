@@ -43,8 +43,8 @@ fn loads_follows_events_and_reconnects() {
     wait_for(&rx, "online", |u| matches!(u, Update::Conn(Conn::Online)));
     wait_for(
         &rx,
-        "empty device list",
-        |u| matches!(u, Update::Data(d) if d.devices.is_empty()),
+        "empty device list with the RAM budget",
+        |u| matches!(u, Update::Data(d) if d.devices.is_empty() && d.budget.is_some()),
     );
 
     // A device created by another client shows up through events.

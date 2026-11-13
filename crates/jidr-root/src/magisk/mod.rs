@@ -182,12 +182,16 @@ pub(crate) async fn repatch(ctx: &CallCtx, device: &Device) -> JidrResult<Device
         .await
 }
 
-/// Stops the device if it is running, then cold-boots it. The stored
+/// Shuts the device down if it is running, then cold-boots it. The stored
 /// `launch.ramdisk` points at the patched copy, so this boots Magisk.
+///
+/// Android shuts down first: a cold boot after the emulator's own stop drops
+/// what Android hasn't written yet. On a new device that is the `AndroidWifi`
+/// network the first boot adds, which Wi-Fi saves 10 s later (#78).
 pub(crate) async fn cold_boot(ctx: &CallCtx, device: &Device) -> JidrResult<Device> {
     if device.status.is_active() {
         ctx.report(None, "Stopping before the cold boot");
-        ctx.daemon.stop_device(device.id).await?;
+        ctx.daemon.shut_down_device(device.id).await?;
     }
     ctx.report(None, "Cold booting");
     let device = ctx
@@ -392,6 +396,11 @@ pub(crate) async fn clear_patch(
 /// next boot when the pristine image or the pinned version changed. Best
 /// effort — it never fails the boot, because the current boot already worked.
 pub(crate) async fn on_booted(ctx: &CallCtx, device: &Device) -> JidrResult<()> {
+    // A pool clone resumes its base's running Magisk (settings included) and
+    // is never cold-booted: re-patching it would only make its version lie.
+    if device.pool_base.is_some() {
+        return Ok(());
+    }
     let Ok(pin) = pins::default_pin() else {
         return Ok(());
     };

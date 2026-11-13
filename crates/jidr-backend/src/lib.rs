@@ -209,6 +209,11 @@ pub trait Backend: Send + Sync + std::fmt::Debug {
     /// write is torn.
     async fn stop_without_save(&self, instance: &InstanceInfo) -> JidrResult<()>;
 
+    /// After the guest was asked to shut down (`svc power shutdown`), waits
+    /// up to `within` for it to power off. True once it has; the instance
+    /// still has to be ended with [`stop_without_save`](Self::stop_without_save).
+    async fn wait_powered_off(&self, instance: &InstanceInfo, within: Duration) -> bool;
+
     /// True while a client other than the daemon (the player, Android
     /// Studio) holds a gRPC connection to the instance. Idle detection.
     async fn has_clients(&self, _instance: &InstanceInfo) -> bool {

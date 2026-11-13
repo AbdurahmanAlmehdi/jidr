@@ -264,7 +264,7 @@ async fn pool_leases_keep_the_daemon_alive() {
 }
 
 #[tokio::test]
-async fn pool_refuses_magisk_and_stopped_sources() {
+async fn pool_refuses_stopped_sources_and_non_bases() {
     let h = Harness::start().await;
     let mut c = h.client().await;
     c.ok("device.create", json!({ "name": "Off", "image": "35" }))

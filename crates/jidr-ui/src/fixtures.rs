@@ -8,7 +8,7 @@ use jidr_core::{
 };
 use uuid::Uuid;
 
-use crate::model::{self, Clock, DeviceInfo};
+use crate::model::{self, BudgetUse, Clock, DeviceInfo, Exhausted, HostBudget, IdleDevice, Lease};
 use crate::{DeviceVm, JobVm, SnapshotVm};
 
 /// The moment every golden is rendered at: Oct 13, 14:32 UTC.
@@ -274,7 +274,140 @@ pub fn profiles() -> Vec<jidr_core::HardwareProfile> {
         p("phone-6.7-qhd", "Phone 6.7″ QHD+", 1440, 3120, 560, 4096, 4),
         p("small-phone-5", "Small phone 5″", 720, 1280, 320, 2048, 2),
         p("tablet-11", "Tablet 11″", 1600, 2560, 320, 4096, 4),
+        p("agent-lean", "Agent lean", 720, 1280, 320, 2048, 2),
     ]
+}
+
+/// `host.budget` on a Mac with `total_gb` of RAM at the default 75%, with
+/// the sample devices that run (Pixel-ish 6.1, Play Store test, CI-runner-03)
+/// counted: 3 of ~8 fit at 64 GB, ~4 at 32 GB (near), ~3 at 24 GB (full).
+pub fn budget(total_gb: u64) -> HostBudget {
+    HostBudget {
+        budget_mb: total_gb * 1024 * 75 / 100,
+        used_mb: 6144 + 6144 + 4096,
+        devices: vec![
+            budget_use(1, "Pixel-ish 6.1", 6144),
+            budget_use(3, "Play Store test", 6144),
+            budget_use(4, "CI-runner-03", 4096),
+        ],
+    }
+}
+
+fn budget_use(n: u128, name: &str, mb: u64) -> BudgetUse {
+    BudgetUse {
+        id: Uuid::from_u128(n),
+        name: name.into(),
+        expected_mb: mb,
+        measured_mb: None,
+    }
+}
+
+/// Starting Tablet 11 on a 24 GB Mac: `resource_exhausted` with Pixel-ish
+/// 6.1 idle the longest (hibernating it makes room).
+pub fn exhausted() -> Exhausted {
+    let b = budget(24);
+    Exhausted {
+        needed_mb: 6144,
+        used_mb: b.used_mb,
+        budget_mb: b.budget_mb,
+        devices: b.devices,
+        hibernate_candidates: vec![
+            IdleDevice {
+                id: Uuid::from_u128(1),
+                name: "Pixel-ish 6.1".into(),
+                idle_s: 72 * 60,
+            },
+            IdleDevice {
+                id: Uuid::from_u128(4),
+                name: "CI-runner-03".into(),
+                idle_s: 42 * 60,
+            },
+        ],
+    }
+}
+
+/// The sample devices with Tablet 11 hibernated.
+pub fn hibernated_infos() -> Vec<DeviceInfo> {
+    let mut infos = device_infos();
+    infos[1].device.status = DeviceStatus::Hibernated;
+    infos
+}
+
+/// The sample devices plus an agent pool (D42): a base "Shop base" and two
+/// leased clones of it, one with 1 h 12 m left and one held by its agent's
+/// connection. Grouped the way the bridge sorts them.
+pub fn pool_infos() -> Vec<DeviceInfo> {
+    let base_id = Uuid::from_u128(20);
+    let mut base = device(
+        20,
+        "Shop base",
+        "agent-lean",
+        image(34, "google_apis"),
+        RootState {
+            mode: RootMode::Adb,
+            ..Default::default()
+        },
+        DeviceStatus::Stopped,
+    );
+    base.base = true;
+    let clone = |n: u128, name: &str, port: u16, started: DateTime<Utc>| {
+        let mut d = device(
+            n,
+            name,
+            "agent-lean",
+            image(34, "google_apis"),
+            RootState {
+                mode: RootMode::Adb,
+                ..Default::default()
+            },
+            DeviceStatus::Running,
+        );
+        d.pool_base = Some(base_id);
+        d.runtime = Some(DeviceRuntime {
+            pid: u32::from(port),
+            console_port: port,
+            adb_serial: format!("emulator-{port}"),
+            grpc_port: port + 3000,
+            started_at: started,
+        });
+        d
+    };
+    let lean = |d: Device| DeviceInfo {
+        profile_name: Some("Agent lean".into()),
+        width: 720,
+        height: 1280,
+        density: 320,
+        ram_mb: 2048,
+        cpus: 2,
+        disk_bytes: Some(400_000_000),
+        ..DeviceInfo::new(d)
+    };
+    let mut c1 = lean(clone(21, "Shop base 1", 5560, at(14, 2)));
+    c1.lease = Some(Lease {
+        ttl: true,
+        expires_at: Some(at(15, 44)),
+    });
+    c1.base_name = Some("Shop base".into());
+    let mut c2 = lean(clone(22, "Shop base 2", 5562, at(14, 20)));
+    c2.lease = Some(Lease {
+        ttl: false,
+        expires_at: None,
+    });
+    c2.base_name = Some("Shop base".into());
+    let mut b = lean(base);
+    b.base_leases = 2;
+    let mut infos = device_infos();
+    infos.extend([b, c1, c2]);
+    infos.sort_by_key(model::group_rank);
+    infos
+}
+
+/// View models for `infos` at the fixture clock.
+pub fn vms(infos: &[DeviceInfo]) -> Vec<DeviceVm> {
+    infos
+        .iter()
+        .map(|i| model::device_vm(i, &clock()))
+        .collect()
 }
 
 /// The image list from the create design, newest first.

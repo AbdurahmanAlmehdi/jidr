@@ -6,7 +6,7 @@ import { Theme } from "theme.slint";
 import { Icons } from "icons.slint";
 import { T, Role, Tone, Tones, Icon, IconButton, Button, ButtonKind, Pill, Kbd, Segmented, TextField, Scroll } from "components/base.slint";
 import { StatusPill } from "components/status.slint";
-import { DeviceVm, DevState, FormFactor, LogLine } from "types.slint";
+import { DeviceVm, DevState, DevKind, FormFactor, LogLine } from "types.slint";
 
 /// Our own sample app for snapshots (no Android or Google UI): the
 /// delivery screen from the design.
@@ -377,13 +377,13 @@ export component DeviceView inherits Rectangle {
                                     text: device.status;
                                 }
                             }
-                            if device.state == DevState.stopped || device.state == DevState.crashed: HorizontalLayout {
+                            if (device.state == DevState.stopped || device.state == DevState.crashed || device.state == DevState.hibernated) && device.kind != DevKind.base: HorizontalLayout {
                                 alignment: center;
                                 Button {
                                     kind: ButtonKind.primary;
                                     has-icon: true;
                                     icon: Icons.play;
-                                    text: @tr("Start");
+                                    text: device.state == DevState.hibernated ? @tr("Resume") : @tr("Start");
                                     clicked => { root.start(); }
                                 }
                             }

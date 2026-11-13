@@ -106,6 +106,7 @@ case "$1" in
       "[ -e /dev/.jidr-reboot-pending ]"*) echo 1;;
       "am force-stop com.topjohnwu.magisk")
         echo 1 >> "$dir/force-stopped"; echo "ok";;
+      "svc power shutdown") echo 1 >> "$dir/shutdowns";;
       *"su_auto_response"*)
         # root.auto_grant writes Magisk's SharedPreferences; remember the value.
         case "$cmd" in
@@ -229,6 +230,12 @@ impl Env {
             },
             backend.clone(),
         )
+        // As in `TestDaemon`: a 1 TB host, so the RAM budget (D42) never
+        // depends on the machine running the tests.
+        .host_memory(jidr_sdk::host::HostMemory {
+            total_mb: 1 << 20,
+            available_mb: 1 << 19,
+        })
         .provider(root)
         .build()
         .unwrap();
@@ -322,6 +329,13 @@ impl Env {
             .unwrap_or_default()
             .trim()
             .to_string()
+    }
+
+    /// How many times the fake device was asked to shut Android down.
+    pub fn shutdowns(&self) -> usize {
+        std::fs::read_to_string(self.studio.join("platform-tools/shutdowns"))
+            .map(|s| s.lines().count())
+            .unwrap_or(0)
     }
 
     /// How many times the fake adb force-stopped the Magisk app.
