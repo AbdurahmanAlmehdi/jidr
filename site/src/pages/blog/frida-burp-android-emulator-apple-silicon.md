@@ -7,7 +7,7 @@ date: 2026-11-03
 
 Testing an Android app usually means three things: run Frida on the device, send its traffic through Burp, and get past certificate pinning. On an M-series Mac, the arm64 system images from Google run natively and fast. What they lack is root, a way to trust Burp's CA as a system certificate, and a quick way back to a working setup.
 
-This guide builds that lab with [Jidr](https://github.com/AbdurahmanAlmehdi/jidr), a free, open-source emulator manager for Apple Silicon Macs. Every command below was run on an M1 Pro with Android 15 (API 35, Google APIs, arm64), Magisk 30.7 and Frida 17.25.2. The proxy output is from mitmproxy 11 standing in for Burp; the Jidr side doesn't change. Test only apps you are allowed to test.
+This guide builds that lab with [Jidr](https://github.com/jidr-dev/jidr), a free, open-source emulator manager for Apple Silicon Macs. Every command below was run on an M1 Pro with Android 15 (API 35, Google APIs, arm64), Magisk 30.7 and Frida 17.25.2. The proxy output is from mitmproxy 11 standing in for Burp; the Jidr side doesn't change. Test only apps you are allowed to test.
 
 **You need Jidr 0.3.0 or later** for `jidr proxy` and `jidr cert` (check with `jidr --version`).
 
@@ -267,7 +267,7 @@ Jidr tags each snapshot with the device's root mode and refuses to load it under
 
 ## Further reading
 
-- [CA certificates in the Jidr docs](https://github.com/AbdurahmanAlmehdi/jidr/blob/main/docs/root.md#ca-certificates-system-trust)
-- [The CLI's HTTP proxy section](https://github.com/AbdurahmanAlmehdi/jidr/blob/main/docs/cli.md#http-proxy)
+- [CA certificates in the Jidr docs](https://github.com/jidr-dev/jidr/blob/main/docs/root.md#ca-certificates-system-trust)
+- [The CLI's HTTP proxy section](https://github.com/jidr-dev/jidr/blob/main/docs/cli.md#http-proxy)
 - [Frida's Android docs](https://frida.re/docs/android/)
 - [How to root the Android emulator on an Apple Silicon Mac](/blog/root-android-emulator-apple-silicon/)

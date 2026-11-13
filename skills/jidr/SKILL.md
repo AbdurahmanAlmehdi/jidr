@@ -5,7 +5,7 @@ description: "Run, watch and drive Android emulators with Jidr (CLI `jidr`, the 
 
 # Jidr
 
-Jidr (جذر) runs Android emulators, optionally rooted. A daemon owns every device. The desktop app, the `jidr` CLI and the MCP server (`jidr mcp`) are thin clients over the same protocol, so a device started from one shows up in all of them. Today Jidr ships for macOS on Apple Silicon (arm64 images). Docs: https://github.com/AbdurahmanAlmehdi/jidr (`docs/cli.md`, `docs/mcp.md`, `docs/control-protocol.md`).
+Jidr (جذر) runs Android emulators, optionally rooted. A daemon owns every device. The desktop app, the `jidr` CLI and the MCP server (`jidr mcp`) are thin clients over the same protocol, so a device started from one shows up in all of them. Today Jidr ships for macOS on Apple Silicon (arm64 images). Docs: https://github.com/jidr-dev/jidr (`docs/cli.md`, `docs/mcp.md`, `docs/control-protocol.md`).
 
 If `jidr` isn't on the `PATH`, ask the user to install Jidr (https://jidr.ly, or `brew install --cask abdurahmanalmehdi/tap/jidr`). The macOS app also carries the CLI at `Jidr.app/Contents/Helpers/jidr`.
 

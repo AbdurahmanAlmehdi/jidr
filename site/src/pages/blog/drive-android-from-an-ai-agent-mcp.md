@@ -7,11 +7,11 @@ date: 2026-10-17
 
 An AI coding agent can write an Android feature, but it usually can't see it run. The Model Context Protocol (MCP) closes that loop: an MCP server exposes tools, and the agent calls them. Give it tools for a real Android device, and it can install the build it just made, look at the screen, tap through the flow and read the crash in logcat.
 
-[Jidr](https://github.com/AbdurahmanAlmehdi/jidr) ships one: `jidr mcp`, an MCP server over stdio for Android emulators on Apple Silicon Macs.
+[Jidr](https://github.com/jidr-dev/jidr) ships one: `jidr mcp`, an MCP server over stdio for Android emulators on Apple Silicon Macs.
 
 ## Setup
 
-Install Jidr (`brew install --cask abdurahmanalmehdi/tap/jidr`, or the DMG from the [release](https://github.com/AbdurahmanAlmehdi/jidr/releases/latest)), then add it to your agent.
+Install Jidr (`brew install --cask abdurahmanalmehdi/tap/jidr`, or the DMG from the [release](https://github.com/jidr-dev/jidr/releases/latest)), then add it to your agent.
 
 Claude Code:
 
@@ -83,6 +83,6 @@ The same commands work without an agent: every MCP call has a `jidr` CLI equival
 
 ## Further reading
 
-- [MCP tools in the Jidr docs](https://github.com/AbdurahmanAlmehdi/jidr/blob/main/docs/mcp.md)
+- [MCP tools in the Jidr docs](https://github.com/jidr-dev/jidr/blob/main/docs/mcp.md)
 - [The Model Context Protocol](https://modelcontextprotocol.io)
-- [Jidr's CLI reference](https://github.com/AbdurahmanAlmehdi/jidr/blob/main/docs/cli.md)
+- [Jidr's CLI reference](https://github.com/jidr-dev/jidr/blob/main/docs/cli.md)

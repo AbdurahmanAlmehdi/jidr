@@ -10,7 +10,7 @@ export const phase: "soon" | "launch" = "launch";
 // Public links (D1, D25, D26) and the X account. `sponsors` stays null
 // until a GitHub Sponsors profile exists: the Sponsor buttons and section are
 // hidden while it's null.
-const repo = "https://github.com/AbdurahmanAlmehdi/jidr";
+const repo = "https://github.com/jidr-dev/jidr";
 const sponsors: string | null = null;
 const x = "https://x.com/Jidr_ly";
 

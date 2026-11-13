@@ -6,7 +6,7 @@ cask "jidr" do
   version "@VERSION@"
   sha256 "@SHA256@"
 
-  url "https://github.com/AbdurahmanAlmehdi/jidr/releases/download/v#{version}/Jidr-#{version}-arm64.dmg"
+  url "https://github.com/jidr-dev/jidr/releases/download/v#{version}/Jidr-#{version}-arm64.dmg"
   name "Jidr"
   desc "Android emulators with one-click rooted devices"
   homepage "https://jidr.ly/"

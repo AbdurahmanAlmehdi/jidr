@@ -132,8 +132,8 @@ mod tests {
 
     /// A trimmed `GET /repos/{owner}/{repo}/releases/latest` response.
     const LATEST: &str = r#"{
-        "url": "https://api.github.com/repos/AbdurahmanAlmehdi/jidr/releases/1",
-        "html_url": "https://github.com/AbdurahmanAlmehdi/jidr/releases/tag/v0.2.0",
+        "url": "https://api.github.com/repos/jidr-dev/jidr/releases/1",
+        "html_url": "https://github.com/jidr-dev/jidr/releases/tag/v0.2.0",
         "tag_name": "v0.2.0",
         "name": "v0.2.0",
         "draft": false,
@@ -144,8 +144,8 @@ mod tests {
     #[test]
     fn api_url_from_the_repo() {
         assert_eq!(
-            latest_url("https://github.com/AbdurahmanAlmehdi/jidr").as_deref(),
-            Some("https://api.github.com/repos/AbdurahmanAlmehdi/jidr/releases/latest")
+            latest_url("https://github.com/jidr-dev/jidr").as_deref(),
+            Some("https://api.github.com/repos/jidr-dev/jidr/releases/latest")
         );
         assert_eq!(latest_url("https://example.com/x"), None);
     }
@@ -156,7 +156,7 @@ mod tests {
             evaluate(LATEST, "0.1.0"),
             Check::Available {
                 version: "0.2.0".into(),
-                url: "https://github.com/AbdurahmanAlmehdi/jidr/releases/tag/v0.2.0".into(),
+                url: "https://github.com/jidr-dev/jidr/releases/tag/v0.2.0".into(),
             }
         );
         assert_eq!(evaluate(LATEST, "0.1.9"), evaluate(LATEST, "0.1"));
@@ -179,7 +179,7 @@ mod tests {
 
     #[test]
     fn homebrew_installs_get_the_brew_command() {
-        let repo = "https://github.com/AbdurahmanAlmehdi/jidr";
+        let repo = "https://github.com/jidr-dev/jidr";
         let new = evaluate(LATEST, "0.1.0");
         let (status, action, url) = view(&new, "0.1.0", true, repo);
         assert!(status.ends_with(BREW_UPGRADE));

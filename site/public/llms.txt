@@ -2,7 +2,7 @@
 
 > Jidr is a free, open-source Android emulator manager for Apple Silicon Macs, written in Rust: an open-source alternative to Genymotion Desktop. It creates and runs virtual Android phones and tablets from Google's emulator images, roots them in one click (Shell root with `adb root`, or Full root with Magisk, verified with `su -c id`), and ships a desktop app, a CLI with JSON output and an MCP server for AI agents. No accounts, no telemetry, no paid tier.
 
-Jidr is not affiliated with Google or Genymotion. Site: https://jidr.ly · Source: https://github.com/AbdurahmanAlmehdi/jidr · X: https://x.com/Jidr_ly (@Jidr_ly)
+Jidr is not affiliated with Google or Genymotion. Site: https://jidr.ly · Source: https://github.com/jidr-dev/jidr · X: https://x.com/Jidr_ly (@Jidr_ly)
 
 ## What it does
 
@@ -28,17 +28,17 @@ Full comparison: https://jidr.ly/vs/genymotion/
 Requirements: macOS 14 or later on Apple Silicon, and about 10 GB of free disk space for the SDK and one system image.
 
 - Homebrew: `brew install --cask abdurahmanalmehdi/tap/jidr` installs Jidr.app and puts the `jidr` CLI on your PATH. Update with `brew upgrade --cask jidr`.
-- DMG: download `Jidr-<version>-arm64.dmg` from the latest release (https://github.com/AbdurahmanAlmehdi/jidr/releases/latest) and drag Jidr to Applications. The CLI is at `/Applications/Jidr.app/Contents/Helpers/jidr`.
-- MCP: `claude mcp add jidr -- jidr mcp` for Claude Code; for Claude Desktop, open the `.mcpb` from the latest release. Jidr is in the MCP Registry as `io.github.AbdurahmanAlmehdi/jidr`.
+- DMG: download `Jidr-<version>-arm64.dmg` from the latest release (https://github.com/jidr-dev/jidr/releases/latest) and drag Jidr to Applications. The CLI is at `/Applications/Jidr.app/Contents/Helpers/jidr`.
+- MCP: `claude mcp add jidr -- jidr mcp` for Claude Code; for Claude Desktop, open the `.mcpb` from the latest release. Jidr is in the MCP Registry as `io.github.jidr-dev/jidr`.
 
 ## Docs
 
-- [README](https://github.com/AbdurahmanAlmehdi/jidr#readme): overview, install, quick start, build from source
-- [CLI reference](https://github.com/AbdurahmanAlmehdi/jidr/blob/main/docs/cli.md)
-- [MCP tools](https://github.com/AbdurahmanAlmehdi/jidr/blob/main/docs/mcp.md)
-- [Root modes](https://github.com/AbdurahmanAlmehdi/jidr/blob/main/docs/root.md)
-- [Control protocol](https://github.com/AbdurahmanAlmehdi/jidr/blob/main/docs/control-protocol.md)
-- [Feature parity with Genymotion Desktop](https://github.com/AbdurahmanAlmehdi/jidr/blob/main/docs/parity.md)
+- [README](https://github.com/jidr-dev/jidr#readme): overview, install, quick start, build from source
+- [CLI reference](https://github.com/jidr-dev/jidr/blob/main/docs/cli.md)
+- [MCP tools](https://github.com/jidr-dev/jidr/blob/main/docs/mcp.md)
+- [Root modes](https://github.com/jidr-dev/jidr/blob/main/docs/root.md)
+- [Control protocol](https://github.com/jidr-dev/jidr/blob/main/docs/control-protocol.md)
+- [Feature parity with Genymotion Desktop](https://github.com/jidr-dev/jidr/blob/main/docs/parity.md)
 
 ## Guides
 
@@ -48,6 +48,6 @@ Requirements: macOS 14 or later on Apple Silicon, and about 10 GB of free disk s
 
 ## Optional
 
-- [Planned features](https://github.com/AbdurahmanAlmehdi/jidr/labels/upcoming%20feature)
-- [Contributing](https://github.com/AbdurahmanAlmehdi/jidr/blob/main/CONTRIBUTING.md)
-- [Security policy](https://github.com/AbdurahmanAlmehdi/jidr/blob/main/SECURITY.md)
+- [Planned features](https://github.com/jidr-dev/jidr/labels/upcoming%20feature)
+- [Contributing](https://github.com/jidr-dev/jidr/blob/main/CONTRIBUTING.md)
+- [Security policy](https://github.com/jidr-dev/jidr/blob/main/SECURITY.md)
