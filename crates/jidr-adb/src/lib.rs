@@ -10,6 +10,8 @@ use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
 
+pub mod physical;
+
 /// Default timeout for one adb invocation.
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(120);
 
@@ -103,6 +105,14 @@ impl Adb {
         cmd
     }
 
+    /// Starts adb without waiting for it (`shell screenrecord …`); the
+    /// child is killed when dropped.
+    pub fn spawn(&self, args: &[&str]) -> JidrResult<Child> {
+        self.command(args)
+            .spawn()
+            .map_err(|e| JidrError::sdk(format!("cannot run adb at {}: {e}", self.bin.display())))
+    }
+
     /// Runs adb and returns its output, whatever the exit status.
     pub async fn raw(&self, args: &[&str]) -> JidrResult<Output> {
         let child = self.command(args).spawn().map_err(|e| {
@@ -155,6 +165,93 @@ impl Adb {
     pub async fn version(&self) -> JidrResult<String> {
         let out = self.run(&["version"]).await?;
         Ok(out.stdout.lines().next().unwrap_or_default().to_string())
+    }
+
+    /// `adb devices -l`: serials, states and the `usb:`/`model:` fields.
+    pub async fn devices_long(&self) -> JidrResult<Vec<physical::LongEntry>> {
+        let out = self.run(&["devices", "-l"]).await?;
+        Ok(physical::parse_devices_long(&out.stdout))
+    }
+
+    /// Runs adb and returns its stdout as bytes (`exec-out screencap -p`),
+    /// failing unless it exits 0.
+    pub async fn exec_out(&self, args: &[&str]) -> JidrResult<Vec<u8>> {
+        let mut all = vec!["exec-out"];
+        all.extend_from_slice(args);
+        let child = self.command(&all).spawn().map_err(|e| {
+            JidrError::sdk(format!("cannot run adb at {}: {e}", self.bin.display()))
+        })?;
+        let out = tokio::time::timeout(self.timeout, child.wait_with_output())
+            .await
+            .map_err(|_| {
+                JidrError::unexpected(format!(
+                    "adb {} timed out after {} s",
+                    all.join(" "),
+                    self.timeout.as_secs()
+                ))
+            })?
+            .map_err(|e| JidrError::unexpected(format!("adb {}: {e}", all.join(" "))))?;
+        if out.status.success() {
+            return Ok(out.stdout);
+        }
+        Err(self.classify(
+            &all,
+            &Output {
+                status: out.status.code(),
+                stdout: String::new(),
+                stderr: String::from_utf8_lossy(&out.stderr).into_owned(),
+            },
+        ))
+    }
+
+    /// `adb exec-out screencap -p`: the screen as a PNG.
+    pub async fn screencap_png(&self) -> JidrResult<Vec<u8>> {
+        let png = self.exec_out(&["screencap", "-p"]).await?;
+        if !png.starts_with(b"\x89PNG") {
+            return Err(JidrError::unexpected(format!(
+                "screencap gave no PNG: {}",
+                String::from_utf8_lossy(&png[..png.len().min(200)]).trim()
+            )));
+        }
+        Ok(png)
+    }
+
+    /// `adb track-devices -l`: one frame of `devices -l` lines per change,
+    /// the first at once. Ends when the adb server goes away; dropping it
+    /// kills the process.
+    pub fn track_devices(&self) -> JidrResult<TrackStream> {
+        let mut child = self
+            .command(&["track-devices", "-l"])
+            .spawn()
+            .map_err(|e| JidrError::sdk(format!("cannot run adb track-devices: {e}")))?;
+        let mut stdout = child
+            .stdout
+            .take()
+            .ok_or_else(|| JidrError::unexpected("adb track-devices has no stdout"))?;
+        let (tx, rx) = tokio::sync::mpsc::channel(16);
+        tokio::spawn(async move {
+            use tokio::io::AsyncReadExt;
+            let mut buf = Vec::new();
+            let mut chunk = [0u8; 4096];
+            loop {
+                match stdout.read(&mut chunk).await {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => buf.extend_from_slice(&chunk[..n]),
+                }
+                let Some(frames) = physical::take_frames(&mut buf) else {
+                    break;
+                };
+                for f in frames {
+                    if tx.send(physical::parse_devices_long(&f)).await.is_err() {
+                        return;
+                    }
+                }
+            }
+        });
+        Ok(TrackStream {
+            _child: child,
+            frames: rx,
+        })
     }
 
     pub async fn devices(&self) -> JidrResult<Vec<DeviceEntry>> {
@@ -365,6 +462,13 @@ impl Adb {
     }
 }
 
+/// A running `adb track-devices -l`; dropping it kills the process.
+#[derive(Debug)]
+pub struct TrackStream {
+    _child: Child,
+    pub frames: tokio::sync::mpsc::Receiver<Vec<physical::LongEntry>>,
+}
+
 /// A running `adb logcat`; dropping it kills the process.
 #[derive(Debug)]
 pub struct LogcatStream {
@@ -376,6 +480,13 @@ impl LogcatStream {
     pub async fn stop(mut self) {
         let _ = self.child.kill().await;
     }
+}
+
+/// `input text '<text>'` for the device shell: spaces become `%s` (how
+/// `input text` spells them) and the argument is single-quoted.
+pub fn input_text_command(text: &str) -> String {
+    let arg = text.replace(' ', "%s").replace('\'', "'\\''");
+    format!("input text '{arg}'")
 }
 
 pub fn parse_devices(text: &str) -> Vec<DeviceEntry> {

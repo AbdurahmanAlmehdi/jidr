@@ -53,6 +53,10 @@ Params are checked against the command's JSON Schema before anything runs: unkno
 
 Commands take a device as `"device": "<name or id>"`; names are unique, case-insensitive. Commands marked *locks the device* take a per-device single-writer lock. A conflicting call fails immediately with `busy`; it doesn't queue. Reads never lock.
 
+## Physical phones
+
+`physical.*` commands work on Android phones that `adb` sees with USB debugging on (#92). A phone isn't a Jidr device: it has no id, no AVD, no root modes, snapshots or sensor widgets, and no lock. It's named by its adb serial (or its model, when only one connected phone has it) in `device`. Emulators that adb also lists are left out. A phone that isn't `ready` answers `not_found` with `details: {serial, state}` and a message that says what to do (unlock it and allow USB debugging, replug it…). The first `physical.*` call starts a watcher on `adb track-devices -l` that publishes the `physical.*` events below.
+
 ## Jobs
 
 Commands marked *long-running* don't block. After validation and locking they answer:
@@ -87,7 +91,10 @@ Subscribing again replaces the filter. Topics:
 | `job.progress` | `{job, progress, message}` |
 | `job.finished` | the full job |
 | `job.cancelling` | `{job}` |
-| `logcat` | `{device, line}` (only after `logcat.follow`) |
+| `logcat` | `{device, line}` (only after `logcat.follow`); `device` is the phone's serial when following a phone |
+| `physical.connected` | `{serial, state}`: adb sees a new physical phone (`state`: `ready`, `unauthorized`, `offline`, `no_permissions`, `connecting`, `other`) |
+| `physical.changed` | `{serial, state}`: a phone's state changed (it accepted the RSA prompt, went offline…) |
+| `physical.disconnected` | `{serial}`: the phone is gone (unplugged, rebooting) |
 | `events.lagged` | `{missed}`: the connection fell behind and events were dropped |
 
 ## Connection-scoped methods
@@ -99,7 +106,7 @@ These act on the calling connection and aren't in `commands.list`:
 | `hello` | `{version, client?}` | Handshake (above) |
 | `commands.list` | — | Every command below, with its params schema |
 | `events.subscribe` | `{topics?: string[]}` | Push matching events to this connection |
-| `logcat.follow` | `{device, filter?: string[]}` | Push `logcat` events for a running device until the connection closes |
+| `logcat.follow` | `{device, filter?: string[]}` | Push `logcat` events for a running device, or a ready phone by serial, until the connection closes |
 | `daemon.shutdown` | — | Stop the daemon (allowed before `hello`) |
 
 ## Commands
@@ -762,6 +769,157 @@ Deliver an SMS to the device
 | `from` | string | yes | Sender number. |
 | `text` | string | yes |  |
 
+### `physical.*`
+
+#### `physical.connect_info`
+
+The adb serial and adb binary to reach a ready phone directly
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes | The phone's adb serial (`physical.list`), or its model when only one connected phone has it. |
+
+#### `physical.details`
+
+One phone's details, with its screen size
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes | The phone's adb serial (`physical.list`), or its model when only one connected phone has it. |
+
+#### `physical.install`
+
+Install an APK on a phone
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `apk` | string | yes | Path of the APK on this machine. |
+| `replace` | boolean |  | Replace an installed app (`-r`). |
+| `grant_permissions` | boolean |  | Grant runtime permissions (`-g`). |
+| `downgrade` | boolean |  | Allow a version downgrade (`-d`). |
+
+#### `physical.key`
+
+Press a key on a phone (back, home, power…)
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `key` | string | yes | `back`, `home`, `recents`, `power`, `volume_up`, `volume_down`, `enter`, `delete`, a W3C key name (`GoBack`, `ArrowUp`…), a `KEYCODE_*` name or an Android key code. |
+
+#### `physical.list`
+
+Physical Android phones adb sees (USB debugging on): state, model, Android version, battery
+
+No params.
+
+#### `physical.logcat`
+
+Dump a phone's log
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `lines` | integer |  | Only the last N lines. |
+| `filter` | string[] |  | logcat filter specs, e.g. `["ActivityManager:I", "*:S"]`. |
+
+#### `physical.pull`
+
+Copy a file from a phone
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `remote` | string | yes | Path on the phone. |
+| `local` | string | yes | Where to save it on this machine. |
+
+#### `physical.push`
+
+Copy a file to a phone (default /sdcard/Download/)
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `local` | string | yes | Local file. |
+| `remote` | string |  | Where on the phone (default `/sdcard/Download/`). |
+
+#### `physical.reboot`
+
+Reboot a phone
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes | The phone's adb serial (`physical.list`), or its model when only one connected phone has it. |
+
+#### `physical.record`
+
+Record a phone's screen to MP4 (adb screenrecord) until physical.record_stop or max_seconds · long-running (job)
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `path` | string |  | Where to save the MP4 (default `~/Movies/Jidr/<model> <time>.mp4`). |
+| `max_seconds` | integer |  | Stop on its own after this many seconds (1–180, Android's limit; default 180). |
+
+#### `physical.record_stop`
+
+Stop a phone's screen recording and save it
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes | The phone's adb serial (`physical.list`), or its model when only one connected phone has it. |
+
+#### `physical.screenshot`
+
+Save a PNG of a phone's screen (adb screencap)
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `path` | string |  | Where to save the PNG (default `~/Pictures/Jidr/<model> <time>.png`). |
+
+#### `physical.shell`
+
+Run a shell command on a phone (as the shell user) · **destructive**
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `command` | string | yes | One shell command line, run as the shell user (no root). |
+
+#### `physical.swipe`
+
+Swipe on a phone's screen (screen pixels)
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `x1` | integer | yes |  |
+| `y1` | integer | yes |  |
+| `x2` | integer | yes |  |
+| `y2` | integer | yes |  |
+| `duration_ms` | integer |  | How long the swipe takes (default 300 ms). |
+
+#### `physical.tap`
+
+Tap a phone's screen (screen pixels)
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `x` | integer | yes | Screen pixels from the left. |
+| `y` | integer | yes | Screen pixels from the top. |
+
+#### `physical.text`
+
+Type text into a phone's focused field
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes |  |
+| `text` | string | yes | Printable ASCII to type into the focused field. |
+
 ### `pool.*`
 
 #### `pool.get`
@@ -1045,3 +1203,4 @@ Save a snapshot of a running device · long-running (job) · locks the device
 | 0.1 (additive) | #68, Phase 13f (D42): `base.create` accepts a Full-root (`magisk`) source, which it used to refuse with `usage`. It fails with `usage` when the source's patched ramdisk is missing and with `root_failed` when the shell's `su -c id` isn't uid 0. The base's `launch.ramdisk` and `root.patched_ramdisk_path` point at its own copy of the patched ramdisk, and each `pool.get` clone's at another copy in the clone's folder; `pool.get` fails with `not_found` when the base's copy is gone. Result shapes are unchanged. |
 | 0.1 (additive) | #70: `audio.inject {device, path, loop?, sample_rate?, channels?}` (long-running) plays a WAV (8/16/24/32-bit PCM or float, mono or stereo, 8–48 kHz; 24/32-bit and float are converted to 16-bit) or headerless 16-bit PCM as the device's microphone over gRPC `injectAudio`, and ends with `{path, duration_s, played_s, loops, stopped, sample_rate, channels, format, converted_from}`; `audio.stop {device}` → `{stopped}` ends it. Unsupported files are `usage`; a microphone another client already feeds is `busy`. From the widgets provider; no existing command changed. |
 | 0.1 (additive) | #26 (ADR-0003, D44): `root.helper.status {device}` → `{device, name, root_mode, helper: {version, protocol, sha256, pid, uid, selinux?, arch}, port}` starts the rooted on-device helper if needed (root provider). `network.shaping.get {device}` and `network.shaping.set {device, loss_pct}` (locks the device) → `{loss_pct, interfaces: [{name, qdisc?, loss_pct}]}` drop a percentage of outgoing packets through the helper (`tc … netem`, widgets provider; `loss_pct` is null when interfaces differ). They need root mode `adb` or `magisk` (`usage` otherwise, and when the kernel lacks netem, with `error.data.helper_error`); a helper that can't start as root is `root_failed`. No existing command changed. |
+| 0.1 (additive) | #92 (D45, proposed): physical phones over plain adb, from the new `physical` provider in the daemon. `physical.list` → `[PhysicalDevice]` (`{serial, state: ready \| unauthorized \| offline \| no_permissions \| connecting \| other, connection: usb \| wifi, model?, manufacturer?, product?, android?, api?, abi?, battery?: {level, charging}, usb?, hint?}`), `physical.details {device}` (adds `screen: {width, height, density?}`), `physical.connect_info {device}` → `{serial, adb_path}`, `physical.screenshot {device, path?}` → `{path, width, height}`, `physical.record {device, path?, max_seconds?}` (long-running; `screenrecord`, at most 180 s) → `{path, seconds}` and `physical.record_stop {device}`, `physical.install`, `physical.push`, `physical.pull`, `physical.logcat` (same params and results as `file.install`, `file.push`, `file.pull`, `logcat.dump`), `physical.shell {device, command}` (destructive) → `{exit_code, stdout, stderr}`, `physical.reboot`, `physical.tap {device, x, y}`, `physical.swipe {device, x1, y1, x2, y2, duration_ms?}`, `physical.key {device, key}`, `physical.text {device, text}`. New events `physical.connected`, `physical.changed`, `physical.disconnected`. `logcat.follow` also accepts a ready phone's serial (its `logcat` events then carry the serial as `device`). No existing command's result changed. |

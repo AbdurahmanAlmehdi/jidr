@@ -140,12 +140,7 @@ impl DeviceIo {
     }
 }
 
-/// `input text '<text>'` for the device shell: spaces become `%s` (how
-/// `input text` spells them) and the argument is single-quoted.
-pub fn input_text_command(text: &str) -> String {
-    let arg = text.replace(' ', "%s").replace('\'', "'\\''");
-    format!("input text '{arg}'")
-}
+pub use jidr_adb::input_text_command;
 
 /// `Physical size: 1080x2400` / `Override size: 720x1600` (override wins).
 pub fn parse_wm_size(text: &str) -> Option<(u32, u32)> {

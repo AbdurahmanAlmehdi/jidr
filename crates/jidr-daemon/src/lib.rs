@@ -11,6 +11,7 @@ pub mod jobs;
 pub mod leases;
 pub mod lifecycle;
 pub mod locks;
+pub mod physical;
 pub mod pool;
 pub mod protocol_doc;
 pub mod registry;
@@ -96,6 +97,7 @@ impl DaemonBuilder {
         registry.register(core)?;
         registry.register(Arc::new(jobs::JobsProvider::new(jobs.clone())))?;
         registry.register(Arc::new(pool::PoolProvider::new(state.clone())))?;
+        registry.register(Arc::new(physical::PhysicalProvider::new()))?;
         for p in self.providers {
             registry.register(p)?;
         }
