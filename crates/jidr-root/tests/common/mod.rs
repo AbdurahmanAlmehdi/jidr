@@ -230,6 +230,12 @@ impl Env {
             },
             backend.clone(),
         )
+        // As in `TestDaemon`: a 1 TB host, so the RAM budget (D42) never
+        // depends on the machine running the tests.
+        .host_memory(jidr_sdk::host::HostMemory {
+            total_mb: 1 << 20,
+            available_mb: 1 << 19,
+        })
         .provider(root)
         .build()
         .unwrap();

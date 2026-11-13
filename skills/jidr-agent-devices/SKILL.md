@@ -36,6 +36,7 @@ jidr pool ls                                  # your leases and when they expire
 - The serial in `result.serial` is the only device you may touch. Pass it to adb (`adb -s <serial>`), Flutter (`flutter run -d <serial>`) or Gradle (`ANDROID_SERIAL=<serial>`).
 - A lease ends at its TTL (default `2h` from the CLI). The daemon then stops and deletes the clone, so renew it before a long run. Always release when you're done.
 - Nothing you do in a clone reaches the base or other clones. Each clone starts from the base's saved state.
+- A clone has its base's root mode (`ROOT` in `jidr base ls`). For a Full-root (Magisk) clone, run root commands with `adb -s <serial> shell su -c '<cmd>'`. Making a Magisk base works the same way, from a running device that `jidr root set <device> magisk` rooted; on a Play Store image the user must have chosen Forever in Magisk's prompt.
 
 ## Persistent: a lean device
 
