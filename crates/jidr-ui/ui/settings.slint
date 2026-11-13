@@ -178,6 +178,8 @@ export component SettingsWindow inherits Window {
     in-out property <string> tile-url;
     in-out property <int> appearance: 0;
     in-out property <bool> quick-boot: true;
+    in property <[OptionVm]> hibernate-options;
+    in-out property <int> hibernate-choice: 0;
     // Storage
     in property <string> sdk-path;
     in property <string> sdk-state: @tr("Ready");
@@ -202,6 +204,7 @@ export component SettingsWindow inherits Window {
     callback tiles-changed(int, string);
     callback appearance-changed(int);
     callback quick-boot-changed(bool);
+    callback hibernate-changed(int);
     callback change-sdk();
     callback show-sdk();
     callback clear-cache();
@@ -346,6 +349,23 @@ export component SettingsWindow inherits Window {
                 height: 15px;
                 width: parent.cw - 44px;
                 text: @tr("Starts take seconds instead of a full boot. Uses disk per device.");
+            }
+        }
+        Row {
+            label: @tr("Auto-hibernate");
+            row-height: 52px;
+            Select {
+                x: Theme.rtl ? parent.cw - self.width : 0px;
+                y: 0px;
+                width: 220px;
+                options: root.hibernate-options;
+                selected: root.hibernate-choice;
+                changed(i) => { root.hibernate-changed(i); }
+            }
+            Hint {
+                y: 36px;
+                height: 15px;
+                text: @tr("Hibernates running devices left idle that long, freeing their RAM. Devices can override it.");
             }
         }
     }

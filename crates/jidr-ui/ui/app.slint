@@ -15,7 +15,7 @@ import { T, Role, Tone, Toast } from "components/base.slint";
 import { TitleBar, Sidebar, MiniSidebar } from "shell.slint";
 import { DeviceDetail, FirstRunEmpty } from "launcher.slint";
 import { DeviceSheet } from "device_form.slint";
-import { ConfirmDialog } from "forms.slint";
+import { ConfirmDialog, ExhaustedDialog } from "forms.slint";
 import { Palette } from "palette.slint";
 import { DeviceView, WidgetPanel } from "player.slint";
 import { BatteryPanel, NetworkPanel, SensorsPanel, MorePanel, GpsPanel } from "widgets/panels.slint";
@@ -25,9 +25,9 @@ import { SetupWindow } from "wizard.slint";
 import { SettingsWindow } from "settings.slint";
 import { RootUi, RootLayer, RootSheetState, RootStep, RootStepState, RootStepVm, RootLogLine } from "../src/root/root.slint";
 export { RootUi, RootSheetState, RootStep, RootStepState, RootStepVm, RootLogLine }
-import { DeviceVm, JobVm, TabVm, SnapshotVm, DevState, RootKind, FormFactor, JobTone, ConnState, RootChoice, ImageRowVm, OptionVm, DeviceForm, DetectRow, PlanRow, UsageRow, PaletteKind, PaletteItem, LogLine, WidgetsVm } from "types.slint";
+import { DeviceVm, JobVm, TabVm, SnapshotVm, DevState, DevKind, RootKind, FormFactor, JobTone, ConnState, RootChoice, ImageRowVm, OptionVm, DeviceForm, DetectRow, PlanRow, UsageRow, PaletteKind, PaletteItem, LogLine, WidgetsVm, BudgetVm, BudgetLevel, ExhaustedRow } from "types.slint";
 
-export { Theme, Icons, DeviceVm, JobVm, TabVm, SnapshotVm, DevState, RootKind, FormFactor, JobTone, ConnState, RootChoice, ImageRowVm, OptionVm, DeviceForm, DetectRow, PlanRow, UsageRow, PaletteKind, PaletteItem, LogLine, WidgetsVm, SetupWindow, SettingsWindow }
+export { Theme, Icons, DeviceVm, JobVm, TabVm, SnapshotVm, DevState, DevKind, RootKind, FormFactor, JobTone, ConnState, RootChoice, ImageRowVm, OptionVm, DeviceForm, DetectRow, PlanRow, UsageRow, PaletteKind, PaletteItem, LogLine, WidgetsVm, BudgetVm, BudgetLevel, ExhaustedRow, SetupWindow, SettingsWindow }
 
 export component AppWindow inherits Window {
     in-out property <[DeviceVm]> devices;
@@ -54,6 +54,19 @@ export component AppWindow inherits Window {
     in-out property <[ImageRowVm]> images;
     in-out property <string> host-ram: "16 GB";
     in-out property <string> host-cpus: "10";
+    /// Edit sheet: auto-hibernate choices (D42).
+    in-out property <[OptionVm]> hibernate-options;
+    /// Host RAM budget meter (`host.budget`, D42).
+    in-out property <BudgetVm> budget;
+    // "Not enough RAM" dialog (`resource_exhausted`, D42).
+    in-out property <bool> exhausted-open: false;
+    in-out property <string> exhausted-name;
+    in-out property <string> exhausted-need;
+    in-out property <string> exhausted-free;
+    in-out property <string> exhausted-budget;
+    in-out property <[ExhaustedRow]> exhausted-rows;
+    in-out property <int> exhausted-picks;
+    in-out property <string> exhausted-first-pick;
     // Command palette.
     in-out property <bool> palette-open: false;
     in-out property <[PaletteItem]> palette-items;
@@ -63,6 +76,7 @@ export component AppWindow inherits Window {
     in-out property <string> confirm-title;
     in-out property <string> confirm-body;
     in-out property <string> confirm-action;
+    in-out property <bool> confirm-destructive: true;
     // Player (active device tab).
     in-out property <image> player-frame;
     in-out property <bool> player-has-frame;
@@ -120,6 +134,11 @@ export component AppWindow inherits Window {
     callback open-device(int);
     callback start-device(int);
     callback stop-device(int);
+    callback hibernate-device(int);
+    callback save-base(int);
+    callback exhausted-hibernate();
+    callback exhausted-force();
+    callback exhausted-cancel();
     callback more-device(int);
     callback new-device();
     callback open-palette();
@@ -137,6 +156,8 @@ export component AppWindow inherits Window {
     callback submit-form(DeviceForm);
     callback cancel-form();
     callback form-image-changed(int);
+    callback form-profile-changed(DeviceForm, int) -> DeviceForm;
+    callback form-lean(DeviceForm) -> DeviceForm;
     callback palette-query-changed(string);
     callback palette-run(PaletteItem);
     /// ⌘1…9 and other shortcuts Rust handles.
@@ -220,6 +241,10 @@ export component AppWindow inherits Window {
                 root.confirm-open = false;
                 root.save-open = false;
                 root.refuse-open = false;
+                if (root.exhausted-open) {
+                    root.exhausted-open = false;
+                    root.exhausted-cancel();
+                }
                 RootUi.open = false;
                 return accept;
             }
@@ -274,6 +299,7 @@ export component AppWindow inherits Window {
             selected: root.selected;
             sdk-ready: root.sdk-ready;
             sdk-label: root.sdk-label;
+            budget: root.budget;
             select(i) => { root.select-device(i); }
             open(i) => { root.open-device(i); }
             new-device => { root.new-device(); }
@@ -385,6 +411,8 @@ export component AppWindow inherits Window {
                 open => { root.open-device(root.selected); }
                 start => { root.start-device(root.selected); }
                 stop => { root.stop-device(root.selected); }
+                hibernate => { root.hibernate-device(root.selected); }
+                save-base => { root.save-base(root.selected); }
                 more => { root.more-device(root.selected); }
                 verify-root => { root.verify-root(root.selected); }
                 revert-root => { root.revert-root(root.selected); }
@@ -402,7 +430,10 @@ export component AppWindow inherits Window {
         device-name: root.form.name;
         host-ram: root.host-ram;
         host-cpus: root.host-cpus;
+        hibernate-options: root.hibernate-options;
         submit(f) => { root.submit-form(f); }
+        profile-changed(f, i) => { return root.form-profile-changed(f, i); }
+        lean(f) => { return root.form-lean(f); }
         cancel => {
             root.cancel-form();
             keys.focus();
@@ -471,6 +502,7 @@ export component AppWindow inherits Window {
         title: root.confirm-title;
         body: root.confirm-body;
         action: root.confirm-action;
+        destructive: root.confirm-destructive;
         ok => {
             root.confirm-open = false;
             keys.focus();
@@ -479,6 +511,32 @@ export component AppWindow inherits Window {
         cancel => {
             root.confirm-open = false;
             keys.focus();
+        }
+    }
+    if root.exhausted-open: ExhaustedDialog {
+        y: titlebar.height;
+        height: root.height - titlebar.height;
+        device-name: root.exhausted-name;
+        need: root.exhausted-need;
+        free: root.exhausted-free;
+        budget: root.exhausted-budget;
+        rows: root.exhausted-rows;
+        picks: root.exhausted-picks;
+        first-pick: root.exhausted-first-pick;
+        hibernate => {
+            root.exhausted-open = false;
+            keys.focus();
+            root.exhausted-hibernate();
+        }
+        force => {
+            root.exhausted-open = false;
+            keys.focus();
+            root.exhausted-force();
+        }
+        cancel => {
+            root.exhausted-open = false;
+            keys.focus();
+            root.exhausted-cancel();
         }
     }
     if RootUi.open: RootLayer {

@@ -16,6 +16,7 @@ export global StatusStyle {
     }
     public pure function icon(s: DevState) -> image {
         return s == DevState.paused ? Icons.pause
+            : s == DevState.hibernated ? Icons.moon
             : s == DevState.crashed ? Icons.triangle-alert
             : s == DevState.busy ? Icons.lock
             : Icons.square;

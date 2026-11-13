@@ -1,7 +1,7 @@
 //! Command palette (⌘K): every launcher action plus one entry per device,
 //! fuzzy-filtered (letters in order, case-insensitive).
 
-use crate::{DevState, DeviceVm, PaletteItem, PaletteKind};
+use crate::{DevKind, DevState, DeviceVm, PaletteItem, PaletteKind};
 
 fn item(kind: PaletteKind, title: &str, subtitle: &str, kbd: &str, action: String) -> PaletteItem {
     PaletteItem {
@@ -45,7 +45,18 @@ pub fn items(devices: &[DeviceVm], sdk_ready: bool) -> Vec<PaletteItem> {
         "new".into(),
     ));
     for d in devices {
+        if d.kind == DevKind::Base {
+            // Bases never start; agents lease clones of them.
+            continue;
+        }
         match d.state {
+            DevState::Hibernated => v.push(item(
+                PaletteKind::Action,
+                &format!("Resume {}", d.name),
+                "Back where it was, in seconds",
+                "",
+                format!("start:{}", d.id),
+            )),
             DevState::Stopped | DevState::Crashed => v.push(item(
                 PaletteKind::Action,
                 &format!("Start {}", d.name),
@@ -62,7 +73,25 @@ pub fn items(devices: &[DeviceVm], sdk_ready: bool) -> Vec<PaletteItem> {
             )),
             _ => {}
         }
-        if d.state == DevState::Stopped {
+        if d.state == DevState::Running && d.kind == DevKind::Device {
+            v.push(item(
+                PaletteKind::Action,
+                &format!("Hibernate {}", d.name),
+                "Saves its whole state and frees its RAM",
+                "",
+                format!("hibernate:{}", d.id),
+            ));
+        }
+        if d.can_base {
+            v.push(item(
+                PaletteKind::Action,
+                &format!("Save {} as a base…", d.name),
+                "For agents' throwaway clones (pool.get)",
+                "",
+                format!("base:{}", d.id),
+            ));
+        }
+        if d.state == DevState::Stopped && d.kind == DevKind::Device {
             v.push(item(
                 PaletteKind::Action,
                 &format!("Edit {}", d.name),
@@ -146,5 +175,25 @@ mod tests {
         assert!(f.iter().all(|i| i.title.to_lowercase().contains("tablet")
             || i.subtitle.to_lowercase().contains("tablet")));
         assert_eq!(filter(&all, "").len(), all.len());
+    }
+
+    #[test]
+    fn hibernate_resume_and_bases() {
+        let devices = crate::fixtures::vms(&crate::fixtures::hibernated_infos());
+        let all = items(&devices, true);
+        let titles: Vec<_> = all.iter().map(|i| i.title.to_string()).collect();
+        assert!(titles.contains(&"Resume Tablet 11".to_string()));
+        assert!(!titles.contains(&"Start Tablet 11".to_string()));
+        assert!(titles.contains(&"Hibernate Pixel-ish 6.1".to_string()));
+        // Full root can't become a base (base.create takes none or adb).
+        assert!(!titles.iter().any(|t| t.starts_with("Save Pixel-ish")));
+
+        let pool = crate::fixtures::vms(&crate::fixtures::pool_infos());
+        let titles: Vec<_> = items(&pool, true)
+            .iter()
+            .map(|i| i.title.to_string())
+            .collect();
+        assert!(!titles.contains(&"Start Shop base".to_string()));
+        assert!(!titles.contains(&"Hibernate Shop base 1".to_string()));
     }
 }

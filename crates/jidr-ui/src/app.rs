@@ -67,7 +67,10 @@ pub fn render(app: &AppWindow, state: &State) {
         .jobs
         .iter()
         .filter(|j| {
-            j.kind == "image.install" || j.kind == "sdk.install" || j.kind.starts_with("root.")
+            j.kind == "image.install"
+                || j.kind == "sdk.install"
+                || j.kind == "base.create"
+                || j.kind.starts_with("root.")
         })
         .map(|j| {
             // B5: real bytes while the daemon reports a download.
@@ -86,6 +89,14 @@ pub fn render(app: &AppWindow, state: &State) {
         .and_then(|id| state.data.devices.iter().position(|d| d.device.id == *id));
     app.set_active_device(active_device.map(|i| i as i32).unwrap_or(-1));
     app.set_sdk_ready(state.data.sdk_ready);
+    app.set_budget(
+        state
+            .data
+            .budget
+            .as_ref()
+            .map(|b| model::budget_vm(b, model::typical_mb(&state.data.devices)))
+            .unwrap_or_default(),
+    );
 }
 
 fn job_title(j: &jidr_core::Job) -> String {
@@ -98,6 +109,7 @@ fn job_title(j: &jidr_core::Job) -> String {
             }
         }
         k if k.starts_with("root.") => "Setting up root".into(),
+        "base.create" => "Saving a base".into(),
         k => k.to_string(),
     }
 }
@@ -149,6 +161,8 @@ pub struct Ctx {
     pub pending_confirm: RefCell<Option<Box<dyn Fn()>>>,
     /// The device window's live session.
     pub player: RefCell<crate::player::Player>,
+    /// The device a refused start was for, and the daemon's details (D42).
+    pub pending_exhausted: RefCell<Option<(Uuid, crate::model::Exhausted)>>,
 }
 
 #[derive(Default)]
@@ -157,6 +171,8 @@ pub struct Catalog {
     pub images: Vec<jidr_core::SystemImage>,
     /// Device being edited.
     pub editing: Option<Uuid>,
+    /// The edit sheet's auto-hibernate choices.
+    pub hibernate: crate::device_form::HibernateChoices,
 }
 
 impl Ctx {
@@ -283,6 +299,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         catalog: RefCell::default(),
         pending_confirm: RefCell::default(),
         player: RefCell::default(),
+        pending_exhausted: RefCell::default(),
     });
     CTX.with(|c| *c.borrow_mut() = Some(ctx.clone()));
     ctx.apply_appearance();
@@ -410,6 +427,7 @@ mod tests {
             catalog: RefCell::default(),
             pending_confirm: RefCell::default(),
             player: RefCell::default(),
+            pending_exhausted: RefCell::default(),
         });
         CTX.with(|c| *c.borrow_mut() = Some(ctx.clone()));
 

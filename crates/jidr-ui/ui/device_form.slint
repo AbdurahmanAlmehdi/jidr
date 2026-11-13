@@ -2,7 +2,7 @@
 
 import { Theme } from "theme.slint";
 import { Icons } from "icons.slint";
-import { T, Role, Button, ButtonKind, TextField, Checkbox, Hint, FieldLabel } from "components/base.slint";
+import { T, Role, Tone, Button, ButtonKind, TextField, Checkbox, Hint, FieldLabel, Pill } from "components/base.slint";
 import { Select, ImageList, Field, Sheet, SheetFooter } from "forms.slint";
 import { RootModeSelector } from "../src/root/root.slint";
 import { DeviceForm, RootChoice, ImageRowVm, OptionVm } from "types.slint";
@@ -15,9 +15,15 @@ export component DeviceSheet inherits Sheet {
     in property <string> magisk-version: "30.7";
     in property <string> host-ram: "16 GB";
     in property <string> host-cpus: "10";
+    /// Edit: auto-hibernate choices (D42).
+    in property <[OptionVm]> hibernate-options;
     callback submit(DeviceForm);
     callback cancel();
     callback image-changed(int);
+    /// Rust fills RAM, cores and screen from the profile.
+    callback profile-changed(DeviceForm, int) -> DeviceForm;
+    /// The Lean preset (D42).
+    callback lean(DeviceForm) -> DeviceForm;
     property <bool> ps: form.edit ? form.play-store : (form.image >= 0 && form.image < images.length && images[form.image].play-store);
     // Root cards: three lines of note on Play Store images.
     property <length> cards-h: ps ? 134px : 96px;
@@ -26,7 +32,7 @@ export component DeviceSheet inherits Sheet {
     title: form.edit ? @tr("Edit {}", device-name) : @tr("New device");
     subtitle: form.edit ? @tr("Changes apply the next time the device starts.") : @tr("Defaults are filled in. Change what you need, then create.");
     sheet-width: 680px;
-    body-height: hw-y + 97px;
+    body-height: end-y + 34px;
     dismiss => { root.cancel(); }
 
     property <length> cw: 640px;
@@ -56,7 +62,7 @@ export component DeviceSheet inherits Sheet {
         Select {
             options: root.profiles;
             selected: root.form.profile;
-            changed(i) => { root.form.profile = i; }
+            changed(i) => { root.form = root.profile-changed(root.form, i); }
         }
     }
 
@@ -150,9 +156,56 @@ export component DeviceSheet inherits Sheet {
             edited(t) => { root.form.screen = t; }
         }
     }
+    // Memory: the Lean preset, and auto-hibernate when editing (D42).
+    property <length> mem-y: hw-y + 84px;
+    property <length> end-y: form.edit ? mem-y + 60px + 71px : mem-y + 51px;
+    FieldLabel {
+        x: Theme.rtl ? 20px + cw - self.preferred-width : 20px;
+        y: mem-y;
+        width: self.preferred-width;
+        height: 16px;
+        text: @tr("Memory");
+    }
+    lean-b := Button {
+        x: Theme.rtl ? 20px + cw - self.width : 20px;
+        y: mem-y + 21px;
+        has-icon: true;
+        icon: Icons.gauge;
+        text: @tr("Lean preset");
+        clicked => { root.form = root.lean(root.form); }
+    }
+    lean-on := Pill {
+        visible: root.form.lean;
+        x: Theme.rtl ? lean-b.x - 10px - self.width : lean-b.x + lean-b.width + 10px;
+        y: mem-y + 25px;
+        tone: Tone.positive;
+        icon: Icons.check;
+        text: @tr("Lean");
+    }
+    property <length> lean-w: lean-b.width + 10px + (root.form.lean ? lean-on.width + 10px : 0px);
+    Hint {
+        x: Theme.rtl ? 20px : 20px + lean-w;
+        y: mem-y + 21px;
+        width: cw - lean-w;
+        height: 30px;
+        text: @tr("720×1280, 2 GB, 2 cores, no audio or cameras. About 4 GB of host RAM instead of about 6.");
+    }
+    if form.edit: Field {
+        x: colx(0, half, 14px);
+        y: mem-y + 60px;
+        width: half;
+        label: @tr("Auto-hibernate");
+        hint: @tr("Saves its whole state and frees its RAM when idle.");
+        Select {
+            options: root.hibernate-options;
+            selected: root.form.hibernate;
+            changed(i) => { root.form.hibernate = i; }
+        }
+    }
+
     if root.form.error != "": T {
         x: 20px;
-        y: hw-y + 84px;
+        y: end-y + 10px;
         width: cw;
         height: 18px;
         text: root.form.error;
