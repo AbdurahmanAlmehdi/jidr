@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.5.0](https://github.com/AbdurahmanAlmehdi/jidr/compare/v0.4.0...v0.5.0) (2026-11-13)
+
+
+### Features
+
+* **gui:** show multi-device budget, hibernation, bases and the agent pool ([ed45dd2](https://github.com/AbdurahmanAlmehdi/jidr/commit/ed45dd245684702788b832a60c1c285fb12bc0a2))
+* **gui:** show multi-device budget, hibernation, bases and the agent pool ([52c3afe](https://github.com/AbdurahmanAlmehdi/jidr/commit/52c3afe604d70f6a3de5fefd9a6dc3dbadb19eff))
+* **helper:** accept ADR-0003 (D44); report kernels without netem as unsupported ([5b515ef](https://github.com/AbdurahmanAlmehdi/jidr/commit/5b515efec1fea88a19503bd1d0fd49eb0798a6dd))
+* **helper:** add jidr-helper and `cargo xtask helper` (ADR-0003) ([6f3f9a0](https://github.com/AbdurahmanAlmehdi/jidr/commit/6f3f9a0364d6db770b4d41ceeb1c58e2fbc90d73))
+* packet loss through the on-device helper, and `jidr root helper` ([0a0aba9](https://github.com/AbdurahmanAlmehdi/jidr/commit/0a0aba92743a9210943068889f07974f3991e1c8))
+* rooted on-device helper (ADR-0003, D44) with packet loss as the first command ([69cdbb7](https://github.com/AbdurahmanAlmehdi/jidr/commit/69cdbb7e85d06238e2b8df188f8717601b6f62ee))
+* **root:** Magisk-rooted bases for agent pool clones (D42, 13f) ([d516544](https://github.com/AbdurahmanAlmehdi/jidr/commit/d516544d59c36c1aa35a3b1d4f4462f9da66c739))
+* **root:** Magisk-rooted bases for agent pool clones (D42, 13f) ([22b10e2](https://github.com/AbdurahmanAlmehdi/jidr/commit/22b10e2b3234dbcf33d07b1a520b50a28e0936a7)), closes [#68](https://github.com/AbdurahmanAlmehdi/jidr/issues/68)
+
+
+### Bug Fixes
+
+* **root:** shut Android down before the setup's cold boots ([94b7303](https://github.com/AbdurahmanAlmehdi/jidr/commit/94b730367e9a9bd2eb9d07d6608e723254253bc0))
+* **root:** shut Android down before the setup's cold boots ([73b855d](https://github.com/AbdurahmanAlmehdi/jidr/commit/73b855d47172d759ec3e5a0da9af967306e690e0)), closes [#78](https://github.com/AbdurahmanAlmehdi/jidr/issues/78)
+
 ## [0.4.0](https://github.com/AbdurahmanAlmehdi/jidr/compare/v0.3.1...v0.4.0) (2026-11-05)
 
 
