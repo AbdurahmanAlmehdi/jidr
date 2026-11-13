@@ -1,0 +1,6 @@
+id=jidrtest_module
+name=Jidr test module
+version=1.0
+versionCode=1
+author=Jidr
+description=Writes a marker at boot and sets a property, for Jidr's emulator tests.

@@ -23,6 +23,7 @@ use jidr_core::{Device, ErrorCode, JidrError, JidrResult, ResultExt, RootHealth,
 use jidr_sdk::DownloadCache;
 use serde_json::{Value, json};
 
+use crate::flash::ModuleInfo;
 use crate::verify;
 use pins::MagiskPin;
 
@@ -442,30 +443,31 @@ pub(crate) async fn on_booted(ctx: &CallCtx, device: &Device) -> JidrResult<()> 
     Ok(())
 }
 
-/// `root.module.install`: push a module zip, install it through Magisk, reboot
-/// and verify. Only available on Magisk devices.
+/// `root.module.install` and `file.flash`: push a module zip Jidr has
+/// checked ([`crate::flash::module_to_install`]), install it through Magisk,
+/// cold boot, then check that Magisk loaded it and root still verifies.
+/// Only available on Magisk devices.
 pub(crate) async fn install_module(
     ctx: &CallCtx,
     device: &Device,
     path: &Path,
+    module: &ModuleInfo,
 ) -> JidrResult<Value> {
     if device.root.mode != RootMode::Magisk {
         return Err(JidrError::usage(
-            "root.module.install needs a Full-root (Magisk) device",
+            "installing a Magisk module needs a Full-root (Magisk) device",
         ));
     }
-    if !path.is_file() {
-        return Err(JidrError::usage(format!(
-            "no such module zip: {}",
-            path.display()
-        )));
-    }
-    let adb = verify::device_adb(ctx, device).await?;
+    // A module's installer script can take a while, and a module zip can be
+    // tens of MB: the 20 s default would cut either off.
+    let adb = verify::device_adb(ctx, device)
+        .await?
+        .with_timeout(MODULE_TIMEOUT);
     let remote = "/data/local/tmp/jidr-module.zip";
     ctx.report(None, "Pushing the module");
     adb.push(path, remote).await?;
 
-    ctx.report(None, "Installing the module");
+    ctx.report(None, &format!("Installing {}", module.id));
     let adb_root_allowed = device.image.allows_adb_root();
     if adb_root_allowed {
         grant::ensure_adbd_root(&adb).await?;
@@ -473,17 +475,80 @@ pub(crate) async fn install_module(
     let result = adb
         .shell(&format!("su -c 'magisk --install-module {remote}'"))
         .await;
+    let _ = adb.shell(&format!("rm -f {remote}")).await;
     if adb_root_allowed {
         let _ = grant::drop_adbd_root(&adb).await;
     }
-    result.map_err(|e| JidrError::root_failed(format!("installing the module: {e}")))?;
+    result.map_err(|e| JidrError::root_failed(format!("installing {}: {e}", module.id)))?;
 
     ctx.report(None, "Rebooting");
     let device = cold_boot(ctx, device).await?;
     let verification = verify::verify(ctx, &device).await?;
+    let adb = verify::device_adb(ctx, &device).await?;
+    if !module_loaded(&adb, &module.id).await? {
+        return Err(JidrError::root_failed(format!(
+            "Magisk didn't load {} after the reboot (/data/adb/modules/{} is missing, disabled or marked for removal)",
+            module.id, module.id
+        )));
+    }
+    let zygisk_enabled = zygisk_enabled(&adb).await;
+    let note = (module.zygisk && zygisk_enabled == Some(false)).then_some(
+        "Zygisk is off in Magisk's settings, so this module won't load until you turn Zygisk on in the Magisk app and restart the device.",
+    );
     Ok(json!({
         "device": device.id,
         "installed": true,
+        "module": module,
+        "zygisk_enabled": zygisk_enabled,
+        "note": note,
         "verification": verification,
     }))
+}
+
+/// How long pushing and installing a module may take.
+const MODULE_TIMEOUT: Duration = Duration::from_secs(300);
+
+/// Whether Magisk loaded module `id` at boot: its folder moved from
+/// `modules_update` to `modules`, without a `disable` or `remove` flag.
+/// `id` was checked against Magisk's id rule, so it needs no quoting.
+pub(crate) async fn module_loaded(adb: &jidr_adb::Adb, id: &str) -> JidrResult<bool> {
+    let dir = format!("/data/adb/modules/{id}");
+    let (_, out) = adb
+        .shell_status(&format!(
+            "su -c 'test -f {dir}/module.prop && test ! -e {dir}/disable && test ! -e {dir}/remove && echo loaded'"
+        ))
+        .await?;
+    Ok(out.trim() == "loaded")
+}
+
+/// Magisk's `zygisk` setting: the stored row, or Magisk's default on an
+/// emulator (on). `None` when the database can't be read.
+pub(crate) async fn zygisk_enabled(adb: &jidr_adb::Adb) -> Option<bool> {
+    let out = adb
+        .shell("su -c \"magisk --sqlite \\\"SELECT value FROM settings WHERE key='zygisk'\\\"\"")
+        .await
+        .ok()?;
+    Some(parse_zygisk_setting(&out))
+}
+
+/// `value=0` turns Zygisk off; no row means Magisk's emulator default, on.
+fn parse_zygisk_setting(out: &str) -> bool {
+    out.lines()
+        .find_map(|l| l.trim().strip_prefix("value="))
+        .is_none_or(|v| v.trim() != "0")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_zygisk_setting;
+
+    #[test]
+    fn zygisk_is_on_unless_magisk_stores_zero() {
+        assert!(
+            parse_zygisk_setting(""),
+            "no row: Magisk's emulator default"
+        );
+        assert!(parse_zygisk_setting("value=1\n"));
+        assert!(!parse_zygisk_setting("value=0\n"));
+    }
 }
