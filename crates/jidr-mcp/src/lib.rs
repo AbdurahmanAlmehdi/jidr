@@ -14,7 +14,7 @@ use std::time::{Duration, Instant};
 use base64::Engine;
 use jidr_client::Client;
 use jidr_core::provider::CommandSpec;
-use jidr_core::{ConnectInfo, Device, JidrError, JidrResult};
+use jidr_core::{ConnectInfo, Device, ErrorCode, JidrError, JidrResult, PhoneConnectInfo};
 use rmcp::model::{
     CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, Implementation,
     JsonObject, ListToolsResult, PaginatedRequestParams, ServerCapabilities, ServerConfig, Tool,
@@ -139,7 +139,7 @@ struct JobArgs {
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 struct DeviceArgs {
-    /// Device name or id.
+    /// Device name or id, or a USB phone's adb serial (`physical.list`).
     device: String,
 }
 
@@ -156,6 +156,7 @@ enum Coords {
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 struct TapArgs {
+    /// Device name or id, or a USB phone's adb serial (`physical.list`).
     device: String,
     x: f64,
     y: f64,
@@ -167,6 +168,7 @@ struct TapArgs {
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 struct SwipeArgs {
+    /// Device name or id, or a USB phone's adb serial (`physical.list`).
     device: String,
     x1: f64,
     y1: f64,
@@ -182,6 +184,7 @@ struct SwipeArgs {
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 struct TypeArgs {
+    /// Device name or id, or a USB phone's adb serial (`physical.list`).
     device: String,
     /// Text to type into the focused field (ASCII is reliable).
     text: String,
@@ -193,6 +196,7 @@ struct TypeArgs {
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 struct KeyArgs {
+    /// Device name or id, or a USB phone's adb serial (`physical.list`).
     device: String,
     /// `GoHome`, `GoBack`, `AppSwitch`, `Enter`, `Power`, `AudioVolumeUp`,
     /// `AudioVolumeDown`, `Tab`, `Backspace`, `ArrowUp`/`Down`/`Left`/`Right`.
@@ -202,6 +206,7 @@ struct KeyArgs {
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 struct LogcatArgs {
+    /// Device name or id, or a USB phone's adb serial (`physical.list`).
     device: String,
     /// Number of recent lines (default 200).
     #[serde(default)]
@@ -278,6 +283,12 @@ fn parse<T: serde::de::DeserializeOwned>(args: Option<JsonObject>) -> JidrResult
 }
 
 /// A Jidr error as a tool result the agent can read and act on.
+/// A `physical.*` refusal for a phone that exists but isn't ready
+/// (unauthorized, offline…): its message says what to do.
+fn phone_not_ready(e: &JidrError) -> bool {
+    e.data.as_ref().and_then(|d| d.get("state")).is_some()
+}
+
 fn tool_error(e: &JidrError) -> CallToolResult {
     let mut r = CallToolResult::error(vec![ContentBlock::text(format!(
         "{}: {}",
@@ -416,12 +427,28 @@ impl JidrMcp {
             .map_err(|e| JidrError::unexpected(e.to_string()))
     }
 
+    /// A running Jidr device, else a ready USB phone by serial (#92).
     async fn io(&self, selector: &str) -> JidrResult<DeviceIo> {
-        let info: ConnectInfo = self
+        let e = match self
             .client
-            .call_as("device.connect_info", json!({ "device": selector }))
-            .await?;
-        Ok(DeviceIo::new(info))
+            .call_as::<_, ConnectInfo>("device.connect_info", json!({ "device": selector }))
+            .await
+        {
+            Ok(info) => return Ok(DeviceIo::new(info)),
+            Err(e) if e.code == ErrorCode::NotFound => e,
+            Err(e) => return Err(e),
+        };
+        match self
+            .client
+            .call_as::<_, PhoneConnectInfo>("physical.connect_info", json!({ "device": selector }))
+            .await
+        {
+            Ok(phone) => Ok(DeviceIo::phone(phone)),
+            // A phone that isn't ready says what to do; otherwise the
+            // device's own error.
+            Err(pe) if phone_not_ready(&pe) => Err(pe),
+            Err(_) => Err(e),
+        }
     }
 
     /// D5: destructive commands need `--allow-destructive` or an agent-owned device.
@@ -430,8 +457,9 @@ impl JidrMcp {
             return Ok(());
         }
         let selector = params.get("device").and_then(Value::as_str);
+        // A phone (no Jidr device) is never agent-owned.
         if let Some(sel) = selector
-            && self.device(sel).await?.agent_owned
+            && self.device(sel).await.is_ok_and(|d| d.agent_owned)
         {
             return Ok(());
         }
@@ -626,10 +654,15 @@ impl JidrMcp {
             }
             "logcat_tail" => {
                 let a: LogcatArgs = parse(args)?;
-                let v = self
-                    .client
-                    .call("logcat.dump", json!({ "device": a.device, "lines": a.lines.unwrap_or(200), "filter": a.filter }))
-                    .await?;
+                let params = json!({ "device": a.device, "lines": a.lines.unwrap_or(200), "filter": a.filter });
+                let v = match self.client.call("logcat.dump", params.clone()).await {
+                    Err(e) if e.code == ErrorCode::NotFound => self
+                        .client
+                        .call("physical.logcat", params)
+                        .await
+                        .map_err(|pe| if phone_not_ready(&pe) { pe } else { e })?,
+                    other => other?,
+                };
                 Ok(CallToolResult::success(vec![ContentBlock::text(
                     v["text"].as_str().unwrap_or_default(),
                 )]))
@@ -675,13 +708,14 @@ impl ServerHandler for JidrMcp {
         ServerConfig::new(ServerCapabilities::builder().enable_tools().build())
             .with_server_info(Implementation::new("jidr", env!("CARGO_PKG_VERSION")))
             .with_instructions(
-                "Jidr runs Android emulators (optionally rooted). For a device of your own, call pool_get \
+                "Jidr runs Android emulators (optionally rooted) and reaches USB phones (command_run physical.list). For a device of your own, call pool_get \
                  {base} (command_run base.list shows the bases): it returns a throwaway device and its serial in \
                  seconds; use that serial, never the user's devices, and call pool_release when done. For a device \
                  that must persist, use command_run device.create {name, image: \"35\", profile: \"agent-lean\"} / \
                  device.start. Then screenshot → tap/swipe/type_text → ui_dump to find elements. If a start fails \
                  with resource_exhausted the machine is full: wait, release or hibernate devices you own \
-                 (device.hibernate). command_list shows every command. Devices you create are yours to delete.",
+                 (device.hibernate). screenshot, tap, swipe, type_text, press_key, ui_dump and logcat_tail also take a USB phone's serial; \
+                 other physical.* commands go through command_run. command_list shows every command. Devices you create are yours to delete.",
             )
     }
 

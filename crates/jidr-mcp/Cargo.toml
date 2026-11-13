@@ -22,6 +22,7 @@ serde_json.workspace = true
 schemars.workspace = true
 tracing.workspace = true
 base64 = "0.22"
+png.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]

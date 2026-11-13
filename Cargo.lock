@@ -3042,6 +3042,7 @@ dependencies = [
  "jidr-core",
  "jidr-daemon",
  "jidr-proto",
+ "png",
  "rmcp",
  "schemars",
  "serde",
