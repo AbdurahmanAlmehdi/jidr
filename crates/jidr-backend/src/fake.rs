@@ -30,6 +30,10 @@ struct FakeState {
     empty_saves: bool,
     /// Instances stopped without the exit save.
     unsaved_stops: Vec<String>,
+    /// Instances waited on to power off (an Android shutdown).
+    power_offs: Vec<String>,
+    /// `wait_powered_off` says the guest never powered off.
+    stuck_power_off: bool,
     clients: HashMap<String, bool>,
     /// The gRPC port started instances report (default `20000 + n`).
     grpc_port: Option<u16>,
@@ -98,6 +102,16 @@ impl FakeBackend {
     /// AVDs stopped with `stop_without_save`.
     pub fn unsaved_stops(&self) -> Vec<String> {
         self.lock().unsaved_stops.clone()
+    }
+
+    /// AVDs waited on to power off, in order.
+    pub fn power_offs(&self) -> Vec<String> {
+        self.lock().power_offs.clone()
+    }
+
+    /// From now on the guest never powers off when asked to shut down.
+    pub fn stick_power_off(&self) {
+        self.lock().stuck_power_off = true;
     }
 
     /// Pretends a player is attached to AVD `avd` (idle detection).
@@ -217,6 +231,12 @@ impl Backend for FakeBackend {
         s.running.remove(&instance.pid);
         s.unsaved_stops.push(instance.avd.clone());
         Ok(())
+    }
+
+    async fn wait_powered_off(&self, instance: &InstanceInfo, _within: Duration) -> bool {
+        let mut s = self.lock();
+        s.power_offs.push(instance.avd.clone());
+        !s.stuck_power_off
     }
 
     async fn has_clients(&self, instance: &InstanceInfo) -> bool {

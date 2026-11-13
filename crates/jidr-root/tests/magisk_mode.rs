@@ -107,6 +107,26 @@ async fn a_healthy_setup_cold_boots_twice_and_grants_once() {
 }
 
 #[tokio::test]
+async fn cold_boots_shut_android_down_first() {
+    // Regression (#78): a new device lost the `AndroidWifi` network its first
+    // boot adds. Wi-Fi saves it 10 s later, and the setup stopped the
+    // emulator (which skips Android's shutdown) and cold-booted before that.
+    let env = Env::start().await;
+    let d = env.create("phone", "35:google_apis", None).await;
+    env.call("device.start", json!({ "device": "phone" }))
+        .await
+        .unwrap();
+    to_magisk(&env, "phone").await;
+    assert_eq!(env.shutdowns(), 2, "before the patched boot and the reboot");
+    assert_eq!(env.backend.power_offs(), vec![d.avd.clone(), d.avd.clone()]);
+    assert_eq!(
+        env.backend.unsaved_stops(),
+        vec![d.avd.clone(), d.avd],
+        "no quick-boot save before a cold boot"
+    );
+}
+
+#[tokio::test]
 async fn sdk_ramdisk_hash_is_unchanged_by_magisk() {
     let env = Env::start().await;
     env.create("phone", "35:google_apis", None).await;

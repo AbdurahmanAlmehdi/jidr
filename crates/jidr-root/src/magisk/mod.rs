@@ -182,12 +182,16 @@ pub(crate) async fn repatch(ctx: &CallCtx, device: &Device) -> JidrResult<Device
         .await
 }
 
-/// Stops the device if it is running, then cold-boots it. The stored
+/// Shuts the device down if it is running, then cold-boots it. The stored
 /// `launch.ramdisk` points at the patched copy, so this boots Magisk.
+///
+/// Android shuts down first: a cold boot after the emulator's own stop drops
+/// what Android hasn't written yet. On a new device that is the `AndroidWifi`
+/// network the first boot adds, which Wi-Fi saves 10 s later (#78).
 pub(crate) async fn cold_boot(ctx: &CallCtx, device: &Device) -> JidrResult<Device> {
     if device.status.is_active() {
         ctx.report(None, "Stopping before the cold boot");
-        ctx.daemon.stop_device(device.id).await?;
+        ctx.daemon.shut_down_device(device.id).await?;
     }
     ctx.report(None, "Cold booting");
     let device = ctx
