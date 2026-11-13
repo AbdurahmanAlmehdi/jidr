@@ -749,7 +749,30 @@ async fn dispatch(c: &Client, cmd: Cmd, out: Out) -> JidrResult<()> {
                         .await?
                 }
             };
-            out.ok(&v, output::packet_loss);
+            out.ok(&v, output::shaping);
+        }
+        Cmd::Network {
+            cmd:
+                NetworkCmd::Dns {
+                    device,
+                    mode,
+                    delay_ms,
+                },
+        } => {
+            let v = if mode.is_none() && delay_ms.is_none() {
+                c.call("network.shaping.get", json!({ "device": device }))
+                    .await?
+            } else {
+                let mut p = json!({ "device": device });
+                if let Some(m) = mode {
+                    p["dns"] = json!(m.as_str());
+                }
+                if let Some(ms) = delay_ms {
+                    p["dns_delay_ms"] = json!(ms);
+                }
+                c.call("network.shaping.set", p).await?
+            };
+            out.ok(&v, output::shaping);
         }
         Cmd::Audio {
             cmd:
@@ -1236,13 +1259,15 @@ fn run_daemon(out: Out) -> u8 {
 }
 
 /// The daemon `jidr daemon` serves: the AOSP backend plus every provider.
+/// Root comes first: boot hooks run in this order, and its hook restores
+/// `adb root`, which the widgets' hook (packet loss, bad DNS) needs.
 fn build_daemon(paths: JidrPaths) -> JidrResult<Arc<jidr_daemon::Daemon>> {
     jidr_daemon::Daemon::builder(
         jidr_daemon::DaemonConfig::new(paths),
         Arc::new(jidr_backend::AospBackend::new()),
     )
-    .provider(jidr_widgets::provider())
     .provider(jidr_root::provider())
+    .provider(jidr_widgets::provider())
     .build()
 }
 

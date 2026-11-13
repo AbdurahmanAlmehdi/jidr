@@ -260,18 +260,59 @@ again.
 ```bash
 jidr root helper <device>        # start it if needed; version, uid, SELinux context
 jidr network loss <device> 10    # drop 10% of outgoing packets
-jidr network loss <device>       # show the loss on each interface
-jidr network loss <device> 0     # remove it
+jidr network dns <device> slow   # delay every DNS query 3000 ms (--delay-ms MS)
+jidr network dns <device> fail   # drop every DNS query: lookups time out
+jidr network loss <device>       # show loss and DNS on each interface
+jidr network dns <device> normal # DNS back to normal
+jidr network loss <device> 0     # remove the loss
 ```
 
 Packet loss (`network.shaping.set {device, loss_pct}`) uses Linux traffic
 control: `tc qdisc replace dev <iface> root netem loss <n>%` on every
 interface with a default route (Wi-Fi `wlan0` and mobile data), so it applies
 to what the device sends, whichever network apps use. `0` removes Jidr's
-netem and the kernel's default qdisc comes back. It lives in the guest
-kernel: a snapshot keeps it, a cold boot clears it.
+netem and the kernel's default qdisc comes back.
 
-It needs API 31 or later. API 30's emulator kernel has no netem, so the
+Bad DNS (`network.shaping.set {device, dns, dns_delay_ms}`) has two modes:
+`slow` delays each DNS query by `dns_delay_ms` (default 3000 ms, Genymotion's
+"bad DNS" profile), and `fail` drops every query, so lookups get no answer
+and fail when Android's resolver gives up. It uses the same `tc` and the same
+interfaces: the root becomes a two-band `prio` qdisc (handle `1d:`), `u32`
+filters send UDP and TCP port 53 and DNS over TLS (853), over IPv4 and IPv6,
+to band 1, and band 1 has its own netem (`delay <ms>`, or `loss 100%` for
+`fail`). Everything else goes to band 2, which carries the packet loss when
+there is one. Loss and DNS are independent: a `set` with only one of them
+keeps the other.
+
+Why `tc` and not iptables: a delay on DNS alone needs traffic control anyway,
+and with `fail` as one more netem on the same band, one mechanism reads back
+and clears both, with nothing left in netd's iptables chains. iptables
+(`-j DROP` or `REJECT` on port 53, or DNAT to an unreachable resolver) could
+only make DNS fail, never slow, and `REJECT` fails lookups at once, which
+isn't what a bad network does. A DNS proxy in the helper would need it to
+keep state and the device's DNS servers, against ADR-0003's stateless helper.
+Not covered: an app doing DNS over HTTPS itself (port 443), and Private DNS
+in strict mode through a DoH server, both look like any other HTTPS traffic.
+
+Both live in the guest kernel, and Jidr also stores them on the device
+(`network_shaping` in `device.list`) and re-applies them after every boot,
+cold boots included (D44). After a boot the hook waits up to 60 s for Wi-Fi or
+mobile data to have a route, and changes nothing when the kernel already has
+the setting (a quick boot, or a snapshot taken with it). Restoring a named
+snapshot brings back the kernel's shaping from when it was taken, until the
+next cold boot re-applies the stored one. Setting the loss to `0` and DNS to
+`normal` clears the kernel and forgets the stored value. An interface that
+gets its route later (mobile data turned on afterwards) is shaped by the next
+`jidr network …` command or boot.
+
+If a device's root mode becomes `none`, Jidr keeps the stored setting but
+skips it at boot with a warning (the `device.hook_failed` event, in the
+daemon log), since nothing can apply it without root. Root the device again
+and it comes back; or forget it with `jidr network loss <device> 0` and
+`jidr network dns <device> normal`, which work without root on a `none`
+device.
+
+Both need API 31 or later. API 30's emulator kernel has no netem, so the
 command fails there with `usage` ("this image's kernel has no netem") and
 changes nothing (D44).
 

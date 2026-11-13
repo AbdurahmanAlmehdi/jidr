@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use jidr_core::provider::{CallCtx, CommandProvider, CommandSpec};
-use jidr_core::{JidrError, JidrResult};
+use jidr_core::{Device, JidrError, JidrResult};
 use serde_json::Value;
 
 pub mod apk;
@@ -73,5 +73,11 @@ impl CommandProvider for WidgetsProvider {
             "snapshot" => snapshots::call(ctx, method, params).await,
             _ => Err(JidrError::usage(format!("unknown method {method}"))),
         }
+    }
+
+    /// Re-applies the device's stored packet loss and bad DNS (#17). Runs
+    /// after the root provider's hook, which restores `adb root`.
+    async fn on_booted(&self, ctx: &CallCtx, device: &Device) -> JidrResult<()> {
+        network::shaping::on_booted(ctx, device).await
     }
 }

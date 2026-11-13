@@ -184,6 +184,42 @@ pub struct RootState {
     pub auto_grant_all: bool,
 }
 
+/// What DNS queries go through on a device (#17).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum DnsMode {
+    /// Untouched.
+    #[default]
+    Normal,
+    /// Each query is delayed by `dns_delay_ms` (Genymotion's "bad DNS"
+    /// profile is 3000 ms).
+    Slow,
+    /// Every query is dropped: no answers, so lookups time out.
+    Fail,
+}
+
+/// Network conditions set inside the guest by the rooted on-device helper
+/// (#17, D44): kept on the device and re-applied after every boot, so they
+/// survive cold boots.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct NetworkShaping {
+    /// Percent of outgoing packets dropped.
+    #[serde(default)]
+    pub loss_pct: f64,
+    #[serde(default)]
+    pub dns: DnsMode,
+    /// The delay of each DNS query when `dns` is `slow`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dns_delay_ms: Option<u32>,
+}
+
+impl NetworkShaping {
+    /// No loss and normal DNS: nothing to re-apply.
+    pub fn is_off(&self) -> bool {
+        self.loss_pct == 0.0 && self.dns == DnsMode::Normal
+    }
+}
+
 /// Lifecycle status of a device.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case", tag = "state")]
@@ -263,6 +299,10 @@ pub struct Device {
     /// The base this throwaway pool clone was made from (`pool.get`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pool_base: Option<Uuid>,
+    /// Packet loss and bad DNS (`network.shaping.set`), re-applied after
+    /// every boot; absent when off.
+    #[serde(default, skip_serializing_if = "NetworkShaping::is_off")]
+    pub network_shaping: NetworkShaping,
 }
 
 /// Per-device launch settings. The root engine sets `ramdisk` (Magisk) and

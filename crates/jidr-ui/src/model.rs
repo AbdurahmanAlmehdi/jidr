@@ -677,6 +677,7 @@ mod tests {
             auto_hibernate_minutes: None,
             base: false,
             pool_base: None,
+            network_shaping: Default::default(),
         }
     }
 

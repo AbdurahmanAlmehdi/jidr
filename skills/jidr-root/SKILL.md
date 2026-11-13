@@ -104,21 +104,24 @@ jidr cert remove Phone --all            # every CA Jidr added
 
 With MCP: `ca_cert_install {device, path}`, `proxy_set {device, port, host?}` and `proxy_clear {device}`; other `root.cacert.*` commands go through `command_run`.
 
-## Packet loss (on-device helper)
+## Packet loss and bad DNS (on-device helper)
 
-On a running `adb` or `magisk` device, Jidr can drop a share of the device's outgoing packets, to test an app on a bad network:
+On a running `adb` or `magisk` device, Jidr can drop a share of the device's outgoing packets and make DNS slow or fail, to test an app on a bad network:
 
 ```bash
 jidr network loss Phone 10              # drop 10% on Wi-Fi and mobile data
-jidr network loss Phone                 # show it per interface
-jidr network loss Phone 0               # remove it
+jidr network loss Phone                 # show loss and DNS per interface
+jidr network dns Phone slow             # delay every DNS query 3000 ms (--delay-ms 500 for another delay)
+jidr network dns Phone fail             # no DNS answers: lookups time out
+jidr network dns Phone normal           # DNS back to normal
+jidr network loss Phone 0               # remove the loss
 jidr root helper Phone                  # the rooted helper that does it: version, uid 0, SELinux context
 ```
 
 - It runs through Jidr's own on-device helper, which the daemon starts as root when needed. A `none` device refuses it (exit 2); set `adb` first.
 - It needs API 31 or later: on API 30 the kernel has no netem and the command exits 2 without changing anything.
-- A cold boot clears the loss; remove it when you're done anyway.
-- Through MCP: `command_run` with `network.shaping.set {device, loss_pct}` and `network.shaping.get {device}`.
+- Both are stored on the device and come back after every boot, cold boots included, until you set the loss to `0` and DNS to `normal`. Remove them when you're done, or the user's next session starts on a bad network.
+- Through MCP: `command_run` with `network.shaping.set {device, loss_pct?, dns?, dns_delay_ms?}` (fields left out keep their value) and `network.shaping.get {device}`.
 
 ## Revert
 

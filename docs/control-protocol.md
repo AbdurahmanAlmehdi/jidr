@@ -714,7 +714,7 @@ Turn Wi-Fi or mobile data on/off and set the speed/delay profile
 
 #### `network.shaping.get`
 
-Packet loss on the device's networks (needs Shell or Full root; through the on-device helper)
+Packet loss and bad DNS on the device's networks (needs Shell or Full root; through the on-device helper)
 
 | Param | Type | Required | Description |
 |---|---|---|---|
@@ -722,12 +722,14 @@ Packet loss on the device's networks (needs Shell or Full root; through the on-d
 
 #### `network.shaping.set`
 
-Drop a percentage of the device's outgoing packets on Wi-Fi and mobile data (netem; needs Shell or Full root; a cold boot clears it) · locks the device
+Drop a percentage of the device's outgoing packets and make DNS slow or fail, on Wi-Fi and mobile data (netem; needs Shell or Full root; kept across cold boots) · locks the device
 
 | Param | Type | Required | Description |
 |---|---|---|---|
 | `device` | string | yes | Device name or id (Shell root or Full root). |
-| `loss_pct` | number | yes | Percent of outgoing packets to drop, 0–100 (decimals allowed); 0 removes the loss. |
+| `loss_pct` | number |  | Percent of outgoing packets to drop, 0–100 (decimals allowed); 0 removes the loss. Omitted: unchanged. |
+| `dns` | DnsMode |  | DNS: `normal`, `slow` (each query delayed by `dns_delay_ms`) or `fail` (no answers, lookups time out). Omitted: unchanged. |
+| `dns_delay_ms` | integer |  | The DNS delay for `slow`, 1–30000 ms (default 3000, or the device's current one). Given alone, it means `slow`. |
 
 ### `phone.*`
 
@@ -1045,3 +1047,4 @@ Save a snapshot of a running device · long-running (job) · locks the device
 | 0.1 (additive) | #68, Phase 13f (D42): `base.create` accepts a Full-root (`magisk`) source, which it used to refuse with `usage`. It fails with `usage` when the source's patched ramdisk is missing and with `root_failed` when the shell's `su -c id` isn't uid 0. The base's `launch.ramdisk` and `root.patched_ramdisk_path` point at its own copy of the patched ramdisk, and each `pool.get` clone's at another copy in the clone's folder; `pool.get` fails with `not_found` when the base's copy is gone. Result shapes are unchanged. |
 | 0.1 (additive) | #70: `audio.inject {device, path, loop?, sample_rate?, channels?}` (long-running) plays a WAV (8/16/24/32-bit PCM or float, mono or stereo, 8–48 kHz; 24/32-bit and float are converted to 16-bit) or headerless 16-bit PCM as the device's microphone over gRPC `injectAudio`, and ends with `{path, duration_s, played_s, loops, stopped, sample_rate, channels, format, converted_from}`; `audio.stop {device}` → `{stopped}` ends it. Unsupported files are `usage`; a microphone another client already feeds is `busy`. From the widgets provider; no existing command changed. |
 | 0.1 (additive) | #26 (ADR-0003, D44): `root.helper.status {device}` → `{device, name, root_mode, helper: {version, protocol, sha256, pid, uid, selinux?, arch}, port}` starts the rooted on-device helper if needed (root provider). `network.shaping.get {device}` and `network.shaping.set {device, loss_pct}` (locks the device) → `{loss_pct, interfaces: [{name, qdisc?, loss_pct}]}` drop a percentage of outgoing packets through the helper (`tc … netem`, widgets provider; `loss_pct` is null when interfaces differ). They need root mode `adb` or `magisk` (`usage` otherwise, and when the kernel lacks netem, with `error.data.helper_error`); a helper that can't start as root is `root_failed`. No existing command changed. |
+| 0.1 (additive) | #17 (D44): `network.shaping.set` gains optional `dns` (`normal` \| `slow` \| `fail`) and `dns_delay_ms` (1–30000, default 3000; alone it means `slow`), and `loss_pct` becomes optional: a field left out keeps the device's current value, and giving none is `usage`. Both commands' results gain `dns` and `dns_delay_ms` (null when interfaces differ, or when DNS isn't `slow`), and each interface gains `dns` and `dns_delay_ms`. `Device` gains `network_shaping {loss_pct, dns, dns_delay_ms?}` (absent when off): what `set` stored, re-applied by the widgets boot hook after every boot (skipped when the kernel already has it; reported as `device.hook_failed` when the root mode is `none`). Clearing (`0` and `normal`) forgets it, and on a `none` device works without the helper, returning `interfaces: []`. The helper's protocol becomes 2 (internal). No existing field changed meaning. |

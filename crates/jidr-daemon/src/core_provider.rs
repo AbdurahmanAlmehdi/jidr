@@ -569,6 +569,7 @@ impl CoreProvider {
             auto_hibernate_minutes: None,
             base: false,
             pool_base: None,
+            network_shaping: Default::default(),
         };
         if let Err(e) = self.state.with_store(|s| s.insert(device.clone())) {
             let _ = avds.delete(&avd);

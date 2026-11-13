@@ -2,8 +2,10 @@
 //! (`adb`): `root.helper.status` pushes and starts the build from
 //! `cargo xtask helper`, `network.shaping.set` drops packets with netem, a
 //! killed helper is started again with the kernel's shaping intact, and `0`
-//! clears it. On API 30, whose kernel has no netem, it checks the
-//! "unsupported" answer instead (D44).
+//! clears it. Then bad DNS (#17): `slow` delays real lookups, `fail` drops
+//! them, and loss and bad DNS both come back after a cold boot before they
+//! are cleared. On API 30, whose kernel has no netem, it checks the
+//! "unsupported" answer for both instead (D44).
 //!
 //! Build the helper for the image's CPU first: `cargo xtask helper` (CI runs
 //! `--arch x86_64`). The image comes from `JIDR_TEST_IMAGE` (default: API 31
@@ -63,6 +65,21 @@ fn shell(info: &ConnectInfo, cmd: &str) -> String {
         .output()
         .unwrap();
     String::from_utf8_lossy(&out.stdout).into_owned()
+}
+
+/// How long the guest takes to look up a name nobody looked up before
+/// (no resolver cache): `ping` resolves it first, through Android's
+/// resolver, and `.invalid` never exists.
+fn lookup_secs(info: &ConnectInfo) -> f64 {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let t = Instant::now();
+    let out = shell(info, &format!("ping -c 1 -W 1 jidr-{nanos}.invalid 2>&1"));
+    let secs = t.elapsed().as_secs_f64();
+    println!("lookup: {secs:.1} s: {}", out.trim());
+    secs
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -162,6 +179,24 @@ async fn helper_starts_as_root_and_drops_packets() {
             .unwrap_err();
         assert_eq!(e.code, jidr_core::ErrorCode::Usage, "{e}");
         assert!(e.message.contains("netem"), "{e}");
+        // Bad DNS needs netem too, and is refused the same way.
+        let e = p
+            .call(
+                &ctx,
+                "network.shaping.set",
+                json!({ "device": name, "dns": "fail" }),
+            )
+            .await
+            .unwrap_err();
+        assert_eq!(e.code, jidr_core::ErrorCode::Usage, "{e}");
+        assert!(e.message.contains("netem"), "{e}");
+        for iface in &ifaces {
+            let q = shell(&info, &format!("tc qdisc show dev {iface}"));
+            assert!(
+                !q.contains("netem") && !q.contains("prio 1d:"),
+                "{iface}: {q}"
+            );
+        }
         call(&daemon, &ctx, "device.stop", json!({ "device": name })).await;
         call(&daemon, &ctx, "device.delete", json!({ "device": name })).await;
         return;
@@ -216,6 +251,104 @@ async fn helper_starts_as_root_and_drops_packets() {
         let q = shell(&info, &format!("tc qdisc show dev {iface}"));
         assert!(!q.contains("netem"), "{iface}: {q}");
     }
+
+    // 6. Slow DNS: a fresh lookup takes the 3 s delay more than before.
+    let before = lookup_secs(&info);
+    let v = call(
+        &daemon,
+        &ctx,
+        "network.shaping.set",
+        json!({ "device": name, "dns": "slow", "dns_delay_ms": 3000 }),
+    )
+    .await;
+    assert_eq!(
+        (&v["dns"], &v["dns_delay_ms"]),
+        (&json!("slow"), &json!(3000)),
+        "{v}"
+    );
+    for iface in &ifaces {
+        let q = shell(&info, &format!("tc qdisc show dev {iface}"));
+        assert!(
+            q.contains("prio 1d:") && q.contains("delay"),
+            "{iface}: {q}"
+        );
+    }
+    let slow = lookup_secs(&info);
+    assert!(
+        slow >= 2.9 && slow >= before + 2.0,
+        "slow DNS: {slow:.1} s, {before:.1} s before"
+    );
+
+    // 7. Failing DNS: no answers, so a lookup only ends when the resolver
+    // gives up.
+    call(
+        &daemon,
+        &ctx,
+        "network.shaping.set",
+        json!({ "device": name, "dns": "fail" }),
+    )
+    .await;
+    let fail = lookup_secs(&info);
+    assert!(fail >= 4.0, "failing DNS gave up after {fail:.1} s");
+
+    // 8. Loss and slow DNS are stored and come back after a cold boot.
+    call(
+        &daemon,
+        &ctx,
+        "network.shaping.set",
+        json!({ "device": name, "loss_pct": 20, "dns": "slow", "dns_delay_ms": 1500 }),
+    )
+    .await;
+    call(&daemon, &ctx, "device.stop", json!({ "device": name })).await;
+    call(
+        &daemon,
+        &ctx,
+        "device.start",
+        json!({ "device": name, "cold_boot": true }),
+    )
+    .await;
+    let info = state
+        .connect_info(state.device(&name).await.unwrap().id)
+        .await
+        .unwrap();
+    let v = call(
+        &daemon,
+        &ctx,
+        "network.shaping.get",
+        json!({ "device": name }),
+    )
+    .await;
+    println!("after a cold boot: {v}");
+    assert_eq!(
+        (&v["loss_pct"], &v["dns"], &v["dns_delay_ms"]),
+        (&json!(20.0), &json!("slow"), &json!(1500)),
+        "{v}"
+    );
+
+    // 9. Cleared: the kernel's own qdiscs, and nothing stored.
+    let v = call(
+        &daemon,
+        &ctx,
+        "network.shaping.set",
+        json!({ "device": name, "loss_pct": 0, "dns": "normal" }),
+    )
+    .await;
+    assert_eq!(
+        (&v["loss_pct"], &v["dns"]),
+        (&json!(0.0), &json!("normal")),
+        "{v}"
+    );
+    for iface in &ifaces {
+        let q = shell(&info, &format!("tc qdisc show dev {iface}"));
+        assert!(
+            !q.contains("netem") && !q.contains("prio 1d:"),
+            "{iface}: {q}"
+        );
+    }
+    assert!(
+        state.device(&name).await.unwrap().network_shaping.is_off(),
+        "clearing forgets the stored shaping"
+    );
 
     call(&daemon, &ctx, "device.stop", json!({ "device": name })).await;
     call(&daemon, &ctx, "device.delete", json!({ "device": name })).await;
