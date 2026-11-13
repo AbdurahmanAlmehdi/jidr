@@ -46,7 +46,12 @@ fn exit_codes_are_error_codes() {
     let err = e.fail(&["device", "start", "nope"], 3);
     assert_eq!(err["code"], "not_found");
     e.fail(&["device", "create", "X", "--image", "29"], 6);
-    e.fail(&["flash", "X", "/tmp/a.zip"], 2);
+    // `flash` reaches the daemon as `file.flash` (root provider, ADR-0004).
+    let err = e.fail(&["flash", "X", "/tmp/a.zip"], 2);
+    assert!(
+        err["message"].as_str().unwrap().contains("(file.flash)"),
+        "{err}"
+    );
     e.fail(&["call", "device.list", "{not json"], 2);
     let err = e.fail(&["call", "device.start", r#"{"devise":"x"}"#], 2);
     assert!(err["message"].as_str().unwrap().contains("devise"));
