@@ -2,7 +2,8 @@
 //! (`adb`): `root.helper.status` pushes and starts the build from
 //! `cargo xtask helper`, `network.shaping.set` drops packets with netem, a
 //! killed helper is started again with the kernel's shaping intact, and `0`
-//! clears it.
+//! clears it. On API 30, whose kernel has no netem, it checks the
+//! "unsupported" answer instead (D44).
 //!
 //! Build the helper for the image's CPU first: `cargo xtask helper` (CI runs
 //! `--arch x86_64`). The image comes from `JIDR_TEST_IMAGE` (default: API 31
@@ -39,6 +40,14 @@ fn test_image() -> String {
         };
         format!("system-images;android-31;google_apis;{abi}")
     })
+}
+
+/// The image's API level (`JIDR_TEST_API`, default 31 like the image).
+fn test_api() -> u32 {
+    std::env::var("JIDR_TEST_API")
+        .ok()
+        .and_then(|a| a.parse().ok())
+        .unwrap_or(31)
 }
 
 async fn call(daemon: &Arc<Daemon>, ctx: &CallCtx, method: &str, params: Value) -> Value {
@@ -138,6 +147,25 @@ async fn helper_starts_as_root_and_drops_packets() {
         .collect();
     assert!(!ifaces.is_empty());
     assert_eq!(get["loss_pct"], 0.0, "{get}");
+
+    // API 30's emulator kernel has no netem (D44): the helper says so as a
+    // usage error instead of failing, and changes nothing.
+    if test_api() < 31 {
+        let (p, _) = daemon.registry().get("network.shaping.set").unwrap();
+        let e = p
+            .call(
+                &ctx,
+                "network.shaping.set",
+                json!({ "device": name, "loss_pct": 50 }),
+            )
+            .await
+            .unwrap_err();
+        assert_eq!(e.code, jidr_core::ErrorCode::Usage, "{e}");
+        assert!(e.message.contains("netem"), "{e}");
+        call(&daemon, &ctx, "device.stop", json!({ "device": name })).await;
+        call(&daemon, &ctx, "device.delete", json!({ "device": name })).await;
+        return;
+    }
 
     // 3. 50% loss: the kernel shows netem on every shaped interface.
     let v = call(

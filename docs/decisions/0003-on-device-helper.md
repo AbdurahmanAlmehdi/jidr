@@ -1,6 +1,6 @@
 # ADR-0003: A rooted on-device helper for privileged widgets
 
-- **Status:** Proposed (2026-11-12)
+- **Status:** Accepted (2026-11-13, D44). Proposed 2026-11-12.
 - **Issue:** #26 (gap G3, design opportunity O2). First users: #17 (packet loss, bad DNS), then #18 (Wi-Fi signal), #19 (IMEI and device ID), operator/SIM identity, disk limits and gamepad.
 - **Minimal build in the same pull request:** the `jidr-helper` crate, `cargo xtask helper`, `root.helper.status`, and `network.shaping.get` / `network.shaping.set {loss_pct}` (the packet-loss half of #17).
 
@@ -97,7 +97,9 @@ One small on-device program, **`jidr-helper`**, runs as root on the guest and an
 
 ## Consequences
 
-- A privileged widget is one helper method plus one provider command. #17's delay, bandwidth and bad-DNS profiles become more optional fields of `net.shaping.set` / `network.shaping.set`.
+- A privileged widget is one helper method plus one provider command. `network.shaping.*` holds only what needs root in the guest: packet loss now, bad DNS later (#17). Speed and delay stay in `network.set`, which the emulator console already does without root.
+- netem must be in the image's kernel. API 31 and later have it; API 30's x86_64 emulator kernel doesn't, and `tc` answers ENOENT there. The helper reports a kernel without netem as `unsupported` (a `usage` error at the control protocol) and changes nothing, so packet loss needs API 31 or later.
+- Packet loss persists across cold boots in #17 itself: the widget stores it on the device and re-applies it in `on_booted`, like the proxy and `root.auto_grant`. This minimal build doesn't persist it yet.
 - The release bundle contains one ELF file, and the scan's rule changes to allow exactly that file.
 - `cargo xtask helper` is needed before the helper's emulator tests and before running a privileged widget from a development build; CI and `e2e-mac` do it.
 - Commands that use the helper need Shell or Full root. On Play Store images that means Full root, after the one-time guided tap (ADR-0002).
@@ -125,8 +127,11 @@ Not verified on a device yet:
 - **Shaping `wlan0` on a fully booted guest.** On that host, `system_server` was killed by its own watchdog during boot, so Wi-Fi never came up (the sec-tester notes saw the same at load 140). `helper_emulator.rs` checks it on CI's x86_64 images (API 30, 33, 35), and `cargo xtask e2e-mac` on arm64.
 - **Magisk mode** (`su -c`, the `u:r:magisk:s0` domain, and adbd reaching a socket in that domain). The offline tests cover the start command; a run on a Full-root device is still to do.
 
-## Open questions for the maintainer
+## Decisions (2026-11-13)
 
-1. Ship an ELF in `Jidr.app` (section 2), with the scan allowing only `helper/<arch>/jidr-helper`?
-2. Name the commands `network.shaping.*` (this ADR) rather than #17's sketch `network.setShaping`? Later #17 fields would be added to the same command.
-3. Should a widget's helper-applied state persist across cold boots by default (stored on the device, re-applied in `on_booted`)? Proposed: yes, in each widget's own issue, starting with #17; not in this minimal build.
+The maintainer accepted the ADR with these answers (D44):
+
+1. **Ship the arm64 ELF in `Jidr.app` and the MCP bundle.** The release scan allows only `helper/<arch>/jidr-helper`. Check with `cargo xtask release --dry-run` that signing and notarization accept it before the next release.
+2. **`network.shaping.*`, for loss and bad DNS only.** Speed and delay stay in `network.set`, so the two commands don't overlap.
+3. **Packet loss persists across cold boots**, in #17 (stored on the device, re-applied in `on_booted`), not in this minimal build.
+4. **Kernels without netem answer `unsupported`.** Packet loss needs API 31 or later; on API 30 the command fails as a `usage` error and changes nothing.

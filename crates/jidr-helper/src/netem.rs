@@ -171,10 +171,14 @@ pub fn get(r: &dyn Run, p: &ShapingGet) -> Result<Shaping, Error> {
     })
 }
 
-/// A kernel without netem: `tc` can't find the qdisc kind.
+/// A kernel without netem. Either `tc` itself can't find the qdisc kind, or
+/// `tc` knows it but the kernel doesn't and answers ENOENT (API 30's x86_64
+/// kernel: "RTNETLINK answers: No such file or directory").
 fn no_netem(stderr: &str) -> bool {
     let s = stderr.to_ascii_lowercase();
-    s.contains("unknown qdisc") || s.contains("specified qdisc kind is unknown")
+    s.contains("unknown qdisc")
+        || s.contains("specified qdisc kind is unknown")
+        || s.contains("rtnetlink answers: no such file or directory")
 }
 
 pub fn set(r: &dyn Run, p: &ShapingSet) -> Result<Shaping, Error> {
@@ -238,6 +242,8 @@ mod tests {
         routes: String,
         qdiscs: RefCell<HashMap<String, String>>,
         netem: bool,
+        /// What `tc` prints when the kernel has no netem.
+        no_netem_stderr: &'static str,
         calls: RefCell<Vec<String>>,
     }
 
@@ -250,6 +256,7 @@ mod tests {
                     ("radio0".into(), "qdisc pfifo_fast 0: root refcnt 2".into()),
                 ])),
                 netem: true,
+                no_netem_stderr: "Unknown qdisc \"netem\", hence option \"loss\" is unparsable",
                 calls: RefCell::default(),
             }
         }
@@ -273,8 +280,7 @@ mod tests {
                     if !self.netem {
                         return Ok(Output {
                             status: 2,
-                            stderr: "Unknown qdisc \"netem\", hence option \"loss\" is unparsable"
-                                .into(),
+                            stderr: self.no_netem_stderr.into(),
                             ..Output::default()
                         });
                     }
@@ -402,17 +408,24 @@ local 127.0.0.1 dev lo table local proto kernel scope host src 127.0.0.1
         assert_eq!(bad(101.0, "wlan0"), ErrorCode::Usage);
         assert_eq!(bad(f64::NAN, "wlan0"), ErrorCode::Usage);
         assert_eq!(bad(5.0, "wlan0; reboot"), ErrorCode::Usage);
-        let mut g = Guest::new(ROUTES);
-        g.netem = false;
-        let e = set(
-            &g,
-            &ShapingSet {
-                interfaces: None,
-                loss_pct: 5.0,
-            },
-        )
-        .unwrap_err();
-        assert_eq!(e.code, ErrorCode::Unsupported);
+        // Both ways a kernel without netem answers, the second from API 30.
+        for stderr in [
+            "Unknown qdisc \"netem\", hence option \"loss\" is unparsable",
+            "RTNETLINK answers: No such file or directory",
+        ] {
+            let mut g = Guest::new(ROUTES);
+            g.netem = false;
+            g.no_netem_stderr = stderr;
+            let e = set(
+                &g,
+                &ShapingSet {
+                    interfaces: None,
+                    loss_pct: 5.0,
+                },
+            )
+            .unwrap_err();
+            assert_eq!(e.code, ErrorCode::Unsupported, "{stderr}");
+        }
         let none = Guest::new("10.0.2.0/24 dev wlan0");
         assert_eq!(
             get(&none, &ShapingGet::default()).unwrap_err().code,

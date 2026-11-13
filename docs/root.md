@@ -251,7 +251,7 @@ never grants it for them (ADR-0002).
 
 Some features need code that runs as root *inside* the guest. Jidr has one
 program for all of them, `jidr-helper` ([ADR-0003](decisions/0003-on-device-helper.md),
-status Proposed). The daemon pushes it to `/data/local/tmp/jidr-helper` and
+accepted as D44). The daemon pushes it to `/data/local/tmp/jidr-helper` and
 starts it as root the first time a command needs it: in the adb shell on an
 `adb` device, through `su` on a `magisk` device. A `none` device is refused
 with `usage`. Nothing is installed: after a reboot the next command starts it
@@ -270,6 +270,10 @@ interface with a default route (Wi-Fi `wlan0` and mobile data), so it applies
 to what the device sends, whichever network apps use. `0` removes Jidr's
 netem and the kernel's default qdisc comes back. It lives in the guest
 kernel: a snapshot keeps it, a cold boot clears it.
+
+It needs API 31 or later. API 30's emulator kernel has no netem, so the
+command fails there with `usage` ("this image's kernel has no netem") and
+changes nothing (D44).
 
 How it's reached: the helper listens on the abstract Unix socket
 `@jidr-helper` (no file, no port on the guest's network) and serves only

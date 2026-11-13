@@ -116,6 +116,7 @@ jidr root helper Phone                  # the rooted helper that does it: versio
 ```
 
 - It runs through Jidr's own on-device helper, which the daemon starts as root when needed. A `none` device refuses it (exit 2); set `adb` first.
+- It needs API 31 or later: on API 30 the kernel has no netem and the command exits 2 without changing anything.
 - A cold boot clears the loss; remove it when you're done anyway.
 - Through MCP: `command_run` with `network.shaping.set {device, loss_pct}` and `network.shaping.get {device}`.
 
