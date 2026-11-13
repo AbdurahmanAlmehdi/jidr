@@ -712,6 +712,23 @@ Turn Wi-Fi or mobile data on/off and set the speed/delay profile
 | `mobile` | boolean |  | Mobile data. |
 | `profile` | Profile |  |  |
 
+#### `network.shaping.get`
+
+Packet loss on the device's networks (needs Shell or Full root; through the on-device helper)
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes | Device name or id. |
+
+#### `network.shaping.set`
+
+Drop a percentage of the device's outgoing packets on Wi-Fi and mobile data (netem; needs Shell or Full root; a cold boot clears it) · locks the device
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes | Device name or id (Shell root or Full root). |
+| `loss_pct` | number | yes | Percent of outgoing packets to drop, 0–100 (decimals allowed); 0 removes the loss. |
+
 ### `phone.*`
 
 #### `phone.call`
@@ -830,6 +847,14 @@ Remove a CA certificate Jidr added (or all of them); restarts the device · long
 #### `root.cacert.verify`
 
 Check that every CA certificate Jidr added is in the system store apps read · locks the device
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `device` | string | yes | Device name or id. |
+
+#### `root.helper.status`
+
+Start the rooted on-device helper if needed (Shell or Full root) and report its version, uid and SELinux context
 
 | Param | Type | Required | Description |
 |---|---|---|---|
@@ -1019,3 +1044,4 @@ Save a snapshot of a running device · long-running (job) · locks the device
 | 0.1 (additive) | #25: `root.writable_system {device, enabled}` (long-running, locks the device) → `{device, writable_system, changed, applied: "unchanged" \| "next_boot" \| "live", system_writable?}`: a writable `/system` on an `adb`-root device (`-writable-system` launch option, then `adb remount` from the boot hook), stored in the existing `RootState.writable_system`. Enabling is refused with `usage` unless the device is in `adb` mode on an image that allows adb root, at API 31 or later; changing it forces a cold boot (D29). `root.set` to `none` or `magisk` resets `writable_system` to `false`, and `base.create` refuses a source with it on (`usage`). No existing field changed meaning. |
 | 0.1 (additive) | #68, Phase 13f (D42): `base.create` accepts a Full-root (`magisk`) source, which it used to refuse with `usage`. It fails with `usage` when the source's patched ramdisk is missing and with `root_failed` when the shell's `su -c id` isn't uid 0. The base's `launch.ramdisk` and `root.patched_ramdisk_path` point at its own copy of the patched ramdisk, and each `pool.get` clone's at another copy in the clone's folder; `pool.get` fails with `not_found` when the base's copy is gone. Result shapes are unchanged. |
 | 0.1 (additive) | #70: `audio.inject {device, path, loop?, sample_rate?, channels?}` (long-running) plays a WAV (8/16/24/32-bit PCM or float, mono or stereo, 8–48 kHz; 24/32-bit and float are converted to 16-bit) or headerless 16-bit PCM as the device's microphone over gRPC `injectAudio`, and ends with `{path, duration_s, played_s, loops, stopped, sample_rate, channels, format, converted_from}`; `audio.stop {device}` → `{stopped}` ends it. Unsupported files are `usage`; a microphone another client already feeds is `busy`. From the widgets provider; no existing command changed. |
+| 0.1 (additive) | #26 (ADR-0003, D44): `root.helper.status {device}` → `{device, name, root_mode, helper: {version, protocol, sha256, pid, uid, selinux?, arch}, port}` starts the rooted on-device helper if needed (root provider). `network.shaping.get {device}` and `network.shaping.set {device, loss_pct}` (locks the device) → `{loss_pct, interfaces: [{name, qdisc?, loss_pct}]}` drop a percentage of outgoing packets through the helper (`tc … netem`, widgets provider; `loss_pct` is null when interfaces differ). They need root mode `adb` or `magisk` (`usage` otherwise, and when the kernel lacks netem, with `error.data.helper_error`); a helper that can't start as root is `root_failed`. No existing command changed. |

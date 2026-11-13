@@ -12,6 +12,7 @@ publish.workspace = true
 [dependencies]
 jidr-core.workspace = true
 jidr-adb.workspace = true
+jidr-helper = { workspace = true, features = ["host"] }
 jidr-backend.workspace = true
 jidr-proto.workspace = true
 tokio.workspace = true

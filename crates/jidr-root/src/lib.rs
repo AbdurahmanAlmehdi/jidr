@@ -10,7 +10,9 @@
 //! - `device.props.get` / `device.props.set`: a Full-root device's build
 //!   props (Phase 9f, [`props`]);
 //! - `root.cacert.install` / `.list` / `.verify` / `.remove`: CA
-//!   certificates in a Full-root device's system store ([`cacerts`]).
+//!   certificates in a Full-root device's system store ([`cacerts`]);
+//! - `root.helper.status`: starts the rooted on-device helper if needed and
+//!   reports what runs (ADR-0003, `jidr-helper`).
 //!
 //! adb-mode devices get `adb root` after every boot through
 //! [`CommandProvider::on_booted`]; Magisk devices get a re-patch check.
@@ -160,6 +162,10 @@ impl CommandProvider for RootProvider {
                 "Check that every CA certificate Jidr added is in the system store apps read",
             )
             .locks_device(),
+            CommandSpec::new::<DeviceParams>(
+                "root.helper.status",
+                "Start the rooted on-device helper if needed (Shell or Full root) and report its version, uid and SELinux context",
+            ),
             CommandSpec::new::<cacerts::RemoveParams>(
                 "root.cacert.remove",
                 "Remove a CA certificate Jidr added (or all of them); restarts the device",
@@ -203,6 +209,9 @@ impl CommandProvider for RootProvider {
                 cacerts::verify(ctx, &parse_params::<DeviceParams>(params)?.device).await
             }
             "root.cacert.remove" => cacerts::remove(ctx, parse_params(params)?).await,
+            "root.helper.status" => {
+                helper_status(ctx, &parse_params::<DeviceParams>(params)?.device).await
+            }
             other => Err(JidrError::not_found(format!("unknown method {other}"))),
         }
     }
@@ -319,6 +328,21 @@ fn mode_label(mode: RootMode) -> &'static str {
         RootMode::Adb => "shell (adb)",
         RootMode::Magisk => "full (Magisk)",
     }
+}
+
+/// `root.helper.status`: connects to the on-device helper, starting it as
+/// root first if nothing of this build answers (ADR-0003).
+async fn helper_status(ctx: &CallCtx, selector: &str) -> JidrResult<Value> {
+    let device = ctx.daemon.device(selector).await?;
+    ensure_running(&device)?;
+    let helper = jidr_helper::host::Helper::for_device(ctx, &device).await?;
+    Ok(json!({
+        "device": device.id,
+        "name": device.name,
+        "root_mode": device.root.mode,
+        "helper": helper.pong,
+        "port": helper.port,
+    }))
 }
 
 /// `root.auto_grant`: toggle the D22 "auto-grant all" flag. Only Full root.

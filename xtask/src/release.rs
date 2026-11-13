@@ -1,6 +1,7 @@
 //! `cargo xtask release`: the macOS release artifacts (Phases 12a and 12b).
 //!
-//! Builds `jidr` and `jidr-gui` in release mode, assembles `Jidr.app`, packs
+//! Builds `jidr` and `jidr-gui` in release mode and the arm64 on-device
+//! helper (`cargo xtask helper`, ADR-0003), assembles `Jidr.app`, packs
 //! `Jidr-<version>-arm64.dmg`, mounts it to prove it opens, packs the MCP
 //! bundle `jidr-mcp-<version>-darwin-arm64.mcpb` (the signed `jidr` plus
 //! `packaging/mcp/manifest.json`) and writes `SHA256SUMS.txt`. With `--scan` it fails if the bundle or the DMG contains
@@ -92,13 +93,19 @@ pub fn run(args: &[String]) -> Result<()> {
         ],
     )?;
     let bin = target.join("release");
+    // Apple Silicon Macs run arm64 guests only (D15), so only that helper ships.
+    let helper = crate::helper::build(&[SHIPPED_HELPER])?
+        .into_iter()
+        .next()
+        .map(|(_, path)| path)
+        .context("the helper build returned nothing")?;
 
     if out.exists() {
         std::fs::remove_dir_all(&out).with_context(|| format!("clearing {}", out.display()))?;
     }
     let staging = out.join("staging");
     let app = staging.join("Jidr.app");
-    assemble_app(&root, &bin, &app, &version)?;
+    assemble_app(&root, &bin, &helper, &app, &version)?;
     let identity = std::env::var(SIGNING_IDENTITY_ENV).ok();
     let signing = signing_mode(identity.as_deref(), opts.dry_run);
     let sign_script = root.join("packaging/macos/sign.sh");
@@ -109,6 +116,7 @@ pub fn run(args: &[String]) -> Result<()> {
     pack_mcpb(
         &root,
         &app.join("Contents/Helpers/jidr"),
+        &helper,
         &mcpb_dir,
         &out.join(&mcpb_name),
         &version,
@@ -185,7 +193,7 @@ fn path_str(p: &Path) -> Result<String> {
         .with_context(|| format!("non-UTF-8 path {}", p.display()))
 }
 
-fn target_dir(root: &Path) -> PathBuf {
+pub(crate) fn target_dir(root: &Path) -> PathBuf {
     match std::env::var_os("CARGO_TARGET_DIR").map(PathBuf::from) {
         Some(dir) if dir.is_absolute() => dir,
         Some(dir) => root.join(dir),
@@ -262,12 +270,27 @@ fn copy(from: &Path, to: &Path) -> Result<()> {
     Ok(())
 }
 
+/// The on-device helper build the release ships (ADR-0003).
+const SHIPPED_HELPER: &str = "aarch64";
+
+/// Where a bundle keeps the on-device helper, relative to the folder that
+/// holds `jidr`'s folder (`Contents` in the app); the daemon looks for it
+/// there (`jidr_helper::host::search_dirs`).
+fn helper_path(arch: &str) -> PathBuf {
+    Path::new("helper").join(arch).join("jidr-helper")
+}
+
 /// `Jidr.app` layout. The CLI lives in `Helpers/`: `MacOS/jidr` would collide
-/// with `MacOS/Jidr` on case-insensitive APFS.
-fn assemble_app(root: &Path, bin: &Path, app: &Path, version: &str) -> Result<()> {
+/// with `MacOS/Jidr` on case-insensitive APFS. The on-device helper is a
+/// resource: an ELF for the Android guest, never run on the Mac.
+fn assemble_app(root: &Path, bin: &Path, helper: &Path, app: &Path, version: &str) -> Result<()> {
     let contents = app.join("Contents");
     copy(&bin.join("jidr-gui"), &contents.join("MacOS/Jidr"))?;
     copy(&bin.join("jidr"), &contents.join("Helpers/jidr"))?;
+    copy(
+        helper,
+        &contents.join("Resources").join(helper_path(SHIPPED_HELPER)),
+    )?;
     copy(
         &root.join("apps/jidr-gui/assets/macos/Jidr.icns"),
         &contents.join("Resources/Jidr.icns"),
@@ -290,10 +313,22 @@ fn assemble_app(root: &Path, bin: &Path, app: &Path, version: &str) -> Result<()
     tool("plutil", &["-lint", &path_str(&plist)?])
 }
 
-/// An MCPB bundle (a zip: `manifest.json`, `server/jidr`, icon, licences)
-/// for Claude Desktop and the MCP registries.
-fn pack_mcpb(root: &Path, jidr: &Path, dir: &Path, mcpb: &Path, version: &str) -> Result<()> {
+/// An MCPB bundle (a zip: `manifest.json`, `server/jidr`, the on-device
+/// helper in `server/helper/`, icon, licences) for Claude Desktop and the
+/// MCP registries.
+fn pack_mcpb(
+    root: &Path,
+    jidr: &Path,
+    helper: &Path,
+    dir: &Path,
+    mcpb: &Path,
+    version: &str,
+) -> Result<()> {
     copy(jidr, &dir.join("server/jidr"))?;
+    copy(
+        helper,
+        &dir.join("server").join(helper_path(SHIPPED_HELPER)),
+    )?;
     for (from, name) in [
         ("assets/brand/app-icon-512.png", "icon.png"),
         ("LICENSE-APACHE", "LICENSE-APACHE"),
@@ -437,6 +472,7 @@ fn scan_tree(root: &Path) -> Result<Vec<Finding>> {
                     read_head(&path)
                         .ok()
                         .and_then(|head| classify_content(&head))
+                        .filter(|_| !is_own_helper(&path))
                 });
                 if let Some(reason) = reason {
                     findings.push(Finding { path, reason });
@@ -446,6 +482,14 @@ fn scan_tree(root: &Path) -> Result<Vec<Finding>> {
     }
     findings.sort_by(|a, b| a.path.cmp(&b.path));
     Ok(findings)
+}
+
+/// Jidr's own on-device helper (ADR-0003): the one ELF a bundle may hold,
+/// only at `helper/<arch>/jidr-helper`.
+fn is_own_helper(path: &Path) -> bool {
+    crate::helper::TARGETS
+        .iter()
+        .any(|(arch, _)| path.ends_with(helper_path(arch)))
 }
 
 /// Enough of a file to see its magic numbers and an APK's first entries.
@@ -658,6 +702,14 @@ mod tests {
         std::fs::create_dir_all(app.join("Resources/sdk/platform-tools")).unwrap();
         std::fs::write(app.join("Resources/sdk/platform-tools/adb"), b"x").unwrap();
         std::fs::write(app.join("Resources/payload.bin"), b"\x7fELF\x02").unwrap();
+        // Our own helper is the one ELF allowed, and only at its own path.
+        std::fs::create_dir_all(app.join("Resources/helper/aarch64")).unwrap();
+        std::fs::write(
+            app.join("Resources/helper/aarch64/jidr-helper"),
+            b"\x7fELF\x02",
+        )
+        .unwrap();
+        std::fs::write(app.join("Resources/helper/jidr-helper"), b"\x7fELF\x02").unwrap();
         std::os::unix::fs::symlink("/Applications", tmp.join("Applications")).unwrap();
         let found = scan_tree(&tmp).unwrap();
         std::fs::remove_dir_all(&tmp).unwrap();
@@ -666,7 +718,7 @@ mod tests {
             .map(|f| f.path.file_name().unwrap().to_string_lossy().into_owned())
             .collect();
         // Sorted by path; the /Applications symlink is not followed or flagged.
-        assert_eq!(names, ["payload.bin", "adb"]);
+        assert_eq!(names, ["jidr-helper", "payload.bin", "adb"]);
     }
 
     #[test]

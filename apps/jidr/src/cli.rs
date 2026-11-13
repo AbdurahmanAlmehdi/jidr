@@ -117,6 +117,11 @@ pub enum Cmd {
         #[command(subcommand)]
         cmd: ProxyCmd,
     },
+    /// Network conditions set inside the guest by the rooted on-device helper.
+    Network {
+        #[command(subcommand)]
+        cmd: NetworkCmd,
+    },
     /// Play an audio file as a device's microphone (WAV, or raw 16-bit PCM).
     Audio {
         #[command(subcommand)]
@@ -524,6 +529,9 @@ pub enum RootCmd {
     Verify { device: String },
     /// Root mode and health.
     Status { device: String },
+    /// Start the rooted on-device helper if needed and show its version, uid
+    /// and SELinux context (ADR-0003).
+    Helper { device: String },
     /// Grant every app root without a prompt on a Full-root device (D22, off by default).
     AutoGrant {
         device: String,
@@ -568,6 +576,17 @@ pub enum ProxyCmd {
     Clear { device: String },
     /// The current proxy.
     Show { device: String },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum NetworkCmd {
+    /// Drop PERCENT % of the device's outgoing packets on Wi-Fi and mobile
+    /// data (0 removes it); without PERCENT, show the current loss. Needs
+    /// Shell or Full root; a cold boot clears it.
+    Loss {
+        device: String,
+        percent: Option<f64>,
+    },
 }
 
 #[derive(Debug, Subcommand)]

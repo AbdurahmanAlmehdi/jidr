@@ -12,6 +12,7 @@ members = [
     "crates/jidr-widgets",
     "crates/jidr-cpio",
     "crates/jidr-root",
+    "crates/jidr-helper",
     "crates/jidr-ui",
     "apps/jidr",
     "apps/jidr-gui",
@@ -45,6 +46,7 @@ jidr-mcp = { path = "crates/jidr-mcp" }
 jidr-widgets = { path = "crates/jidr-widgets" }
 jidr-cpio = { path = "crates/jidr-cpio" }
 jidr-root = { path = "crates/jidr-root" }
+jidr-helper = { path = "crates/jidr-helper" }
 jidr-ui = { path = "crates/jidr-ui" }
 
 # Runtime + serialization
@@ -111,3 +113,10 @@ debug = false
 lto = "thin"
 codegen-units = 1
 strip = "debuginfo"
+
+# The on-device helper (ADR-0003, `cargo xtask helper`): small, pushed over adb.
+[profile.helper]
+inherits = "release"
+opt-level = "s"
+strip = "symbols"
+panic = "abort"

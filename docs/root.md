@@ -247,6 +247,44 @@ source in the guided tap below. Choose **Forever** in Magisk's prompt before
 making the base. A grant with a time limit runs out in the clones, and Jidr
 never grants it for them (ADR-0002).
 
+## On-device helper
+
+Some features need code that runs as root *inside* the guest. Jidr has one
+program for all of them, `jidr-helper` ([ADR-0003](decisions/0003-on-device-helper.md),
+accepted as D44). The daemon pushes it to `/data/local/tmp/jidr-helper` and
+starts it as root the first time a command needs it: in the adb shell on an
+`adb` device, through `su` on a `magisk` device. A `none` device is refused
+with `usage`. Nothing is installed: after a reboot the next command starts it
+again.
+
+```bash
+jidr root helper <device>        # start it if needed; version, uid, SELinux context
+jidr network loss <device> 10    # drop 10% of outgoing packets
+jidr network loss <device>       # show the loss on each interface
+jidr network loss <device> 0     # remove it
+```
+
+Packet loss (`network.shaping.set {device, loss_pct}`) uses Linux traffic
+control: `tc qdisc replace dev <iface> root netem loss <n>%` on every
+interface with a default route (Wi-Fi `wlan0` and mobile data), so it applies
+to what the device sends, whichever network apps use. `0` removes Jidr's
+netem and the kernel's default qdisc comes back. It lives in the guest
+kernel: a snapshot keeps it, a cold boot clears it.
+
+It needs API 31 or later. API 30's emulator kernel has no netem, so the
+command fails there with `usage` ("this image's kernel has no netem") and
+changes nothing (D44).
+
+How it's reached: the helper listens on the abstract Unix socket
+`@jidr-helper` (no file, no port on the guest's network) and serves only
+root and the shell user, which `adb forward` connections come from; apps
+are refused. The daemon connects through
+`adb forward tcp:0 localabstract:jidr-helper`. It only keeps a helper whose
+SHA-256 matches the build it ships, and replaces any other.
+
+Development builds look for the helper in `target/jidr-helper/<arch>/`;
+build it with `cargo xtask helper` (no Android NDK needed).
+
 ## Play Store images (beta)
 
 `google_apis_playstore` images refuse `adb root`, so the shell grant cannot be

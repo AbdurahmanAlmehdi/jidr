@@ -1,5 +1,6 @@
 //! `cargo xtask <task>`: build automation for the Jidr workspace.
 
+mod helper;
 mod license_check;
 mod release;
 mod skills;
@@ -16,6 +17,7 @@ tasks:
   ci              fmt --check, clippy -D warnings, nextest, license-check, skills-check
   license-check   fail if an Apache-2.0 crate links Slint or the GPL GUI crates (D18)
   skills-check    check skills/*/SKILL.md frontmatter and their `jidr` commands (D43)
+  helper          build the rooted on-device helper for the guest (ADR-0003)
   e2e-mac         full arm64 end-to-end gate on Apple Silicon (release gate, D28)
   release         build the macOS release artifacts (Phase 12a)";
 
@@ -25,6 +27,7 @@ fn main() -> ExitCode {
         Some("ci") => ci(),
         Some("license-check") => license_check::run(),
         Some("skills-check") => skills::run(),
+        Some("helper") => helper::run(&args[1..]),
         Some("e2e-mac") => e2e_mac(),
         Some("release") => release::run(&args[1..]),
         Some("-h" | "--help" | "help") => {
@@ -109,6 +112,8 @@ fn e2e_mac() -> Result<()> {
     if !(cfg!(target_os = "macos") && cfg!(target_arch = "aarch64")) {
         bail!("e2e-mac runs only on Apple Silicon macOS");
     }
+    // The helper's emulator tests push this build (ADR-0003).
+    helper::build(&["aarch64"])?;
     let cargo = cargo();
     run(
         &cargo,

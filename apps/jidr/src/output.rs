@@ -385,6 +385,29 @@ pub fn audio(v: &Value) -> String {
     )
 }
 
+/// A `network.shaping.*` result: one line when every interface agrees.
+pub fn packet_loss(v: &Value) -> String {
+    let ifaces = v["interfaces"].as_array().cloned().unwrap_or_default();
+    let names: Vec<&str> = ifaces.iter().filter_map(|i| i["name"].as_str()).collect();
+    match v["loss_pct"].as_f64() {
+        Some(0.0) => format!("No packet loss ({}).", names.join(", ")),
+        Some(p) => format!("{p}% of outgoing packets dropped ({}).", names.join(", ")),
+        None => table(
+            &["INTERFACE", "LOSS", "QDISC"],
+            ifaces
+                .iter()
+                .map(|i| {
+                    vec![
+                        i["name"].as_str().unwrap_or("?").to_string(),
+                        format!("{}%", i["loss_pct"].as_f64().unwrap_or(0.0)),
+                        i["qdisc"].as_str().unwrap_or("").to_string(),
+                    ]
+                })
+                .collect(),
+        ),
+    }
+}
+
 pub fn pretty(v: &Value) -> String {
     serde_json::to_string_pretty(v).unwrap_or_default()
 }
@@ -411,6 +434,24 @@ mod tests {
         let t = certs(&json!({ "store": "/apex/x", "certs": [c] }));
         assert!(t.contains("Jidr Test CA") && t.contains("yes") && t.ends_with("/apex/x"));
         assert!(certs(&json!({ "store": "/apex/x", "certs": [] })).starts_with("No CA"));
+    }
+
+    #[test]
+    fn packet_loss_results() {
+        let i = |name: &str, loss: f64| json!({ "name": name, "loss_pct": loss, "qdisc": "netem" });
+        let v = json!({ "loss_pct": 10.0, "interfaces": [i("radio0", 10.0), i("wlan0", 10.0)] });
+        assert_eq!(
+            packet_loss(&v),
+            "10% of outgoing packets dropped (radio0, wlan0)."
+        );
+        let v = json!({ "loss_pct": 0.0, "interfaces": [i("wlan0", 0.0)] });
+        assert_eq!(packet_loss(&v), "No packet loss (wlan0).");
+        let v = json!({ "loss_pct": null, "interfaces": [i("radio0", 0.0), i("wlan0", 2.5)] });
+        assert!(
+            packet_loss(&v).contains("wlan0      2.5%"),
+            "{}",
+            packet_loss(&v)
+        );
     }
 
     #[test]
