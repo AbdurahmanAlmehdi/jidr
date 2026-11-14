@@ -220,6 +220,31 @@ Only Full-root (Magisk) devices are supported: `adb root` can't change the
 system store of a running device. An app that pins its certificates still
 refuses the proxy; that needs Frida or similar on top.
 
+## Flashable zips
+
+`jidr flash <device> <zip>` and a zip dropped on the player both run
+`file.flash` ([ADR-0004](decisions/0004-flashable-zips.md)). Jidr reads the
+zip's file list on the Mac first, then:
+
+| The zip | Full-root (`magisk`) device | Other devices |
+|---|---|---|
+| Magisk module (`module.prop` at the top) | `magisk --install-module`, a cold boot, then a check that Magisk loaded it from `/data/adb/modules/<id>` | Copied to `/sdcard/Download`, with a note that modules need Full root |
+| Zygisk module (a module with `zygisk/`, e.g. LSPosed) | Same as a module. Magisk turns Zygisk on by default on emulators; if it was turned off in the Magisk app, the result says the module won't load until it's back on | Copied to Download |
+| Riru module (`riru/`) | Refused: Magisk skips Riru modules while Zygisk is on, and Riru is discontinued. Use the module's Zygisk build | Refused |
+| Recovery zip (TWRP flashables, GApps, ARM translation, custom kernels) | Refused: the emulator has no recovery, and these write the system partitions. Google APIs images already have Play services; arm64 images run ARM apps natively | Refused |
+| OTA or factory image (`payload.bin`, partition `.img` files) | Refused: no fastboot or partition flashing on the emulator. Create a device from another system image instead | Refused |
+| Anything else | Copied to Download | Copied to Download |
+
+A refusal exits 2 (`usage`) with `error.data.kind`. Two module mistakes are
+caught before the device is touched, each with the fix: `module.prop` inside a
+folder of the zip (zip the folder's contents, not the folder), and an id that
+isn't a valid Magisk id or starts with `jidr_` (Jidr's own modules).
+`jidr push` still copies any zip to the device.
+
+Remove a module in the Magisk app (Modules → Remove), then restart the device;
+Magisk deletes it at the next boot. `root.module.install` stays as the explicit
+"install this as a module" command, with the same checks.
+
 ## Magisk bases
 
 A Full-root device can be made into a pool base (D42, Phase 13f), so agents

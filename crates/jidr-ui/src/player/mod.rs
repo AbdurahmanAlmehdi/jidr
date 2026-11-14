@@ -567,33 +567,15 @@ pub fn handle_drop(ctx: &Rc<Ctx>, path: &Path) {
     let name = file_name(&path.to_string_lossy());
     match drop::classify(path, mode == RootMode::Magisk) {
         drop::DropAction::InstallApk(apk) => install_apk(ctx, id, apk, false),
-        drop::DropAction::MagiskModule(zip) => {
-            let b = ctx.bridge.clone();
+        drop::DropAction::FlashZip { path, .. } => {
             let w2 = w.clone();
-            let zip2 = zip.clone();
+            toast(&w, format!("Flashing {name}…"));
             ctx.bridge.run(
-                "root.module.install",
-                json!({ "device": id, "path": zip }),
+                "file.flash",
+                json!({ "device": id, "path": path }),
                 |_| {},
                 move |r| match r {
-                    Ok(_) => toast(&w2, format!("Installed {name}; the device is rebooting")),
-                    Err(e)
-                        if e.message.contains("Unknown method")
-                            || e.message.contains("unknown method")
-                            || e.message.contains("Method not found") =>
-                    {
-                        // Magisk modules arrive with Stream C's 9d; until then copy it.
-                        b.call(
-                            "file.push",
-                            json!({ "device": id, "local": zip2 }),
-                            report(
-                                &w2,
-                                &format!(
-                                    "Copied {name} to Download (module install isn't available yet)"
-                                ),
-                            ),
-                        );
-                    }
+                    Ok(v) => toast(&w2, flash_message(&v, &name)),
                     Err(e) => toast(&w2, e.message),
                 },
             );
@@ -609,6 +591,20 @@ pub fn handle_drop(ctx: &Rc<Ctx>, path: &Path) {
                 report(&w, &msg),
             );
         }
+    }
+}
+
+/// The toast for a finished `file.flash` (ADR-0004).
+fn flash_message(v: &serde_json::Value, name: &str) -> String {
+    let done = if v["action"] == "module_installed" {
+        let id = v["module"]["id"].as_str().unwrap_or(name);
+        format!("Installed the Magisk module {id}; the device rebooted")
+    } else {
+        format!("Copied {name} to Download")
+    };
+    match v["note"].as_str() {
+        Some(note) => format!("{done}. {note}"),
+        None => done,
     }
 }
 

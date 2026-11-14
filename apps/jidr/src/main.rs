@@ -303,6 +303,27 @@ fn proxy_target(s: &str) -> JidrResult<(String, u16)> {
     }
 }
 
+/// `jidr flash`'s human output: what happened, then the note if any.
+fn flash_text(v: &Value, device: &str) -> String {
+    let mut text = if v["action"] == "module_installed" {
+        let m = &v["module"];
+        let mut what = m["id"].as_str().unwrap_or("?").to_string();
+        if let Some(version) = m["version"].as_str() {
+            what = format!("{what} {version}");
+        }
+        format!("Installed the Magisk module {what} on {device}; it rebooted and Magisk loaded it.")
+    } else {
+        format!(
+            "Copied to {}.",
+            v["remote"].as_str().unwrap_or("/sdcard/Download/")
+        )
+    };
+    if let Some(note) = v["note"].as_str() {
+        text = format!("{text} {note}");
+    }
+    text
+}
+
 async fn run(cli: Cli, out: Out) -> JidrResult<()> {
     let paths = JidrPaths::discover()?;
     if before_connect(&paths, &cli.cmd, out).await? {
@@ -318,7 +339,7 @@ async fn run(cli: Cli, out: Out) -> JidrResult<()> {
 }
 
 /// Commands that run without a daemon connection (`daemon stop`,
-/// `uninstall`, `flash`); returns whether `cmd` was one of them.
+/// `uninstall`); returns whether `cmd` was one of them.
 async fn before_connect(paths: &JidrPaths, cmd: &Cmd, out: Out) -> JidrResult<bool> {
     if let Cmd::Daemon {
         action: Some(DaemonCmd::Stop),
@@ -364,11 +385,6 @@ async fn before_connect(paths: &JidrPaths, cmd: &Cmd, out: Out) -> JidrResult<bo
         });
         return Ok(true);
     }
-    if let Cmd::Flash { .. } = cmd {
-        return Err(JidrError::usage(
-            "flash isn't available yet: Genymotion's flash semantics are an open research item",
-        ));
-    }
     Ok(false)
 }
 
@@ -377,7 +393,6 @@ async fn before_connect(paths: &JidrPaths, cmd: &Cmd, out: Out) -> JidrResult<bo
 async fn dispatch(c: &Client, cmd: Cmd, out: Out) -> JidrResult<()> {
     match cmd {
         Cmd::Completions { .. }
-        | Cmd::Flash { .. }
         | Cmd::Uninstall { .. }
         | Cmd::Daemon {
             action: None | Some(DaemonCmd::Run | DaemonCmd::Stop),
@@ -429,6 +444,17 @@ async fn dispatch(c: &Client, cmd: Cmd, out: Out) -> JidrResult<()> {
             out.ok(&v, |v| {
                 format!("Pushed to {}.", v["remote"].as_str().unwrap_or("?"))
             });
+        }
+        Cmd::Flash { device, zip } => {
+            let zip = std::path::absolute(&zip).unwrap_or(zip);
+            let v = exec(
+                c,
+                out,
+                "file.flash",
+                json!({ "device": device, "path": zip }),
+            )
+            .await?;
+            out.ok(&v, |v| flash_text(v, &device));
         }
         Cmd::Pull {
             device,
