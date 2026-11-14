@@ -751,6 +751,21 @@ async fn dispatch(c: &Client, cmd: Cmd, out: Out) -> JidrResult<()> {
             };
             out.ok(&v, output::packet_loss);
         }
+        Cmd::Identity { device, android_id } => {
+            let v = match android_id {
+                None => c.call("identity.get", json!({ "device": device })).await?,
+                Some(id) => {
+                    exec(
+                        c,
+                        out,
+                        "identity.set",
+                        json!({ "device": device, "android_id": id }),
+                    )
+                    .await?
+                }
+            };
+            out.ok(&v, output::identity);
+        }
         Cmd::Audio {
             cmd:
                 AudioCmd::Inject {

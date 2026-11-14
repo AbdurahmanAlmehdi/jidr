@@ -122,6 +122,15 @@ pub enum Cmd {
         #[command(subcommand)]
         cmd: NetworkCmd,
     },
+    /// A device's Android ID and IMEI (Identifiers); `--android-id`
+    /// changes the Android ID (needs Shell or Full root).
+    Identity {
+        device: String,
+        /// New Android ID, 16 hex digits, as every installed app reads it.
+        /// Restarts the Android framework.
+        #[arg(long)]
+        android_id: Option<String>,
+    },
     /// Play an audio file as a device's microphone (WAV, or raw 16-bit PCM).
     Audio {
         #[command(subcommand)]

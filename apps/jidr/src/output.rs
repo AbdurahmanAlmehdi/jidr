@@ -408,6 +408,15 @@ pub fn packet_loss(v: &Value) -> String {
     }
 }
 
+/// An `identity.*` result.
+pub fn identity(v: &Value) -> String {
+    format!(
+        "Android ID: {}\nIMEI:       {}",
+        v["android_id"].as_str().unwrap_or("none"),
+        v["imei"].as_str().unwrap_or("none")
+    )
+}
+
 pub fn pretty(v: &Value) -> String {
     serde_json::to_string_pretty(v).unwrap_or_default()
 }
