@@ -1,0 +1,2376 @@
+# Simplified Chinese translation of the Jidr desktop app.
+# Update with `cargo xtask i18n`; the glossary is in crates/jidr-ui/i18n/README.md.
+msgid ""
+msgstr ""
+"Project-Id-Version: jidr-ui\n"
+"Language: zh-Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#: src/app.rs ui/wizard.slint
+msgid "Downloading"
+msgstr "正在下载"
+
+#: src/app.rs
+msgid "Setting up root"
+msgstr "正在设置 Root"
+
+#: src/app.rs
+msgid "Saving a base"
+msgstr "正在存为基础设备"
+
+#: src/app.rs
+msgid "Connecting to the daemon…"
+msgstr "正在连接守护进程…"
+
+#: src/bridge.rs
+msgid "Reconnecting to the daemon…"
+msgstr "正在重新连接守护进程…"
+
+#: src/device_form/mod.rs src/wizard/mod.rs
+msgid "Installed · {}"
+msgstr "已安装 · {}"
+
+#: src/device_form/mod.rs
+msgid "Downloading · {} / {}"
+msgstr "正在下载 · {} / {}"
+
+#: src/device_form/mod.rs
+msgid "Downloading…"
+msgstr "正在下载…"
+
+#: src/device_form/mod.rs
+msgid "Download · {}"
+msgstr "下载 · {}"
+
+#: src/device_form/mod.rs
+msgid "size unknown"
+msgstr "大小未知"
+
+#: src/device_form/mod.rs
+msgid "This daemon has no lean profile; update Jidr."
+msgstr "此守护进程没有精简配置；请更新 Jidr。"
+
+#: src/device_form/mod.rs
+msgid "After {} h idle"
+msgstr "闲置 {} 小时后"
+
+#: src/device_form/mod.rs
+msgid "After {} min idle"
+msgstr "闲置 {} 分钟后"
+
+#: src/device_form/mod.rs
+msgid "Off"
+msgstr "关闭"
+
+#: src/device_form/mod.rs
+msgid "Same as Settings ({})"
+msgstr "与设置相同（{}）"
+
+#: src/device_form/mod.rs
+msgid "Never"
+msgstr "永不"
+
+#: src/device_form/mod.rs
+msgid "RAM must be a number of GB, like 4."
+msgstr "内存必须是以 GB 为单位的数字，例如 4。"
+
+#: src/device_form/mod.rs
+msgid "RAM must be between 0.5 and 64 GB."
+msgstr "内存必须介于 0.5 到 64 GB 之间。"
+
+#: src/device_form/mod.rs
+msgid "CPU cores must be a whole number."
+msgstr "CPU 核心数必须是整数。"
+
+#: src/device_form/mod.rs
+msgid "CPU cores must be between 1 and 16."
+msgstr "CPU 核心数必须介于 1 到 16 之间。"
+
+#: src/device_form/mod.rs
+msgid "Screen must look like 1080×2400."
+msgstr "屏幕格式应类似 1080×2400。"
+
+#: src/device_form/mod.rs
+msgid "Screen sides must be between 240 and 4096 pixels."
+msgstr "屏幕边长必须介于 240 到 4096 像素之间。"
+
+#: src/device_form/mod.rs
+msgid "Give the device a name."
+msgstr "请为设备命名。"
+
+#: src/device_form/mod.rs
+msgid "Pick an Android version."
+msgstr "请选择 Android 版本。"
+
+#: src/device_form/mod.rs src/root/root.slint
+msgid "Play Store images don't allow adb root."
+msgstr "Play Store 映像不允许 adb root。"
+
+#: src/i18n.rs src/model.rs
+msgid "Stopped"
+msgstr "已停止"
+
+#: src/i18n.rs src/settings/mod.rs
+msgid "{n} snapshot"
+msgid_plural "{n} snapshots"
+msgstr[0] "{n} 个快照"
+
+#: src/launcher/mod.rs
+msgid "Hibernating {} to make room"
+msgstr "正在休眠 {} 以腾出空间"
+
+#: src/launcher/mod.rs src/model.rs
+msgid "Cancelled"
+msgstr "已取消"
+
+#: src/launcher/mod.rs
+msgid "Root verified"
+msgstr "Root 已验证"
+
+#: src/launcher/mod.rs
+msgid "Revert {} to unrooted?"
+msgstr "要移除 {} 的 Root 吗？"
+
+#: src/launcher/mod.rs
+msgid "Removes root and cold boots the device (about 40 s). Apps and data stay. Snapshots taken with root can't be restored until root is set up again."
+msgstr "移除 Root 并冷启动设备（约 40 秒）。应用和数据会保留。在重新设置 Root 之前，Root 状态下拍摄的快照无法恢复。"
+
+# unsure: confirm button for “Revert to unrooted”; used 移除 to match 移除 Root, alternative 还原.
+#: src/launcher/mod.rs
+msgid "Revert"
+msgstr "移除"
+
+#: src/launcher/mod.rs
+msgid "Reverted {} to unrooted"
+msgstr "已移除 {} 的 Root"
+
+#: src/launcher/mod.rs
+msgid "Hibernated {}"
+msgstr "已休眠 {}"
+
+#: src/launcher/mod.rs
+msgid "Save {} as a base?"
+msgstr "要将 {} 存为基础设备吗？"
+
+#: src/launcher/mod.rs
+msgid "Agents lease throwaway clones of a base with pool.get. {} stops, and “{}” becomes a read-only copy of it, animations off."
+msgstr "智能体通过 pool.get 租用基础设备的一次性克隆。{} 将停止，“{}”将成为它的只读副本，并关闭动画。"
+
+#: src/launcher/mod.rs
+msgid "Save as base"
+msgstr "存为基础设备"
+
+#: src/launcher/mod.rs
+msgid "Saved {} as a base"
+msgstr "已将 {} 存为基础设备"
+
+#: src/launcher/mod.rs
+msgid "Saved {}"
+msgstr "已保存 {}"
+
+#: src/launcher/mod.rs
+msgid "Created {}"
+msgstr "已创建 {}"
+
+#: src/model.rs
+msgid "{} s"
+msgstr "{} 秒"
+
+#: src/model.rs
+msgid "{} m"
+msgstr "{} 分钟"
+
+#: src/model.rs
+msgid "{} h {} m"
+msgstr "{} 小时 {} 分钟"
+
+#: src/model.rs
+msgid "just now"
+msgstr "刚刚"
+
+#: src/model.rs
+msgid "Jan"
+msgstr "1月"
+
+#: src/model.rs
+msgid "Feb"
+msgstr "2月"
+
+#: src/model.rs
+msgid "Mar"
+msgstr "3月"
+
+#: src/model.rs
+msgid "Apr"
+msgstr "4月"
+
+#: src/model.rs
+msgid "May"
+msgstr "5月"
+
+#: src/model.rs
+msgid "Jun"
+msgstr "6月"
+
+#: src/model.rs
+msgid "Jul"
+msgstr "7月"
+
+#: src/model.rs
+msgid "Aug"
+msgstr "8月"
+
+#: src/model.rs
+msgid "Sep"
+msgstr "9月"
+
+#: src/model.rs
+msgid "Oct"
+msgstr "10月"
+
+#: src/model.rs
+msgid "Nov"
+msgstr "11月"
+
+#: src/model.rs
+msgid "Dec"
+msgstr "12月"
+
+#: src/model.rs
+msgid "{0} {1}, {2}"
+msgstr "{0}{1}日 {2}"
+
+#: src/model.rs
+msgid "Releasing…"
+msgstr "正在释放…"
+
+#: src/model.rs
+msgid "{} left"
+msgstr "剩余 {}"
+
+#: src/model.rs
+msgid "Agent gone · released in {}"
+msgstr "智能体已断开 · {} 后释放"
+
+#: src/model.rs
+msgid "While its agent is connected"
+msgstr "智能体连接期间"
+
+#: src/model.rs
+msgid "No clones leased"
+msgstr "未租用克隆"
+
+#: src/model.rs
+msgid "Busy · in use by {}"
+msgstr "忙碌 · 正由 {} 使用"
+
+#: src/model.rs
+msgid "Base · {}"
+msgstr "基础设备 · {}"
+
+#: src/model.rs
+msgid "Leased · {}"
+msgstr "已租用 · {}"
+
+#: src/model.rs
+msgid "Hibernated"
+msgstr "已休眠"
+
+#: src/model.rs src/root/cacerts/mod.rs src/widgets/gps.rs
+msgid "Starting…"
+msgstr "正在启动…"
+
+#: src/model.rs
+msgid "Booting Android… {}%"
+msgstr "正在启动 Android… {}%"
+
+#: src/model.rs
+msgid "Booting Android…"
+msgstr "正在启动 Android…"
+
+#: src/model.rs
+msgid "Running · {}"
+msgstr "运行中 · {}"
+
+#: src/model.rs
+msgid "Running"
+msgstr "运行中"
+
+#: src/model.rs
+msgid "Stopping…"
+msgstr "正在停止…"
+
+#: src/model.rs
+msgid "Crashed"
+msgstr "已崩溃"
+
+#: src/model.rs src/root/root.slint
+msgid "Setting up root…"
+msgstr "正在设置 Root…"
+
+#: src/model.rs
+msgid "Setup"
+msgstr "设置中"
+
+#: src/model.rs
+msgid "Not rooted"
+msgstr "未 Root"
+
+#: src/model.rs
+msgid "No root"
+msgstr "未 Root"
+
+#: src/model.rs src/root/root.slint
+msgid "Shell root (adb)"
+msgstr "Shell Root（adb）"
+
+#: src/model.rs
+msgid "Shell"
+msgstr "Shell"
+
+#: src/model.rs
+msgid "Rooted · Magisk {}"
+msgstr "已 Root · Magisk {}"
+
+#: src/model.rs src/root/root.slint
+msgid "Rooted"
+msgstr "已 Root"
+
+#: src/model.rs src/root/root.slint
+msgid "Root failed"
+msgstr "Root 失败"
+
+#: src/model.rs
+msgid "Failed"
+msgstr "失败"
+
+#: src/model.rs src/root/root.slint
+msgid "Root unverified"
+msgstr "Root 未验证"
+
+#: src/model.rs
+msgid "Unverified"
+msgstr "未验证"
+
+#: src/model.rs src/root/root.slint
+msgid "Full root"
+msgstr "完整 Root"
+
+#: src/model.rs
+msgid "Full"
+msgstr "完整"
+
+#: src/model.rs src/root/root.slint
+msgid "Shell root"
+msgstr "Shell Root"
+
+#: src/model.rs
+msgid "Not needed"
+msgstr "无需"
+
+#: src/model.rs
+msgid "Not yet"
+msgstr "尚未"
+
+#: src/model.rs
+msgid "Today, {}"
+msgstr "今天 {}"
+
+#: src/model.rs
+msgid "Idle {} · {}"
+msgstr "闲置 {} · {}"
+
+#: src/model.rs src/root/root.slint src/wizard/mod.rs
+msgid "Done"
+msgstr "完成"
+
+#: src/model.rs src/root/root.slint src/wizard/mod.rs
+msgid "Queued"
+msgstr "排队中"
+
+#: src/model.rs src/snapshots/mod.rs ui/settings.slint
+msgid "Quick boot"
+msgstr "快速启动"
+
+#: src/model.rs src/snapshots/mod.rs
+msgid "Taken with: {}"
+msgstr "拍摄时模式：{}"
+
+#: src/model.rs
+msgid "{n} min ago"
+msgid_plural "{n} min ago"
+msgstr[0] "{n} 分钟前"
+
+#: src/model.rs
+msgid "{n} h ago"
+msgid_plural "{n} h ago"
+msgstr[0] "{n} 小时前"
+
+#: src/model.rs
+msgid "{n} day ago"
+msgid_plural "{n} days ago"
+msgstr[0] "{n} 天前"
+
+#: src/model.rs
+msgid "{n} clone leased"
+msgid_plural "{n} clones leased"
+msgstr[0] "已租用 {n} 个克隆"
+
+#: src/model.rs
+msgid "{n} core"
+msgid_plural "{n} cores"
+msgstr[0] "{n} 核"
+
+#: src/model.rs
+msgid "{n} min left"
+msgid_plural "{n} min left"
+msgstr[0] "剩余 {n} 分钟"
+
+#: src/model.rs
+msgid "{n} s left"
+msgid_plural "{n} s left"
+msgstr[0] "剩余 {n} 秒"
+
+#: src/palette/mod.rs
+msgid "Open {}"
+msgstr "打开 {}"
+
+#: src/palette/mod.rs ui/launcher.slint
+msgid "Set up Android SDK"
+msgstr "设置 Android SDK"
+
+#: src/palette/mod.rs
+msgid "Find or install the emulator and an image"
+msgstr "查找或安装模拟器和系统映像"
+
+#: src/palette/mod.rs ui/device_form.slint
+msgid "New device"
+msgstr "新建设备"
+
+#: src/palette/mod.rs
+msgid "Create a device from a profile"
+msgstr "根据硬件配置文件创建设备"
+
+# unsure: 唤醒 {} (see Resume); alternative 继续运行 {}.
+#: src/palette/mod.rs
+msgid "Resume {}"
+msgstr "唤醒 {}"
+
+#: src/palette/mod.rs
+msgid "Back where it was, in seconds"
+msgstr "几秒内回到原来的状态"
+
+#: src/palette/mod.rs
+msgid "Start {}"
+msgstr "启动 {}"
+
+#: src/palette/mod.rs
+msgid "Stop {}"
+msgstr "停止 {}"
+
+#: src/palette/mod.rs
+msgid "Saves a quick-boot snapshot"
+msgstr "保存快速启动快照"
+
+#: src/palette/mod.rs
+msgid "Hibernate {}"
+msgstr "休眠 {}"
+
+#: src/palette/mod.rs
+msgid "Saves its whole state and frees its RAM"
+msgstr "保存完整状态并释放内存"
+
+#: src/palette/mod.rs
+msgid "Save {} as a base…"
+msgstr "将 {} 存为基础设备…"
+
+#: src/palette/mod.rs
+msgid "For agents' throwaway clones (pool.get)"
+msgstr "供智能体创建一次性克隆（pool.get）"
+
+#: src/palette/mod.rs ui/device_form.slint
+msgid "Edit {}"
+msgstr "编辑 {}"
+
+#: src/palette/mod.rs
+msgid "Name, RAM, CPU, screen"
+msgstr "名称、内存、CPU、屏幕"
+
+#: src/palette/mod.rs ui/settings.slint ui/shell.slint
+msgid "Settings"
+msgstr "设置"
+
+#: src/palette/mod.rs
+msgid "SDK, storage, agents, about"
+msgstr "SDK、存储、智能体、关于"
+
+#: src/palette/mod.rs ui/settings.slint
+msgid "Add Jidr to Claude"
+msgstr "将 Jidr 添加到 Claude"
+
+#: src/palette/mod.rs
+msgid "MCP setup"
+msgstr "MCP 设置"
+
+#: src/palette/mod.rs
+msgid "Toggle light and dark"
+msgstr "切换浅色和深色外观"
+
+#: src/palette/mod.rs ui/settings.slint
+msgid "Appearance"
+msgstr "外观"
+
+#: src/player/drop.rs
+msgid "Magisk modules need Full root, so it was copied to Download."
+msgstr "Magisk 模块需要完整 Root，因此已将其复制到 Download 文件夹。"
+
+#: src/player/drop.rs
+msgid "Release to install {}"
+msgstr "松开以安装 {}"
+
+#: src/player/drop.rs
+msgid "adb install -r on {}. Replaces the installed version and keeps its data."
+msgstr "在 {} 上执行 adb install -r。替换已安装的版本并保留其数据。"
+
+#: src/player/drop.rs
+msgid "Release to install {} as a Magisk module"
+msgstr "松开以将 {} 安装为 Magisk 模块"
+
+#: src/player/drop.rs
+msgid "Installs the module and reboots the device (about 40 s)."
+msgstr "安装模块并重启设备（约 40 秒）。"
+
+#: src/player/drop.rs
+msgid "Release to copy {}"
+msgstr "松开以复制 {}"
+
+#: src/player/drop.rs
+msgid "Goes to /sdcard/Download on {}."
+msgstr "复制到 {} 的 /sdcard/Download。"
+
+#: src/player/mod.rs
+msgid "Can't show the screen: {}"
+msgstr "无法显示屏幕：{}"
+
+#: src/player/mod.rs
+msgid "Sharing the clipboard with the device"
+msgstr "正在与设备共享剪贴板"
+
+#: src/player/mod.rs
+msgid "Stopped sharing the clipboard"
+msgstr "已停止共享剪贴板"
+
+#: src/player/mod.rs
+msgid "Start the device first, then drop the file again"
+msgstr "请先启动设备，然后再次拖放文件"
+
+#: src/player/mod.rs
+msgid "Installed {}; the device is rebooting"
+msgstr "已安装 {}，设备正在重启"
+
+#: src/player/mod.rs
+msgid "Copied {} to Download (module install isn't available yet)"
+msgstr "已将 {} 复制到 Download 文件夹（暂不支持安装模块）"
+
+#: src/player/mod.rs
+msgid "Copied {} to Download. {}"
+msgstr "已将 {} 复制到 Download 文件夹。{}"
+
+#: src/player/mod.rs
+msgid "Copied {} to /sdcard/Download"
+msgstr "已将 {} 复制到 /sdcard/Download"
+
+#: src/player/mod.rs
+msgid "Installing {}…"
+msgstr "正在安装 {}…"
+
+#: src/player/mod.rs
+msgid "Reinstall {}?"
+msgstr "要重新安装 {} 吗？"
+
+#: src/player/mod.rs
+msgid "The installed app was signed with a different key. Reinstalling uninstalls it first, which deletes its data."
+msgstr "已安装的应用使用了不同的密钥签名。重新安装会先将其卸载，这会删除其数据。"
+
+#: src/player/mod.rs
+msgid "Reinstall"
+msgstr "重新安装"
+
+#: src/player/mod.rs
+msgid "Installed and opened {}"
+msgstr "已安装并打开 {}"
+
+#: src/player/mod.rs
+msgid "Installed {}"
+msgstr "已安装 {}"
+
+#: src/player/mod.rs
+msgid "{} of {} lines · {n} error"
+msgid_plural "{} of {} lines · {n} errors"
+msgstr[0] "显示 {} / {} 行 · {n} 个错误"
+
+#: src/recording.rs
+msgid "Saved {} and copied it"
+msgstr "已保存并复制 {}"
+
+#: src/recording.rs
+msgid "Recording {}"
+msgstr "正在录制 {}"
+
+#: src/recording.rs
+msgid "Saved {} ({})"
+msgstr "已保存 {}（{}）"
+
+#: src/root/cacerts/cacerts.slint
+msgid "CA certificates"
+msgstr "CA 证书"
+
+#: src/root/cacerts/cacerts.slint
+msgid "Add…"
+msgstr "添加…"
+
+#: src/root/cacerts/cacerts.slint
+msgid "Trusted"
+msgstr "已信任"
+
+#: src/root/cacerts/cacerts.slint
+msgid "After restart"
+msgstr "重启后生效"
+
+#: src/root/cacerts/cacerts.slint
+msgid "Remove"
+msgstr "移除"
+
+#: src/root/cacerts/cacerts.slint
+msgid "Start the device to add or remove CA certificates."
+msgstr "启动设备后才能添加或移除 CA 证书。"
+
+#: src/root/cacerts/cacerts.slint
+msgid "Trust Burp's or mitmproxy's CA as a system certificate. Adding one restarts the device."
+msgstr "将 Burp 或 mitmproxy 的 CA 作为系统证书信任。添加证书会重启设备。"
+
+#: src/root/cacerts/cacerts.slint
+msgid "Apps trust these as system certificates. Adding or removing one restarts the device."
+msgstr "应用会将这些证书作为系统证书信任。添加或移除证书会重启设备。"
+
+#: src/root/cacerts/mod.rs
+msgid "That certificate is already trusted"
+msgstr "该证书已受信任"
+
+#: src/root/cacerts/mod.rs
+msgid "{} is now a trusted system certificate"
+msgstr "{} 现已成为受信任的系统证书"
+
+#: src/root/cacerts/mod.rs
+msgid "The certificate is now a trusted system certificate"
+msgstr "该证书现已成为受信任的系统证书"
+
+#: src/root/cacerts/mod.rs
+msgid "Certificate removed"
+msgstr "已移除证书"
+
+#: src/root/cacerts/mod.rs
+msgid "Choose a CA certificate (PEM or DER), e.g. Burp's cacert.der"
+msgstr "选择 CA 证书（PEM 或 DER），例如 Burp 的 cacert.der"
+
+#: src/root/mod.rs
+msgid "{} is now Shell root (adb)"
+msgstr "{} 现已启用 Shell Root（adb）"
+
+#: src/root/mod.rs
+msgid "{} is now unrooted"
+msgstr "已移除 {} 的 Root"
+
+#: src/root/mod.rs
+msgid "{} is rooted · Magisk {}"
+msgstr "{} 已 Root · Magisk {}"
+
+#: src/root/mod.rs
+msgid "{} is rooted"
+msgstr "{} 已 Root"
+
+#: src/root/mod.rs
+msgid "Root failed: {}. Open {} to revert or try again."
+msgstr "Root 失败：{}。打开 {} 以还原或重试。"
+
+#: src/root/mod.rs
+msgid "{} didn't finish booting after the reboot (waited {} s). Your data is intact and the original boot image is kept, so you can revert."
+msgstr "{} 重启后未能完成启动（已等待 {} 秒）。你的数据完好无损，原始启动映像也已保留，因此可以还原。"
+
+#: src/root/mod.rs
+msgid "Copied the root setup log"
+msgstr "已复制 Root 设置日志"
+
+#: src/root/mod.rs
+msgid "Apps now get root without asking"
+msgstr "应用现在无需询问即可获得 Root 权限"
+
+#: src/root/mod.rs
+msgid "Apps ask before they get root"
+msgstr "应用获取 Root 权限前会先询问"
+
+#: src/root/mod.rs src/root/root.slint
+msgid "Root failed: {}"
+msgstr "Root 失败：{}"
+
+#: src/root/props/mod.rs
+msgid "patch {}"
+msgstr "安全补丁 {}"
+
+#: src/root/props/mod.rs
+msgid "Stock values"
+msgstr "原厂值"
+
+#: src/root/props/mod.rs
+msgid "Custom fingerprint"
+msgstr "自定义指纹"
+
+#: src/root/props/mod.rs
+msgid "Build identity saved. Restart to apply it."
+msgstr "构建标识已保存。重启后生效。"
+
+#: src/root/props/mod.rs
+msgid "Build identity saved. It applies on the next start."
+msgstr "构建标识已保存，将在下次启动时生效。"
+
+#: src/root/props/props.slint
+msgid "Model"
+msgstr "型号"
+
+#: src/root/props/props.slint
+msgid "Brand"
+msgstr "品牌"
+
+#: src/root/props/props.slint
+msgid "Manufacturer"
+msgstr "制造商"
+
+#: src/root/props/props.slint
+msgid "Device"
+msgstr "设备"
+
+#: src/root/props/props.slint ui/widgets/panels.slint
+msgid "Fingerprint"
+msgstr "指纹"
+
+#: src/root/props/props.slint
+msgid "Security patch"
+msgstr "安全补丁"
+
+# unsure: placeholder in empty build-prop fields; 原厂 (stock = factory value), alternative 默认.
+#: src/root/props/props.slint
+msgid "Stock"
+msgstr "原厂"
+
+#: src/root/props/props.slint
+msgid "Build identity"
+msgstr "构建标识"
+
+#: src/root/props/props.slint
+msgid "Edit…"
+msgstr "编辑…"
+
+#: src/root/props/props.slint
+msgid "Empty fields keep the image's value. Changes apply on the next start, which is a cold boot."
+msgstr "留空的字段将保留映像中的值。更改将在下次启动（冷启动）时生效。"
+
+#: src/root/props/props.slint
+msgid "Saving…"
+msgstr "正在保存…"
+
+#: src/root/props/props.slint ui/device_form.slint ui/snapshots.slint
+msgid "Save"
+msgstr "保存"
+
+#: src/root/props/props.slint src/root/root.slint ui/device_form.slint ui/forms.slint ui/snapshots.slint ui/wizard.slint
+msgid "Cancel"
+msgstr "取消"
+
+#: src/root/props/props.slint
+msgid "Reset to stock"
+msgstr "恢复原厂值"
+
+#: src/root/props/props.slint
+msgid "Applies on the next start"
+msgstr "下次启动时生效"
+
+#: src/root/props/props.slint
+msgid "Restart now"
+msgstr "立即重启"
+
+#: src/root/root.slint
+msgid "Download Magisk {}"
+msgstr "下载 Magisk {}"
+
+#: src/root/root.slint
+msgid "Patch boot image"
+msgstr "修补启动映像"
+
+#: src/root/root.slint
+msgid "Rebooting"
+msgstr "正在重启"
+
+#: src/root/root.slint
+msgid "Reboot"
+msgstr "重启"
+
+#: src/root/root.slint
+msgid "Install Magisk app · Verify"
+msgstr "安装 Magisk 应用 · 验证"
+
+#: src/root/root.slint
+msgid "Install Magisk app"
+msgstr "安装 Magisk 应用"
+
+#: src/root/root.slint
+msgid "Verify"
+msgstr "验证"
+
+#: src/root/root.slint
+msgid "Download Magisk {} › Patch › Reboot › Install › Verify"
+msgstr "下载 Magisk {} › 修补 › 重启 › 安装 › 验证"
+
+#: src/root/root.slint
+msgid "Booting Android… {}"
+msgstr "正在启动 Android… {}"
+
+#: src/root/root.slint
+msgid "Original kept for revert"
+msgstr "已保留原始映像以便还原"
+
+#: src/root/root.slint
+msgid "Waiting for Android to report boot complete"
+msgstr "正在等待 Android 报告启动完成"
+
+#: src/root/root.slint
+msgid "Boot complete never reported"
+msgstr "始终未报告启动完成"
+
+#: src/root/root.slint
+msgid "First boot of a Play Store image"
+msgstr "Play Store 映像首次启动"
+
+#: src/root/root.slint
+msgid "Failed · {}"
+msgstr "失败 · {}"
+
+#: src/root/root.slint
+msgid "Not run"
+msgstr "未运行"
+
+#: src/root/root.slint
+msgid "Rooted emulators can't pass Play Integrity. Banking apps and some games from the Play Store will refuse to run on {} once it is rooted."
+msgstr "已 Root 的模拟器无法通过 Play Integrity 检测。{} Root 后，银行应用和 Play Store 中的部分游戏将拒绝运行。"
+
+#: src/root/root.slint
+msgid "Rooted emulators can't pass Play Integrity. Apps that check it will refuse to run."
+msgstr "已 Root 的模拟器无法通过 Play Integrity 检测。进行此项检测的应用将拒绝运行。"
+
+#: src/root/root.slint
+msgid "Check"
+msgstr "检查"
+
+#: src/root/root.slint ui/launcher.slint
+msgid "Magisk"
+msgstr "Magisk"
+
+#: src/root/root.slint
+msgid "{} · app installed"
+msgstr "{} · 已安装应用"
+
+#: src/root/root.slint
+msgid "Boot image"
+msgstr "启动映像"
+
+#: src/root/root.slint
+msgid "patched · original kept"
+msgstr "已修补 · 已保留原始映像"
+
+#: src/root/root.slint
+msgid "Took"
+msgstr "耗时"
+
+#: src/root/root.slint
+msgid "{} · 5 of 5 steps"
+msgstr "{} · 已完成 5/5 步"
+
+#: src/root/root.slint
+msgid "Root setup"
+msgstr "Root 设置"
+
+#: src/root/root.slint
+msgid "Full root · {}"
+msgstr "完整 Root · {}"
+
+#: src/root/root.slint
+msgid "Beta · Play Store image"
+msgstr "Beta · Play Store 映像"
+
+#: src/root/root.slint
+msgid "Waiting to set up root"
+msgstr "等待设置 Root"
+
+# unsure: kept Magisk's button as “Grant” because the emulator's Android (and so Magisk) is usually English; on a Chinese device Magisk shows 允许.
+#: src/root/root.slint
+msgid "Tap Grant on the device"
+msgstr "在设备上轻点“Grant”"
+
+#: src/root/root.slint
+msgid "Setting up root… · step {} of 5"
+msgstr "正在设置 Root… · 第 {} 步，共 5 步"
+
+#: src/root/root.slint
+msgid "Setting up root… · step 5 of 5"
+msgstr "正在设置 Root… · 第 5 步，共 5 步"
+
+#: src/root/root.slint
+msgid "Rooted · Magisk {} · verified just now"
+msgstr "已 Root · Magisk {} · 刚刚验证"
+
+#: src/root/root.slint
+msgid "Reboots the device to finish root setup (about 40 s). Leave it running; you can close this sheet."
+msgstr "将重启设备以完成 Root 设置（约 40 秒）。请保持设备运行；你可以关闭此面板。"
+
+#: src/root/root.slint
+msgid "Jidr checked that su really answers as root before saying so."
+msgstr "Jidr 先确认 su 确实以 root 身份响应，然后才显示已 Root。"
+
+#: src/root/root.slint
+msgid "Couldn't download Magisk {}. Nothing on {} changed; check the connection and try again."
+msgstr "无法下载 Magisk {}。{} 未做任何更改；请检查网络连接后重试。"
+
+#: src/root/root.slint
+msgid "Couldn't patch the boot image. {} is unchanged."
+msgstr "无法修补启动映像。{} 未做任何更改。"
+
+#: src/root/root.slint
+msgid "{} didn't finish booting after the reboot. Your data is intact and the original boot image is kept, so you can revert."
+msgstr "{} 重启后未能完成启动。你的数据完好无损，原始启动映像也已保留，因此可以还原。"
+
+#: src/root/root.slint
+msgid "Couldn't install the Magisk app on {}. Your data is intact and the original boot image is kept, so you can revert."
+msgstr "无法在 {} 上安装 Magisk 应用。你的数据完好无损，原始启动映像也已保留，因此可以还原。"
+
+#: src/root/root.slint
+msgid "su -c id didn't answer as root on {}. Your data is intact and the original boot image is kept, so you can revert."
+msgstr "在 {} 上，su -c id 未以 root 身份响应。你的数据完好无损，原始启动映像也已保留，因此可以还原。"
+
+#: src/root/root.slint
+msgid "Root setup starts when Android finishes its first boot. Play Store images are signed by Google, so this path is less tested."
+msgstr "Android 完成首次启动后将开始设置 Root。Play Store 映像由 Google 签名，因此此流程的测试较少。"
+
+# unsure: kept “Grant” / “Forever” as Magisk shows them on an English device (Chinese Magisk: 允许 / 永久).
+#: src/root/root.slint
+msgid "Magisk will ask to grant root to Shell. Tap Grant in the device window. Jidr waits {} more; \"Forever\" is up to you."
+msgstr "Magisk 会询问是否向 Shell 授予 Root 权限。请在设备窗口中轻点“Grant”。Jidr 还会等待 {}；是否选择“Forever”由你决定。"
+
+#: src/root/root.slint
+msgid "Shell wasn't granted root, so Jidr can't say {} is rooted. Try again and tap Grant, or revert to unrooted. Your data is intact."
+msgstr "Shell 未获得 Root 权限，因此 Jidr 无法确认 {} 已 Root。请重试并轻点“Grant”，或移除 Root。你的数据完好无损。"
+
+#: src/root/root.slint
+msgid "Stop and revert"
+msgstr "停止并还原"
+
+#: src/root/root.slint
+msgid "Hide steps"
+msgstr "隐藏步骤"
+
+#: src/root/root.slint
+msgid "Show steps"
+msgstr "显示步骤"
+
+#: src/root/root.slint
+msgid "Copy log"
+msgstr "复制日志"
+
+#: src/root/root.slint
+msgid "Don't root this device"
+msgstr "不 Root 此设备"
+
+#: src/root/root.slint ui/wizard.slint
+msgid "Continue in background"
+msgstr "在后台继续"
+
+#: src/root/root.slint ui/snapshots.slint
+msgid "Save snapshot…"
+msgstr "保存快照…"
+
+#: src/root/root.slint
+msgid "Revert to unrooted"
+msgstr "移除 Root"
+
+#: src/root/root.slint
+msgid "Try again"
+msgstr "重试"
+
+#: src/root/root.slint ui/components/status.slint
+msgid "Beta"
+msgstr "Beta"
+
+#: src/root/root.slint ui/device_form.slint ui/wizard.slint
+msgid "Root mode"
+msgstr "Root 模式"
+
+#: src/root/root.slint
+msgid "None"
+msgstr "无"
+
+#: src/root/root.slint
+msgid "A stock device. Test apps as users see them."
+msgstr "原厂设备。以用户看到的样子测试应用。"
+
+#: src/root/root.slint
+msgid "A stock device."
+msgstr "原厂设备。"
+
+#: src/root/root.slint
+msgid "adb root works. Nothing on the system changes."
+msgstr "可使用 adb root。系统不会有任何更改。"
+
+#: src/root/root.slint
+msgid "adb root works. Nothing changes."
+msgstr "可使用 adb root。不做任何更改。"
+
+#: src/root/root.slint
+msgid "Installs and verifies Magisk {}. Reboots once (about 40 s)."
+msgstr "安装并验证 Magisk {}。重启一次（约 40 秒）。"
+
+#: src/root/root.slint
+msgid "Magisk, verified. One reboot."
+msgstr "Magisk，已验证。需重启一次。"
+
+#: src/root/root.slint
+msgid "Root"
+msgstr "Root"
+
+#: src/root/root.slint
+msgid "Verified {}"
+msgstr "验证于 {}"
+
+#: src/root/root.slint
+msgid "Not verified yet"
+msgstr "尚未验证"
+
+#: src/root/root.slint
+msgid "Set up Full root…"
+msgstr "设置完整 Root…"
+
+#: src/root/root.slint ui/launcher.slint
+msgid "Verify again"
+msgstr "重新验证"
+
+#: src/root/root.slint ui/launcher.slint
+msgid "Revert to unrooted…"
+msgstr "移除 Root…"
+
+#: src/root/root.slint
+msgid "Auto-grant root to all apps"
+msgstr "自动向所有应用授予 Root 权限"
+
+#: src/root/root.slint
+msgid "Needs a newer Jidr daemon."
+msgstr "需要更新版本的 Jidr 守护进程。"
+
+#: src/root/root.slint
+msgid "On: every app that asks gets root without a prompt."
+msgstr "开启：所有请求的应用都会直接获得 Root 权限，不再提示。"
+
+#: src/root/root.slint
+msgid "Off: apps ask and you tap Grant. adb shell is always granted."
+msgstr "关闭：应用会发出请求，由你轻点“Grant”。adb shell 始终获得授权。"
+
+#: src/root/steps.rs
+msgid "stopped"
+msgstr "已停止"
+
+#: src/root/steps.rs
+msgid "Shell wasn't granted root"
+msgstr "Shell 未获得 Root 权限"
+
+#: src/root/steps.rs
+msgid "boot timed out"
+msgstr "启动超时"
+
+#: src/root/steps.rs
+msgid "su didn't answer as root"
+msgstr "su 未以 root 身份响应"
+
+#: src/root/steps.rs
+msgid "download failed"
+msgstr "下载失败"
+
+#: src/root/steps.rs
+msgid "patch step failed"
+msgstr "修补步骤失败"
+
+#: src/root/steps.rs
+msgid "boot failed"
+msgstr "启动失败"
+
+#: src/root/steps.rs
+msgid "Magisk app install failed"
+msgstr "Magisk 应用安装失败"
+
+#: src/root/steps.rs
+msgid "verification failed"
+msgstr "验证失败"
+
+#: src/settings/mod.rs ui/settings.slint
+msgid "System"
+msgstr "系统"
+
+#: src/settings/mod.rs ui/settings.slint
+msgid "Ready"
+msgstr "就绪"
+
+#: src/settings/mod.rs ui/app.slint ui/launcher.slint ui/shell.slint
+msgid "Not installed"
+msgstr "未安装"
+
+#: src/settings/mod.rs
+msgid "OpenStreetMap (default)"
+msgstr "OpenStreetMap（默认）"
+
+#: src/settings/mod.rs
+msgid "Custom"
+msgstr "自定义"
+
+#: src/settings/mod.rs
+msgid "Total"
+msgstr "总计"
+
+#: src/settings/mod.rs
+msgid "No devices"
+msgstr "无设备"
+
+#: src/settings/mod.rs
+msgid "claude_desktop_config.json isn't valid JSON: {}"
+msgstr "claude_desktop_config.json 不是有效的 JSON：{}"
+
+#: src/settings/mod.rs
+msgid "claude_desktop_config.json isn't a JSON object"
+msgstr "claude_desktop_config.json 不是 JSON 对象"
+
+#: src/settings/mod.rs
+msgid "mcpServers isn't a JSON object"
+msgstr "mcpServers 不是 JSON 对象"
+
+#: src/settings/mod.rs
+msgid "Emulator {}"
+msgstr "模拟器 {}"
+
+#: src/settings/mod.rs
+msgid "Cleared the download cache"
+msgstr "已清除下载缓存"
+
+#: src/settings/mod.rs
+msgid "Added Jidr to Claude Desktop. Restart Claude to use it."
+msgstr "已将 Jidr 添加到 Claude Desktop。重启 Claude 后即可使用。"
+
+#: src/settings/mod.rs
+msgid "Can't find Claude Desktop's settings folder"
+msgstr "找不到 Claude Desktop 的设置文件夹"
+
+#: src/settings/mod.rs
+msgid "Copied"
+msgstr "已复制"
+
+#: src/settings/mod.rs
+msgid "Checking…"
+msgstr "正在检查…"
+
+#: src/settings/mod.rs
+msgid "Couldn't save the setting: {}"
+msgstr "无法保存设置：{}"
+
+#: src/settings/mod.rs
+msgid "{n} device"
+msgid_plural "{n} devices"
+msgstr[0] "{n} 台设备"
+
+#: src/settings/update.rs
+msgid "You're up to date ({})"
+msgstr "已是最新版本（{}）"
+
+#: src/settings/update.rs
+msgid "Jidr {} is available. Update with {}"
+msgstr "Jidr {} 现已推出。更新命令：{}"
+
+#: src/settings/update.rs
+msgid "Copy command"
+msgstr "复制命令"
+
+#: src/settings/update.rs
+msgid "Jidr {} is available"
+msgstr "Jidr {} 现已推出"
+
+#: src/settings/update.rs ui/wizard.slint
+msgid "Download"
+msgstr "下载"
+
+#: src/settings/update.rs
+msgid "Couldn't reach GitHub"
+msgstr "无法连接到 GitHub"
+
+#: src/settings/update.rs
+msgid "Open releases page"
+msgstr "打开发布页面"
+
+#: src/snapshots/mod.rs
+msgid "Not tagged"
+msgstr "未标记"
+
+#: src/snapshots/mod.rs
+msgid "another root mode"
+msgstr "其他 Root 模式"
+
+# unsure: root mode names put in “” so the sentence works for 完整 Root, 未 Root and 其他 Root 模式 alike.
+#: src/snapshots/mod.rs
+msgid "{0} is {1} now. Snapshots taken with {2} can't be restored until {2} is set up again."
+msgstr "{0} 当前为“{1}”。在“{2}”下拍摄的快照需重新设置“{2}”后才能恢复。"
+
+#: src/snapshots/mod.rs
+msgid "Taken with: {}{}"
+msgstr "拍摄时模式：{}{}"
+
+#: src/snapshots/mod.rs
+msgid "It was taken with {}. {} is {} now, so restoring it would bring back a root setup Jidr hasn't verified on this device."
+msgstr "该快照拍摄时为“{}”。{} 当前为“{}”，因此恢复后会带回 Jidr 尚未在此设备上验证过的 Root 设置。"
+
+#: src/snapshots/mod.rs
+msgid "Set up {} first, then restore. Snapshots taken while {} restore as usual."
+msgstr "请先设置“{}”，再进行恢复。在“{}”下拍摄的快照可照常恢复。"
+
+#: src/snapshots/mod.rs
+msgid "Set up {}…"
+msgstr "设置“{}”…"
+
+#: src/snapshots/mod.rs
+msgid "Start {} to restore a snapshot"
+msgstr "启动 {} 后才能恢复快照"
+
+#: src/snapshots/mod.rs
+msgid "Restored “{}”"
+msgstr "已恢复“{}”"
+
+#: src/snapshots/mod.rs
+msgid "Root set up; the snapshot can be restored now"
+msgstr "Root 已设置，现在可以恢复该快照"
+
+#: src/snapshots/mod.rs
+msgid "Start {} to save a snapshot"
+msgstr "启动 {} 后才能保存快照"
+
+#: src/snapshots/mod.rs
+msgid "Snapshots take about as much disk as the device's data."
+msgstr "快照占用的磁盘空间与设备数据大致相同。"
+
+#: src/snapshots/mod.rs
+msgid "Its other snapshot is {} GB."
+msgstr "它的另一个快照为 {} GB。"
+
+#: src/snapshots/mod.rs
+msgid "Its other snapshots are {} and {} GB."
+msgstr "它的其他快照分别为 {} 和 {} GB。"
+
+#: src/snapshots/mod.rs
+msgid "Saving “{}”…"
+msgstr "正在保存“{}”…"
+
+#: src/snapshots/mod.rs
+msgid "Saved snapshot “{}”"
+msgstr "已保存快照“{}”"
+
+#: src/snapshots/mod.rs
+msgid "Delete “{}”?"
+msgstr "要删除“{}”吗？"
+
+#: src/snapshots/mod.rs
+msgid "Frees {}. The device itself doesn't change. This can't be undone."
+msgstr "将释放 {}。设备本身不会改变。此操作无法撤销。"
+
+# unsure: inserted after “将释放 ” with a space, so it reads 将释放 其占用的磁盘空间; spacing is slightly off.
+#: src/snapshots/mod.rs
+msgid "its disk space"
+msgstr "其占用的磁盘空间"
+
+#: src/snapshots/mod.rs
+msgid "Delete"
+msgstr "删除"
+
+#: src/snapshots/mod.rs
+msgid "Deleted the snapshot"
+msgstr "已删除快照"
+
+#: src/snapshots/mod.rs
+msgid "Every snapshot remembers the root mode it was taken with. {} is {} now, so it can be restored. {} in total."
+msgid_plural "Every snapshot remembers the root mode it was taken with. {} is {} now, so all {n} can be restored. {} in total."
+msgstr[0] "每个快照都会记住拍摄时的 Root 模式。{} 当前为“{}”，因此这 {n} 个快照均可恢复，共 {}。"
+
+#: src/widgets/gps.rs
+msgid "Latitude and longitude must be numbers"
+msgstr "纬度和经度必须是数字"
+
+#: src/widgets/gps.rs
+msgid "Choose a GPX or KML route"
+msgstr "选择 GPX 或 KML 路线"
+
+#: src/wizard/mod.rs
+msgid "Found · used read-only"
+msgstr "已找到 · 以只读方式使用"
+
+#: src/wizard/mod.rs
+msgid "Not found"
+msgstr "未找到"
+
+#: src/wizard/mod.rs
+msgid "Not set"
+msgstr "未设置"
+
+#: src/wizard/mod.rs
+msgid "Android Emulator and platform tools"
+msgstr "Android 模拟器和平台工具"
+
+#: src/wizard/mod.rs
+msgid "size shown when it starts"
+msgstr "开始后显示大小"
+
+#: src/wizard/mod.rs
+msgid "emulator only"
+msgstr "仅模拟器"
+
+#: src/wizard/mod.rs
+msgid "{} + emulator"
+msgstr "{} + 模拟器"
+
+#: src/wizard/mod.rs
+msgid "Created your first device"
+msgstr "已创建你的第一台设备"
+
+#: src/wizard/mod.rs
+msgid "License accepted {}. You can close this window; downloads keep going in Jobs."
+msgstr "已于 {} 接受许可。你可以关闭此窗口，下载会在“任务”中继续进行。"
+
+#: src/wizard/mod.rs
+msgid "{} (API {}) image"
+msgstr "{}（API {}）系统映像"
+
+#: src/wizard/mod.rs
+msgid "Android Emulator"
+msgstr "Android 模拟器"
+
+#: src/wizard/mod.rs
+msgid "Verify checksums"
+msgstr "验证校验和"
+
+#: src/wizard/mod.rs
+msgid "After download"
+msgstr "下载后"
+
+#: src/wizard/mod.rs
+msgid "About {n} min left"
+msgid_plural "About {n} min left"
+msgstr[0] "大约剩余 {n} 分钟"
+
+#: src/wizard/mod.rs
+msgid "About {n} s left"
+msgid_plural "About {n} s left"
+msgstr[0] "大约剩余 {n} 秒"
+
+#: ui/device_form.slint
+msgid "Changes apply the next time the device starts."
+msgstr "更改将在设备下次启动时生效。"
+
+#: ui/device_form.slint ui/wizard.slint
+msgid "Defaults are filled in. Change what you need, then create."
+msgstr "已填入默认值。按需修改后即可创建。"
+
+#: ui/device_form.slint ui/snapshots.slint ui/wizard.slint
+msgid "Name"
+msgstr "名称"
+
+#: ui/device_form.slint ui/wizard.slint
+msgid "Hardware profile"
+msgstr "硬件配置文件"
+
+#: ui/device_form.slint ui/wizard.slint
+msgid "Android version"
+msgstr "Android 版本"
+
+#: ui/device_form.slint
+msgid "Only images that run on Apple Silicon (arm64) are listed."
+msgstr "仅列出可在 Apple 芯片（arm64）上运行的映像。"
+
+#: ui/device_form.slint ui/launcher.slint
+msgid "RAM"
+msgstr "内存"
+
+#: ui/device_form.slint
+msgid "Your Mac has {}."
+msgstr "你的 Mac 有 {}。"
+
+#: ui/device_form.slint
+msgid "CPU cores"
+msgstr "CPU 核心数"
+
+# unsure: unit beside the CPU cores field (“4 of 10”); 共 {} 个, alternative / {}.
+#: ui/device_form.slint
+msgid "of {}"
+msgstr "共 {} 个"
+
+#: ui/device_form.slint ui/launcher.slint
+msgid "Screen"
+msgstr "屏幕"
+
+#: ui/device_form.slint
+msgid "From the profile."
+msgstr "来自硬件配置文件。"
+
+#: ui/device_form.slint
+msgid "Memory"
+msgstr "内存"
+
+#: ui/device_form.slint
+msgid "Lean preset"
+msgstr "精简预设"
+
+#: ui/device_form.slint
+msgid "Lean"
+msgstr "精简"
+
+#: ui/device_form.slint
+msgid "720×1280, 2 GB, 2 cores, no audio or cameras. About 4 GB of host RAM instead of about 6."
+msgstr "720×1280、2 GB、2 核，无音频和摄像头。占用约 4 GB 主机内存，而非约 6 GB。"
+
+#: ui/device_form.slint ui/settings.slint
+msgid "Auto-hibernate"
+msgstr "自动休眠"
+
+#: ui/device_form.slint
+msgid "Saves its whole state and frees its RAM when idle."
+msgstr "闲置时保存完整状态并释放内存。"
+
+#: ui/device_form.slint ui/wizard.slint
+msgid "Start after creating"
+msgstr "创建后启动"
+
+#: ui/device_form.slint ui/wizard.slint
+msgid "Create"
+msgstr "创建"
+
+#: ui/forms.slint
+msgid "Not enough RAM to start {}"
+msgstr "内存不足，无法启动 {}"
+
+#: ui/forms.slint
+msgid "It needs about {}, and {} of the {} RAM budget is free."
+msgstr "它需要约 {}，而可用的仅有 {}（内存预算共 {}）。"
+
+#: ui/forms.slint
+msgid "Running devices, longest idle first"
+msgstr "运行中的设备（闲置最久的在前）"
+
+#: ui/forms.slint
+msgid "Hibernates"
+msgstr "将休眠"
+
+#: ui/forms.slint
+msgid "No running device has sat idle. Stop one in the Library, or start anyway."
+msgstr "没有闲置的运行中设备。请在资料库中停止一台设备，或仍然启动。"
+
+#: ui/forms.slint
+msgid "Hibernating saves a device's whole state; Resume brings it back in seconds. Starting anyway can make the Mac swap and slow down."
+msgstr "休眠会保存设备的完整状态；“唤醒”可在几秒内将其恢复。仍然启动可能导致 Mac 使用交换内存而变慢。"
+
+#: ui/forms.slint
+msgid "Start anyway"
+msgstr "仍然启动"
+
+#: ui/forms.slint
+msgid "Hibernate {} and start"
+msgstr "休眠 {} 并启动"
+
+#: ui/forms.slint
+msgid "Hibernate {n} device and start"
+msgid_plural "Hibernate {n} devices and start"
+msgstr[0] "休眠 {n} 台设备并启动"
+
+#: ui/launcher.slint ui/snapshots.slint
+msgid "Restore"
+msgstr "恢复"
+
+#: ui/launcher.slint ui/snapshots.slint
+msgid "Auto"
+msgstr "自动"
+
+#: ui/launcher.slint
+msgid "Saved on every stop"
+msgstr "每次停止时保存"
+
+#: ui/launcher.slint
+msgid "This window only"
+msgstr "仅此窗口"
+
+#: ui/launcher.slint
+msgid "Open"
+msgstr "打开"
+
+#: ui/launcher.slint ui/player.slint
+msgid "Start"
+msgstr "启动"
+
+# unsure: 唤醒 (wake) for resuming a hibernated device; alternative 恢复, but 恢复 is already Restore (snapshot).
+#: ui/launcher.slint ui/player.slint
+msgid "Resume"
+msgstr "唤醒"
+
+#: ui/launcher.slint
+msgid "Hibernate"
+msgstr "休眠"
+
+#: ui/launcher.slint
+msgid "Stop"
+msgstr "停止"
+
+#: ui/launcher.slint
+msgid "Its whole state is saved and it uses no RAM. Resume picks up where it left off, in seconds."
+msgstr "其完整状态已保存，不占用内存。“唤醒”可在几秒内从上次中断的地方继续。"
+
+#: ui/launcher.slint
+msgid "A read-only base: agents lease throwaway clones of it with pool.get. It never starts itself."
+msgstr "只读的基础设备：智能体通过 pool.get 租用它的一次性克隆。它自身从不启动。"
+
+#: ui/launcher.slint
+msgid "A throwaway clone of {}, leased by an agent. Releasing it deletes it."
+msgstr "{} 的一次性克隆，由智能体租用。释放后即被删除。"
+
+#: ui/launcher.slint
+msgid "Android"
+msgstr "Android"
+
+#: ui/launcher.slint
+msgid "Hardware"
+msgstr "硬件"
+
+#: ui/launcher.slint
+msgid "Root health"
+msgstr "Root 状态"
+
+#: ui/launcher.slint
+msgid "Version"
+msgstr "版本"
+
+#: ui/launcher.slint
+msgid "Image"
+msgstr "映像"
+
+#: ui/launcher.slint
+msgid "Profile"
+msgstr "配置文件"
+
+#: ui/launcher.slint
+msgid "Serial"
+msgstr "序列号"
+
+#: ui/launcher.slint
+msgid "CPU"
+msgstr "CPU"
+
+#: ui/launcher.slint
+msgid "Disk"
+msgstr "磁盘"
+
+#: ui/launcher.slint
+msgid "Mode"
+msgstr "模式"
+
+#: ui/launcher.slint
+msgid "Verified"
+msgstr "验证"
+
+#: ui/launcher.slint ui/snapshots.slint
+msgid "Snapshots"
+msgstr "快照"
+
+#: ui/launcher.slint
+msgid "Manage snapshots"
+msgstr "管理快照"
+
+#: ui/launcher.slint
+msgid "No snapshots yet. Save one from the device window with ⌘S."
+msgstr "尚无快照。在设备窗口中按 ⌘S 保存快照。"
+
+#: ui/launcher.slint
+msgid "Session"
+msgstr "会话"
+
+#: ui/launcher.slint
+msgid "Save as base…"
+msgstr "存为基础设备…"
+
+#: ui/launcher.slint
+msgid "Uptime"
+msgstr "运行时长"
+
+#: ui/launcher.slint
+msgid "Last started"
+msgstr "上次启动"
+
+# unsure: 控制方 (who drives the device: this window or an agent); alternative 操控者.
+#: ui/launcher.slint
+msgid "Driven by"
+msgstr "控制方"
+
+#: ui/launcher.slint
+msgid "Lease"
+msgstr "租用"
+
+#: ui/launcher.slint
+msgid "Base"
+msgstr "基础设备"
+
+#: ui/launcher.slint
+msgid "Clones"
+msgstr "克隆"
+
+#: ui/launcher.slint
+msgid "No devices yet"
+msgstr "尚无设备"
+
+#: ui/launcher.slint
+msgid "Jidr needs Google's Android Emulator and one system image before it can create a device. Nothing downloads until you accept Google's license."
+msgstr "Jidr 需要 Google 的 Android 模拟器和一个系统映像才能创建设备。在你接受 Google 的许可之前，不会下载任何内容。"
+
+#: ui/launcher.slint
+msgid "Find an Android SDK on this Mac, or install one"
+msgstr "在这台 Mac 上查找 Android SDK，或安装一个"
+
+#: ui/launcher.slint
+msgid "Read and accept Google's SDK license"
+msgstr "阅读并接受 Google 的 SDK 许可"
+
+#: ui/launcher.slint
+msgid "Download the emulator and Android 15 (API 35)"
+msgstr "下载模拟器和 Android 15（API 35）"
+
+#: ui/launcher.slint
+msgid "Use an SDK I already have…"
+msgstr "使用已有的 SDK…"
+
+#: ui/palette.slint
+msgid "Type a command or a device name"
+msgstr "输入命令或设备名称"
+
+#: ui/palette.slint
+msgid "Nothing matches “{}”."
+msgstr "没有与“{}”匹配的结果。"
+
+#: ui/player.slint
+msgid "Logcat"
+msgstr "Logcat"
+
+#: ui/player.slint
+msgid "Filter tag, pid or text"
+msgstr "按标签、pid 或文本过滤"
+
+#: ui/player.slint
+msgid "Following"
+msgstr "跟随中"
+
+#: ui/player.slint
+msgid "Follow"
+msgstr "跟随"
+
+#: ui/player.slint
+msgid "Paused"
+msgstr "已暂停"
+
+#: ui/player.slint
+msgid "Battery"
+msgstr "电池"
+
+#: ui/player.slint
+msgid "GPS"
+msgstr "GPS"
+
+#: ui/player.slint
+msgid "Network"
+msgstr "网络"
+
+#: ui/player.slint
+msgid "Sensors"
+msgstr "传感器"
+
+#: ui/player.slint
+msgid "Pixel-perfect · 1 device pixel = 1 screen pixel"
+msgstr "像素级精确 · 1 设备像素 = 1 屏幕像素"
+
+# unsure: button that leaves pixel-perfect mode; 适应 (fit to window), alternative 适合窗口.
+#: ui/player.slint
+msgid "Fit"
+msgstr "适应"
+
+#: ui/player.slint
+msgid "{n} error"
+msgid_plural "{n} errors"
+msgstr[0] "{n} 个错误"
+
+#: ui/settings.slint
+msgid "Copy"
+msgstr "复制"
+
+#: ui/settings.slint
+msgid "General"
+msgstr "通用"
+
+#: ui/settings.slint
+msgid "Storage"
+msgstr "存储"
+
+#: ui/settings.slint
+msgid "Agents"
+msgstr "智能体"
+
+#: ui/settings.slint
+msgid "About"
+msgstr "关于"
+
+#: ui/settings.slint
+msgid "Default root mode"
+msgstr "默认 Root 模式"
+
+#: ui/settings.slint
+msgid "Used by New device and by jidr device create when --root is not given."
+msgstr "用于“新建设备”，以及未指定 --root 时的 jidr device create。"
+
+#: ui/settings.slint
+msgid "Map tiles"
+msgstr "地图瓦片"
+
+#: ui/settings.slint
+msgid "Pick Custom to use your own tile server. The attribution stays visible on the GPS map."
+msgstr "选择“自定义”以使用你自己的瓦片服务器。GPS 地图上会始终显示版权署名。"
+
+# unsure: one msgid for Appearance (浅色) and the light sensor (lux, would be 光照); chose 浅色, the sensor row reads wrong. Needs a msgctxt split.
+#: ui/settings.slint
+msgid "Light"
+msgstr "浅色"
+
+#: ui/settings.slint
+msgid "Dark"
+msgstr "深色"
+
+#: ui/settings.slint
+msgid "Language"
+msgstr "语言"
+
+#: ui/settings.slint
+msgid "System follows the order of your Mac's preferred languages."
+msgstr "“系统”会按照 Mac 偏好语言的顺序选择。"
+
+#: ui/settings.slint
+msgid "Save a quick-boot snapshot when a device stops"
+msgstr "设备停止时保存快速启动快照"
+
+#: ui/settings.slint
+msgid "Starts take seconds instead of a full boot. Uses disk per device."
+msgstr "只需几秒即可启动，无需完整启动。每台设备都会占用磁盘空间。"
+
+#: ui/settings.slint
+msgid "Hibernates running devices left idle that long, freeing their RAM. Devices can override it."
+msgstr "运行中的设备闲置达到该时长后将休眠，以释放内存。可针对单台设备覆盖此设置。"
+
+#: ui/settings.slint ui/shell.slint
+msgid "Android SDK"
+msgstr "Android SDK"
+
+#: ui/settings.slint ui/widgets/panels.slint
+msgid "Change…"
+msgstr "更改…"
+
+#: ui/settings.slint
+msgid "Show in Finder"
+msgstr "在访达中显示"
+
+#: ui/settings.slint ui/shell.slint
+msgid "Devices"
+msgstr "设备"
+
+#: ui/settings.slint
+msgid "System images"
+msgstr "系统映像"
+
+#: ui/settings.slint
+msgid "Download cache"
+msgstr "下载缓存"
+
+#: ui/settings.slint
+msgid "Magisk and finished downloads. Safe to clear."
+msgstr "Magisk 和已完成的下载。可以安全清除。"
+
+#: ui/settings.slint
+msgid "Clear cache"
+msgstr "清除缓存"
+
+#: ui/settings.slint
+msgid "Jidr runs an MCP server, so an agent can take screenshots, tap, type and read logs. While it drives, the device shows Busy · in use by agent and you can watch in the device window."
+msgstr "Jidr 运行一个 MCP 服务器，让智能体可以截屏、轻点、输入和读取日志。智能体操控期间，设备会显示“忙碌 · 正由智能体使用”，你可以在设备窗口中观看。"
+
+#: ui/settings.slint
+msgid "Claude Desktop"
+msgstr "Claude Desktop"
+
+#: ui/settings.slint
+msgid "Adds the server to claude_desktop_config.json. Restart Claude after."
+msgstr "将服务器添加到 claude_desktop_config.json。完成后请重启 Claude。"
+
+#: ui/settings.slint
+msgid "Add to Claude Desktop"
+msgstr "添加到 Claude Desktop"
+
+#: ui/settings.slint
+msgid "Claude Code"
+msgstr "Claude Code"
+
+#: ui/settings.slint
+msgid "Terminal"
+msgstr "终端"
+
+#: ui/settings.slint
+msgid "Any other MCP client"
+msgstr "其他 MCP 客户端"
+
+#: ui/settings.slint
+msgid "mcp config (JSON)"
+msgstr "mcp 配置（JSON）"
+
+#: ui/settings.slint
+msgid "Tools"
+msgstr "工具"
+
+#: ui/settings.slint
+msgid "Version {} · macOS 14+ · Apple Silicon"
+msgstr "版本 {} · macOS 14+ · Apple 芯片"
+
+#: ui/settings.slint
+msgid "Check for updates"
+msgstr "检查更新"
+
+#: ui/settings.slint
+msgid "Licences"
+msgstr "许可"
+
+#: ui/settings.slint
+msgid "Jidr app (this window)"
+msgstr "Jidr 应用（此窗口）"
+
+#: ui/settings.slint
+msgid "jidr CLI and daemon"
+msgstr "jidr CLI 和守护进程"
+
+#: ui/settings.slint
+msgid "Slint UI toolkit"
+msgstr "Slint UI 工具包"
+
+#: ui/settings.slint
+msgid "Magisk, downloaded on your Mac"
+msgstr "Magisk，在你的 Mac 上下载"
+
+#: ui/settings.slint
+msgid "Android Emulator and system images, downloaded on your Mac"
+msgstr "Android 模拟器和系统映像，在你的 Mac 上下载"
+
+#: ui/settings.slint
+msgid "Android SDK License"
+msgstr "Android SDK 许可"
+
+#: ui/settings.slint
+msgid "Lucide icons"
+msgstr "Lucide 图标"
+
+#: ui/settings.slint
+msgid "Geist, Geist Mono, Noto Kufi Arabic"
+msgstr "Geist, Geist Mono, Noto Kufi Arabic"
+
+#: ui/settings.slint
+msgid "Map data © OpenStreetMap contributors"
+msgstr "地图数据 © OpenStreetMap 贡献者"
+
+#: ui/settings.slint
+msgid "Show full licence texts"
+msgstr "显示完整许可文本"
+
+#: ui/settings.slint
+msgid "Source on GitHub"
+msgstr "GitHub 上的源代码"
+
+#: ui/settings.slint
+msgid "Sponsor Jidr"
+msgstr "赞助 Jidr"
+
+#: ui/settings.slint
+msgid "Android is a trademark of Google LLC. Jidr is not affiliated with Google or Genymotion."
+msgstr "Android 是 Google LLC 的商标。Jidr 与 Google 或 Genymotion 无关联。"
+
+# unsure: 资料库 as macOS names Library sidebars; alternative 设备库.
+#: ui/shell.slint
+msgid "Library"
+msgstr "资料库"
+
+# unsure: 已运行 {} 台 / 约可容纳 {n} 台 (running / fit); check it matches the budget meter.
+#: ui/shell.slint
+msgid "{} of ~{n} device fit"
+msgid_plural "{} of ~{n} devices fit"
+msgstr[0] "已运行 {} 台 / 约可容纳 {n} 台"
+
+#: ui/shell.slint
+msgid "Full: hibernate or stop a device to start another."
+msgstr "已满：休眠或停止一台设备后才能启动其他设备。"
+
+#: ui/shell.slint
+msgid "{} of {} in use · room for one more"
+msgstr "已使用 {} / {} · 还可再启动一台"
+
+#: ui/shell.slint
+msgid "{} of {} RAM budget in use"
+msgstr "已使用 {} / {} 内存预算"
+
+#: ui/shell.slint
+msgid "Commands and devices"
+msgstr "命令和设备"
+
+#: ui/shell.slint
+msgid "No devices yet. Create one with ⌘N."
+msgstr "尚无设备。按 ⌘N 创建。"
+
+#: ui/shell.slint
+msgid "No devices yet. They appear here once the SDK is ready."
+msgstr "尚无设备。SDK 就绪后，设备将显示在这里。"
+
+#: ui/shell.slint
+msgid "Agent pool"
+msgstr "智能体池"
+
+#: ui/shell.slint
+msgid "Bases"
+msgstr "基础设备"
+
+#: ui/shell.slint
+msgid "Jobs"
+msgstr "任务"
+
+#: ui/snapshots.slint
+msgid "Saved on every stop · used for fast start"
+msgstr "每次停止时保存 · 用于快速启动"
+
+#: ui/snapshots.slint
+msgid "No snapshots yet. A snapshot saves memory and disk exactly as they are, tagged with the root mode."
+msgstr "尚无快照。快照会按原样保存内存和磁盘状态，并标记 Root 模式。"
+
+#: ui/snapshots.slint
+msgid "Save snapshot of {}"
+msgstr "保存 {} 的快照"
+
+#: ui/snapshots.slint
+msgid "Saves memory and disk exactly as they are now. Android pauses for a few seconds while it saves."
+msgstr "按当前原样保存内存和磁盘状态。保存期间 Android 会暂停几秒。"
+
+#: ui/snapshots.slint
+msgid "Will be tagged"
+msgstr "将标记为"
+
+#: ui/snapshots.slint
+msgid "Can't restore “{}”"
+msgstr "无法恢复“{}”"
+
+#: ui/snapshots.slint
+msgid "Snapshot"
+msgstr "快照"
+
+#: ui/snapshots.slint
+msgid "Device now"
+msgstr "设备当前"
+
+#: ui/widgets/panels.slint
+msgid "Battery level"
+msgstr "电池电量"
+
+#: ui/widgets/panels.slint
+msgid "Charging"
+msgstr "充电中"
+
+#: ui/widgets/panels.slint
+msgid "Discharging"
+msgstr "放电中"
+
+#: ui/widgets/panels.slint
+msgid "Off: the level drops as Android uses power. Turn on to simulate a charger."
+msgstr "关闭：电量会随 Android 耗电而下降。开启以模拟连接充电器。"
+
+#: ui/widgets/panels.slint
+msgid "Quick set"
+msgstr "快速设置"
+
+#: ui/widgets/panels.slint
+msgid "5% · low battery"
+msgstr "5% · 低电量"
+
+#: ui/widgets/panels.slint
+msgid "100% · full"
+msgstr "100% · 已充满"
+
+# unsure: WLAN as Android in mainland China says; macOS says 无线局域网, many apps keep Wi-Fi.
+#: ui/widgets/panels.slint
+msgid "Wi-Fi"
+msgstr "WLAN"
+
+#: ui/widgets/panels.slint
+msgid "Mobile data"
+msgstr "移动数据"
+
+#: ui/widgets/panels.slint
+msgid "Speed and latency"
+msgstr "速度和延迟"
+
+#: ui/widgets/panels.slint
+msgid "Full speed"
+msgstr "全速"
+
+#: ui/widgets/panels.slint
+msgid "No limit · no added delay"
+msgstr "无限制 · 无额外延迟"
+
+#: ui/widgets/panels.slint
+msgid "Mobile signal"
+msgstr "移动信号"
+
+#: ui/widgets/panels.slint
+msgid "Bars shown in Android's status bar."
+msgstr "Android 状态栏中显示的信号格数。"
+
+#: ui/widgets/panels.slint
+msgid "HTTP proxy"
+msgstr "HTTP 代理"
+
+#: ui/widgets/panels.slint
+msgid "Change"
+msgstr "更改"
+
+#: ui/widgets/panels.slint
+msgid "Set proxy"
+msgstr "设置代理"
+
+#: ui/widgets/panels.slint
+msgid "Clear"
+msgstr "清除"
+
+#: ui/widgets/panels.slint
+msgid "HTTP(S) traffic goes through {}. For HTTPS, trust the proxy's CA under More › Developer tools › CA certificates."
+msgstr "HTTP(S) 流量将通过 {}。对于 HTTPS，请在“更多 › 开发者工具 › CA 证书”中信任代理的 CA。"
+
+#: ui/widgets/panels.slint
+msgid "Off. 10.0.2.2 is this Mac; Burp and mitmproxy listen on 8080."
+msgstr "关闭。10.0.2.2 即这台 Mac；Burp 和 mitmproxy 监听 8080 端口。"
+
+#: ui/widgets/panels.slint
+msgid "Rotation"
+msgstr "旋转"
+
+#: ui/widgets/panels.slint
+msgid "Turns the device; apps that allow rotation follow."
+msgstr "旋转设备；允许旋转的应用会随之旋转。"
+
+#: ui/widgets/panels.slint
+msgid "Motion"
+msgstr "运动"
+
+#: ui/widgets/panels.slint
+msgid "Upright"
+msgstr "直立"
+
+#: ui/widgets/panels.slint
+msgid "Flat on a table"
+msgstr "平放在桌面上"
+
+#: ui/widgets/panels.slint
+msgid "Upside down"
+msgstr "倒置"
+
+#: ui/widgets/panels.slint
+msgid "Environment"
+msgstr "环境"
+
+#: ui/widgets/panels.slint
+msgctxt "light sensor"
+msgid "Light"
+msgstr "光照"
+
+#: ui/widgets/panels.slint
+msgid "Temperature"
+msgstr "温度"
+
+#: ui/widgets/panels.slint
+msgid "Pressure"
+msgstr "气压"
+
+#: ui/widgets/panels.slint
+msgid "Humidity"
+msgstr "湿度"
+
+#: ui/widgets/panels.slint
+msgid "Something near the screen"
+msgstr "有物体靠近屏幕"
+
+#: ui/widgets/panels.slint
+msgid "Proximity sensor: covers the screen during calls."
+msgstr "距离传感器：通话时遮挡屏幕。"
+
+#: ui/widgets/panels.slint
+msgid "Phone"
+msgstr "电话"
+
+#: ui/widgets/panels.slint
+msgid "Incoming call"
+msgstr "来电"
+
+#: ui/widgets/panels.slint
+msgid "Answer"
+msgstr "接听"
+
+#: ui/widgets/panels.slint
+msgid "End"
+msgstr "挂断"
+
+#: ui/widgets/panels.slint
+msgid "SMS text"
+msgstr "短信内容"
+
+#: ui/widgets/panels.slint
+msgid "Send SMS"
+msgstr "发送短信"
+
+#: ui/widgets/panels.slint
+msgid "Android controls"
+msgstr "Android 控制"
+
+#: ui/widgets/panels.slint
+msgid "Previous"
+msgstr "上一首"
+
+#: ui/widgets/panels.slint
+msgid "Play / pause"
+msgstr "播放 / 暂停"
+
+#: ui/widgets/panels.slint
+msgid "Next"
+msgstr "下一首"
+
+#: ui/widgets/panels.slint
+msgid "Developer tools"
+msgstr "开发者工具"
+
+#: ui/widgets/panels.slint
+msgid "Show taps"
+msgstr "显示点按操作"
+
+#: ui/widgets/panels.slint
+msgid "Pointer location"
+msgstr "指针位置"
+
+#: ui/widgets/panels.slint
+msgid "Layout bounds"
+msgstr "布局边界"
+
+#: ui/widgets/panels.slint
+msgid "Animation scale"
+msgstr "动画缩放"
+
+#: ui/widgets/panels.slint
+msgid "Clipboard"
+msgstr "剪贴板"
+
+#: ui/widgets/panels.slint
+msgid "Text for the device clipboard"
+msgstr "要发送到设备剪贴板的文本"
+
+#: ui/widgets/panels.slint
+msgid "Send to device"
+msgstr "发送到设备"
+
+#: ui/widgets/panels.slint
+msgid "Read from device"
+msgstr "从设备读取"
+
+# unsure: fingerprint button simulating a matching finger; 识别成功 / 识别失败 rather than literal 已识别.
+#: ui/widgets/panels.slint
+msgid "Recognised"
+msgstr "识别成功"
+
+#: ui/widgets/panels.slint
+msgid "Unrecognised"
+msgstr "识别失败"
+
+#: ui/widgets/panels.slint
+msgid "Lift"
+msgstr "抬起"
+
+#: ui/widgets/panels.slint
+msgid "Recognised uses finger 1; enrol it once in Android's Security settings."
+msgstr "“识别成功”使用手指 1；请先在 Android 的“安全”设置中录入一次。"
+
+#: ui/widgets/panels.slint
+msgid "Back camera"
+msgstr "后置摄像头"
+
+#: ui/widgets/panels.slint
+msgid "Emulated"
+msgstr "模拟"
+
+#: ui/widgets/panels.slint
+msgid "Webcam"
+msgstr "网络摄像头"
+
+#: ui/widgets/panels.slint
+msgid "Scene"
+msgstr "场景"
+
+#: ui/widgets/panels.slint
+msgctxt "camera"
+msgid "None"
+msgstr "无"
+
+#: ui/widgets/panels.slint
+msgid "Applies the next time the device starts."
+msgstr "设备下次启动时生效。"
+
+#: ui/widgets/panels.slint
+msgid "Latitude"
+msgstr "纬度"
+
+#: ui/widgets/panels.slint
+msgid "Longitude"
+msgstr "经度"
+
+#: ui/widgets/panels.slint
+msgid "Altitude"
+msgstr "海拔"
+
+#: ui/widgets/panels.slint
+msgid "Bearing"
+msgstr "方位角"
+
+#: ui/widgets/panels.slint
+msgid "Set location"
+msgstr "设置位置"
+
+#: ui/widgets/panels.slint
+msgid "Replay a GPX or KML route"
+msgstr "回放 GPX 或 KML 路线"
+
+#: ui/widgets/panels.slint
+msgid "Choose a file…"
+msgstr "选择文件…"
+
+#: ui/widgets/panels.slint
+msgid "Loop"
+msgstr "循环"
+
+#: ui/wizard.slint
+msgid "Set up Jidr"
+msgstr "设置 Jidr"
+
+#: ui/wizard.slint
+msgid "Find SDK"
+msgstr "查找 SDK"
+
+#: ui/wizard.slint
+msgid "License"
+msgstr "许可"
+
+#: ui/wizard.slint
+msgid "First device"
+msgstr "第一台设备"
+
+#: ui/wizard.slint
+msgid "Found an Android SDK"
+msgstr "已找到 Android SDK"
+
+#: ui/wizard.slint
+msgid "No Android SDK on this Mac"
+msgstr "这台 Mac 上没有 Android SDK"
+
+#: ui/wizard.slint
+msgid "Accept Google's SDK license"
+msgstr "接受 Google 的 SDK 许可"
+
+#: ui/wizard.slint
+msgid "Downloaded"
+msgstr "已下载"
+
+#: ui/wizard.slint
+msgid "Create your first device"
+msgstr "创建你的第一台设备"
+
+#: ui/wizard.slint
+msgid "Jidr will use it read-only and keep its own downloads in a separate folder."
+msgstr "Jidr 将以只读方式使用它，并将自己的下载内容存放在单独的文件夹中。"
+
+#: ui/wizard.slint
+msgid "Jidr looked in the usual places. It can install what it needs in its own folder and leave your other tools alone."
+msgstr "Jidr 已在常用位置查找过。它可以将所需内容安装到自己的文件夹中，不会影响你的其他工具。"
+
+#: ui/wizard.slint
+msgid "Jidr downloads Google's Android Emulator and a system image to your Mac. Google's license applies to those files. Jidr shows it in full, unchanged."
+msgstr "Jidr 会将 Google 的 Android 模拟器和一个系统映像下载到你的 Mac。这些文件受 Google 的许可约束。Jidr 会完整、原样地显示该许可。"
+
+#: ui/wizard.slint
+msgid "Jidr will download, after you accept Google's license"
+msgstr "在你接受 Google 的许可后，Jidr 将下载"
+
+#: ui/wizard.slint
+msgid "Into {}"
+msgstr "存放到 {}"
+
+#: ui/wizard.slint
+msgid "You reached the end. Accept to continue, or decline to leave the SDK uninstalled."
+msgstr "你已阅读到末尾。接受以继续，或拒绝以不安装 SDK。"
+
+#: ui/wizard.slint
+msgid "Scroll to the end to accept. Declining leaves the SDK uninstalled."
+msgstr "滚动到末尾才能接受。拒绝则不会安装 SDK。"
+
+#: ui/wizard.slint
+msgid "Use an existing SDK…"
+msgstr "使用现有 SDK…"
+
+#: ui/wizard.slint
+msgid "Back"
+msgstr "返回"
+
+#: ui/wizard.slint
+msgid "Decline"
+msgstr "拒绝"
+
+#: ui/wizard.slint
+msgid "More options…"
+msgstr "更多选项…"
+
+#: ui/wizard.slint
+msgid "Quit"
+msgstr "退出"
+
+#: ui/wizard.slint
+msgid "Continue"
+msgstr "继续"
+
+#: ui/wizard.slint
+msgid "Download: {}"
+msgstr "下载：{}"
+
+#: ui/wizard.slint
+msgid "I accept"
+msgstr "我接受"

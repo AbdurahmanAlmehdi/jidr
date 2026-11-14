@@ -1,0 +1,2463 @@
+# Arabic translation of the Jidr desktop app.
+# Update with `cargo xtask i18n`; the glossary is in crates/jidr-ui/i18n/README.md.
+msgid ""
+msgstr ""
+"Project-Id-Version: jidr-ui\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=(n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 ? 4 : 5);\n"
+
+#: src/app.rs ui/wizard.slint
+msgid "Downloading"
+msgstr "جارٍ التنزيل"
+
+#: src/app.rs
+msgid "Setting up root"
+msgstr "جارٍ إعداد الجذر"
+
+#: src/app.rs
+msgid "Saving a base"
+msgstr "جارٍ حفظ قاعدة"
+
+#: src/app.rs
+msgid "Connecting to the daemon…"
+msgstr "جارٍ الاتصال بالخدمة الخلفية…"
+
+#: src/bridge.rs
+msgid "Reconnecting to the daemon…"
+msgstr "جارٍ إعادة الاتصال بالخدمة الخلفية…"
+
+#: src/device_form/mod.rs src/wizard/mod.rs
+msgid "Installed · {}"
+msgstr "مثبَّت · ⁨{}⁩"
+
+#: src/device_form/mod.rs
+msgid "Downloading · {} / {}"
+msgstr "جارٍ التنزيل · ⁨{}⁩ من ⁨{}⁩"
+
+#: src/device_form/mod.rs
+msgid "Downloading…"
+msgstr "جارٍ التنزيل…"
+
+#: src/device_form/mod.rs
+msgid "Download · {}"
+msgstr "تنزيل · ⁨{}⁩"
+
+#: src/device_form/mod.rs
+msgid "size unknown"
+msgstr "الحجم غير معروف"
+
+#: src/device_form/mod.rs
+msgid "This daemon has no lean profile; update Jidr."
+msgstr "لا يدعم هذا الإصدار من الخدمة الخلفية الإعداد الخفيف؛ حدّث جذر."
+
+#: src/device_form/mod.rs
+msgid "After {} h idle"
+msgstr "بعد ⁨{}⁩ س من الخمول"
+
+#: src/device_form/mod.rs
+msgid "After {} min idle"
+msgstr "بعد ⁨{}⁩ د من الخمول"
+
+#: src/device_form/mod.rs
+msgid "Off"
+msgstr "معطّل"
+
+#: src/device_form/mod.rs
+msgid "Same as Settings ({})"
+msgstr "مثل الإعدادات (⁨{}⁩)"
+
+#: src/device_form/mod.rs
+msgid "Never"
+msgstr "أبدًا"
+
+#: src/device_form/mod.rs
+msgid "RAM must be a number of GB, like 4."
+msgstr "يجب أن تكون الذاكرة عددًا بوحدة GB، مثل 4."
+
+#: src/device_form/mod.rs
+msgid "RAM must be between 0.5 and 64 GB."
+msgstr "يجب أن تكون الذاكرة بين 0.5 و64 GB."
+
+#: src/device_form/mod.rs
+msgid "CPU cores must be a whole number."
+msgstr "يجب أن يكون عدد النوى عددًا صحيحًا."
+
+#: src/device_form/mod.rs
+msgid "CPU cores must be between 1 and 16."
+msgstr "يجب أن يكون عدد النوى بين 1 و16."
+
+#: src/device_form/mod.rs
+msgid "Screen must look like 1080×2400."
+msgstr "يجب أن تكون الشاشة بصيغة ⁨1080×2400⁩."
+
+#: src/device_form/mod.rs
+msgid "Screen sides must be between 240 and 4096 pixels."
+msgstr "يجب أن يكون كل بُعد من أبعاد الشاشة بين 240 و4096 بكسل."
+
+#: src/device_form/mod.rs
+msgid "Give the device a name."
+msgstr "أعطِ الجهاز اسمًا."
+
+#: src/device_form/mod.rs
+msgid "Pick an Android version."
+msgstr "اختر إصدار أندرويد."
+
+#: src/device_form/mod.rs src/root/root.slint
+msgid "Play Store images don't allow adb root."
+msgstr "صور متجر Play لا تسمح بالأمر adb root."
+
+#: src/i18n.rs src/model.rs
+msgid "Stopped"
+msgstr "متوقف"
+
+#: src/i18n.rs src/settings/mod.rs
+msgid "{n} snapshot"
+msgid_plural "{n} snapshots"
+msgstr[0] "لا لقطات"
+msgstr[1] "لقطة واحدة"
+msgstr[2] "لقطتان"
+msgstr[3] "⁨{n}⁩ لقطات"
+msgstr[4] "⁨{n}⁩ لقطة"
+msgstr[5] "⁨{n}⁩ لقطة"
+
+#: src/launcher/mod.rs
+msgid "Hibernating {} to make room"
+msgstr "جارٍ إسبات ⁨{}⁩ لإفساح المجال"
+
+#: src/launcher/mod.rs src/model.rs
+msgid "Cancelled"
+msgstr "أُلغي"
+
+#: src/launcher/mod.rs
+msgid "Root verified"
+msgstr "تم التحقق من الجذر"
+
+#: src/launcher/mod.rs
+msgid "Revert {} to unrooted?"
+msgstr "إزالة الجذر من ⁨{}⁩؟"
+
+#: src/launcher/mod.rs
+msgid "Removes root and cold boots the device (about 40 s). Apps and data stay. Snapshots taken with root can't be restored until root is set up again."
+msgstr "يزيل الجذر ويُقلع الجهاز إقلاعًا باردًا (نحو 40 ث). تبقى التطبيقات والبيانات. لا يمكن استعادة اللقطات المأخوذة مع الجذر حتى يُعاد إعداده."
+
+#: src/launcher/mod.rs
+msgid "Revert"
+msgstr "إزالة الجذر"
+
+#: src/launcher/mod.rs
+msgid "Reverted {} to unrooted"
+msgstr "أُزيل الجذر من ⁨{}⁩"
+
+#: src/launcher/mod.rs
+msgid "Hibernated {}"
+msgstr "تم إسبات ⁨{}⁩"
+
+#: src/launcher/mod.rs
+msgid "Save {} as a base?"
+msgstr "حفظ ⁨{}⁩ كقاعدة؟"
+
+#: src/launcher/mod.rs
+msgid "Agents lease throwaway clones of a base with pool.get. {} stops, and “{}” becomes a read-only copy of it, animations off."
+msgstr "يحجز الوكلاء نسخًا مؤقتة من القاعدة عبر pool.get. سيتوقف ⁨{}⁩، ويصبح «⁨{}⁩» نسخة للقراءة فقط منه، بلا رسوم متحركة."
+
+#: src/launcher/mod.rs
+msgid "Save as base"
+msgstr "حفظ كقاعدة"
+
+#: src/launcher/mod.rs
+msgid "Saved {} as a base"
+msgstr "حُفظ ⁨{}⁩ كقاعدة"
+
+#: src/launcher/mod.rs
+msgid "Saved {}"
+msgstr "حُفظ ⁨{}⁩"
+
+#: src/launcher/mod.rs
+msgid "Created {}"
+msgstr "أُنشئ ⁨{}⁩"
+
+#: src/model.rs
+msgid "{} s"
+msgstr "⁨{}⁩ ث"
+
+#: src/model.rs
+msgid "{} m"
+msgstr "⁨{}⁩ د"
+
+#: src/model.rs
+msgid "{} h {} m"
+msgstr "⁨{}⁩ س ⁨{}⁩ د"
+
+#: src/model.rs
+msgid "just now"
+msgstr "للتو"
+
+#: src/model.rs
+msgid "Jan"
+msgstr "يناير"
+
+#: src/model.rs
+msgid "Feb"
+msgstr "فبراير"
+
+#: src/model.rs
+msgid "Mar"
+msgstr "مارس"
+
+#: src/model.rs
+msgid "Apr"
+msgstr "أبريل"
+
+#: src/model.rs
+msgid "May"
+msgstr "مايو"
+
+#: src/model.rs
+msgid "Jun"
+msgstr "يونيو"
+
+#: src/model.rs
+msgid "Jul"
+msgstr "يوليو"
+
+#: src/model.rs
+msgid "Aug"
+msgstr "أغسطس"
+
+#: src/model.rs
+msgid "Sep"
+msgstr "سبتمبر"
+
+#: src/model.rs
+msgid "Oct"
+msgstr "أكتوبر"
+
+#: src/model.rs
+msgid "Nov"
+msgstr "نوفمبر"
+
+#: src/model.rs
+msgid "Dec"
+msgstr "ديسمبر"
+
+#: src/model.rs
+msgid "{0} {1}, {2}"
+msgstr "⁨{1}⁩ ⁨{0}⁩، ⁨{2}⁩"
+
+#: src/model.rs
+msgid "Releasing…"
+msgstr "جارٍ التحرير…"
+
+#: src/model.rs
+msgid "{} left"
+msgstr "بقي ⁨{}⁩"
+
+#: src/model.rs
+msgid "Agent gone · released in {}"
+msgstr "غادر الوكيل · تُحرَّر بعد ⁨{}⁩"
+
+#: src/model.rs
+msgid "While its agent is connected"
+msgstr "ما دام وكيلها متصلًا"
+
+#: src/model.rs
+msgid "No clones leased"
+msgstr "لا نسخ محجوزة"
+
+#: src/model.rs
+msgid "Busy · in use by {}"
+msgstr "مشغول · يستخدمه ⁨{}⁩"
+
+#: src/model.rs
+msgid "Base · {}"
+msgstr "قاعدة · ⁨{}⁩"
+
+#: src/model.rs
+msgid "Leased · {}"
+msgstr "محجوز · ⁨{}⁩"
+
+#: src/model.rs
+msgid "Hibernated"
+msgstr "في إسبات"
+
+#: src/model.rs src/root/cacerts/mod.rs src/widgets/gps.rs
+msgid "Starting…"
+msgstr "جارٍ البدء…"
+
+# unsure: percent sign sits after the isolate, so it renders as %42 in RTL.
+#: src/model.rs
+msgid "Booting Android… {}%"
+msgstr "جارٍ إقلاع أندرويد… ⁨{}⁩%"
+
+#: src/model.rs
+msgid "Booting Android…"
+msgstr "جارٍ إقلاع أندرويد…"
+
+#: src/model.rs
+msgid "Running · {}"
+msgstr "قيد التشغيل · ⁨{}⁩"
+
+#: src/model.rs
+msgid "Running"
+msgstr "قيد التشغيل"
+
+#: src/model.rs
+msgid "Stopping…"
+msgstr "جارٍ الإيقاف…"
+
+#: src/model.rs
+msgid "Crashed"
+msgstr "تعطّل"
+
+#: src/model.rs src/root/root.slint
+msgid "Setting up root…"
+msgstr "جارٍ إعداد الجذر…"
+
+#: src/model.rs
+msgid "Setup"
+msgstr "إعداد"
+
+#: src/model.rs
+msgid "Not rooted"
+msgstr "بلا جذر"
+
+#: src/model.rs
+msgid "No root"
+msgstr "بلا جذر"
+
+#: src/model.rs src/root/root.slint
+msgid "Shell root (adb)"
+msgstr "جذر Shell ⁨(adb)⁩"
+
+#: src/model.rs
+msgid "Shell"
+msgstr "Shell"
+
+#: src/model.rs
+msgid "Rooted · Magisk {}"
+msgstr "مُجذَّر · Magisk ⁨{}⁩"
+
+#: src/model.rs src/root/root.slint
+msgid "Rooted"
+msgstr "مُجذَّر"
+
+#: src/model.rs src/root/root.slint
+msgid "Root failed"
+msgstr "فشل الجذر"
+
+#: src/model.rs
+msgid "Failed"
+msgstr "فشل"
+
+#: src/model.rs src/root/root.slint
+msgid "Root unverified"
+msgstr "الجذر غير مُتحقَّق منه"
+
+#: src/model.rs
+msgid "Unverified"
+msgstr "غير مُتحقَّق"
+
+#: src/model.rs src/root/root.slint
+msgid "Full root"
+msgstr "جذر كامل"
+
+#: src/model.rs
+msgid "Full"
+msgstr "كامل"
+
+#: src/model.rs src/root/root.slint
+msgid "Shell root"
+msgstr "جذر Shell"
+
+#: src/model.rs
+msgid "Not needed"
+msgstr "غير لازم"
+
+#: src/model.rs
+msgid "Not yet"
+msgstr "ليس بعد"
+
+#: src/model.rs
+msgid "Today, {}"
+msgstr "اليوم، ⁨{}⁩"
+
+#: src/model.rs
+msgid "Idle {} · {}"
+msgstr "خامل منذ ⁨{}⁩ · ⁨{}⁩"
+
+#: src/model.rs src/root/root.slint src/wizard/mod.rs
+msgid "Done"
+msgstr "تم"
+
+#: src/model.rs src/root/root.slint src/wizard/mod.rs
+msgid "Queued"
+msgstr "في الانتظار"
+
+#: src/model.rs src/snapshots/mod.rs ui/settings.slint
+msgid "Quick boot"
+msgstr "الإقلاع السريع"
+
+# unsure: badge on a snapshot; alternative «وضع الجذر: {}».
+#: src/model.rs src/snapshots/mod.rs
+msgid "Taken with: {}"
+msgstr "التُقطت مع: ⁨{}⁩"
+
+#: src/model.rs
+msgid "{n} min ago"
+msgid_plural "{n} min ago"
+msgstr[0] "منذ ⁨{n}⁩ دقيقة"
+msgstr[1] "منذ دقيقة"
+msgstr[2] "منذ دقيقتين"
+msgstr[3] "منذ ⁨{n}⁩ دقائق"
+msgstr[4] "منذ ⁨{n}⁩ دقيقة"
+msgstr[5] "منذ ⁨{n}⁩ دقيقة"
+
+#: src/model.rs
+msgid "{n} h ago"
+msgid_plural "{n} h ago"
+msgstr[0] "منذ ⁨{n}⁩ ساعة"
+msgstr[1] "منذ ساعة"
+msgstr[2] "منذ ساعتين"
+msgstr[3] "منذ ⁨{n}⁩ ساعات"
+msgstr[4] "منذ ⁨{n}⁩ ساعة"
+msgstr[5] "منذ ⁨{n}⁩ ساعة"
+
+#: src/model.rs
+msgid "{n} day ago"
+msgid_plural "{n} days ago"
+msgstr[0] "منذ ⁨{n}⁩ يوم"
+msgstr[1] "منذ يوم"
+msgstr[2] "منذ يومين"
+msgstr[3] "منذ ⁨{n}⁩ أيام"
+msgstr[4] "منذ ⁨{n}⁩ يومًا"
+msgstr[5] "منذ ⁨{n}⁩ يوم"
+
+#: src/model.rs
+msgid "{n} clone leased"
+msgid_plural "{n} clones leased"
+msgstr[0] "لا نسخ محجوزة"
+msgstr[1] "نسخة واحدة محجوزة"
+msgstr[2] "نسختان محجوزتان"
+msgstr[3] "⁨{n}⁩ نسخ محجوزة"
+msgstr[4] "⁨{n}⁩ نسخة محجوزة"
+msgstr[5] "⁨{n}⁩ نسخة محجوزة"
+
+#: src/model.rs
+msgid "{n} core"
+msgid_plural "{n} cores"
+msgstr[0] "⁨{n}⁩ نواة"
+msgstr[1] "نواة واحدة"
+msgstr[2] "نواتان"
+msgstr[3] "⁨{n}⁩ نوى"
+msgstr[4] "⁨{n}⁩ نواة"
+msgstr[5] "⁨{n}⁩ نواة"
+
+#: src/model.rs
+msgid "{n} min left"
+msgid_plural "{n} min left"
+msgstr[0] "بقيت ⁨{n}⁩ دقيقة"
+msgstr[1] "بقيت دقيقة"
+msgstr[2] "بقيت دقيقتان"
+msgstr[3] "بقيت ⁨{n}⁩ دقائق"
+msgstr[4] "بقيت ⁨{n}⁩ دقيقة"
+msgstr[5] "بقيت ⁨{n}⁩ دقيقة"
+
+#: src/model.rs
+msgid "{n} s left"
+msgid_plural "{n} s left"
+msgstr[0] "بقيت ⁨{n}⁩ ثانية"
+msgstr[1] "بقيت ثانية"
+msgstr[2] "بقيت ثانيتان"
+msgstr[3] "بقيت ⁨{n}⁩ ثوانٍ"
+msgstr[4] "بقيت ⁨{n}⁩ ثانية"
+msgstr[5] "بقيت ⁨{n}⁩ ثانية"
+
+#: src/palette/mod.rs
+msgid "Open {}"
+msgstr "فتح ⁨{}⁩"
+
+#: src/palette/mod.rs ui/launcher.slint
+msgid "Set up Android SDK"
+msgstr "إعداد Android SDK"
+
+#: src/palette/mod.rs
+msgid "Find or install the emulator and an image"
+msgstr "العثور على المحاكي وصورة نظام أو تثبيتهما"
+
+#: src/palette/mod.rs ui/device_form.slint
+msgid "New device"
+msgstr "جهاز جديد"
+
+#: src/palette/mod.rs
+msgid "Create a device from a profile"
+msgstr "إنشاء جهاز من ملف تعريف"
+
+#: src/palette/mod.rs
+msgid "Resume {}"
+msgstr "استئناف ⁨{}⁩"
+
+#: src/palette/mod.rs
+msgid "Back where it was, in seconds"
+msgstr "يعود كما كان، في ثوانٍ"
+
+#: src/palette/mod.rs
+msgid "Start {}"
+msgstr "تشغيل ⁨{}⁩"
+
+#: src/palette/mod.rs
+msgid "Stop {}"
+msgstr "إيقاف ⁨{}⁩"
+
+#: src/palette/mod.rs
+msgid "Saves a quick-boot snapshot"
+msgstr "يحفظ لقطة للإقلاع السريع"
+
+#: src/palette/mod.rs
+msgid "Hibernate {}"
+msgstr "إسبات ⁨{}⁩"
+
+#: src/palette/mod.rs
+msgid "Saves its whole state and frees its RAM"
+msgstr "يحفظ حالته كاملةً ويحرّر ذاكرته"
+
+#: src/palette/mod.rs
+msgid "Save {} as a base…"
+msgstr "حفظ ⁨{}⁩ كقاعدة…"
+
+#: src/palette/mod.rs
+msgid "For agents' throwaway clones (pool.get)"
+msgstr "لنسخ الوكلاء المؤقتة ⁨(pool.get)⁩"
+
+#: src/palette/mod.rs ui/device_form.slint
+msgid "Edit {}"
+msgstr "تعديل ⁨{}⁩"
+
+#: src/palette/mod.rs
+msgid "Name, RAM, CPU, screen"
+msgstr "الاسم والذاكرة والمعالج والشاشة"
+
+#: src/palette/mod.rs ui/settings.slint ui/shell.slint
+msgid "Settings"
+msgstr "الإعدادات"
+
+#: src/palette/mod.rs
+msgid "SDK, storage, agents, about"
+msgstr "SDK، التخزين، الوكلاء، حول"
+
+# unsure: site wording; «جذر» here could be read as 'root'. Alternative «إضافة تطبيق جذر إلى Claude».
+#: src/palette/mod.rs ui/settings.slint
+msgid "Add Jidr to Claude"
+msgstr "إضافة جذر إلى Claude"
+
+#: src/palette/mod.rs
+msgid "MCP setup"
+msgstr "إعداد MCP"
+
+#: src/palette/mod.rs
+msgid "Toggle light and dark"
+msgstr "التبديل بين الفاتح والداكن"
+
+#: src/palette/mod.rs ui/settings.slint
+msgid "Appearance"
+msgstr "المظهر"
+
+# unsure: 'Download' (the /sdcard folder) kept as «مجلد Download»; alternative «التنزيلات».
+#: src/player/drop.rs
+msgid "Magisk modules need Full root, so it was copied to Download."
+msgstr "تحتاج وحدات Magisk إلى جذر كامل، لذا نُسخ الملف إلى مجلد Download."
+
+#: src/player/drop.rs
+msgid "Release to install {}"
+msgstr "أفلِت لتثبيت ⁨{}⁩"
+
+#: src/player/drop.rs
+msgid "adb install -r on {}. Replaces the installed version and keeps its data."
+msgstr "يُنفَّذ adb install -r على ⁨{}⁩. يستبدل الإصدار المثبَّت ويحتفظ ببياناته."
+
+#: src/player/drop.rs
+msgid "Release to install {} as a Magisk module"
+msgstr "أفلِت لتثبيت ⁨{}⁩ كوحدة Magisk"
+
+#: src/player/drop.rs
+msgid "Installs the module and reboots the device (about 40 s)."
+msgstr "يثبّت الوحدة ويعيد تشغيل الجهاز (نحو 40 ث)."
+
+#: src/player/drop.rs
+msgid "Release to copy {}"
+msgstr "أفلِت لنسخ ⁨{}⁩"
+
+#: src/player/drop.rs
+msgid "Goes to /sdcard/Download on {}."
+msgstr "يُنسخ إلى /sdcard/Download على ⁨{}⁩."
+
+#: src/player/mod.rs
+msgid "Can't show the screen: {}"
+msgstr "تعذّر عرض الشاشة: ⁨{}⁩"
+
+#: src/player/mod.rs
+msgid "Sharing the clipboard with the device"
+msgstr "تتم مشاركة الحافظة مع الجهاز"
+
+#: src/player/mod.rs
+msgid "Stopped sharing the clipboard"
+msgstr "توقفت مشاركة الحافظة"
+
+#: src/player/mod.rs
+msgid "Start the device first, then drop the file again"
+msgstr "شغّل الجهاز أولًا، ثم أفلت الملف مجددًا"
+
+#: src/player/mod.rs
+msgid "Installed {}; the device is rebooting"
+msgstr "ثُبّت ⁨{}⁩؛ يُعاد تشغيل الجهاز"
+
+#: src/player/mod.rs
+msgid "Copied {} to Download (module install isn't available yet)"
+msgstr "نُسخ ⁨{}⁩ إلى مجلد Download (تثبيت الوحدات غير متاح بعد)"
+
+#: src/player/mod.rs
+msgid "Copied {} to Download. {}"
+msgstr "نُسخ ⁨{}⁩ إلى مجلد Download. ⁨{}⁩"
+
+#: src/player/mod.rs
+msgid "Copied {} to /sdcard/Download"
+msgstr "نُسخ ⁨{}⁩ إلى /sdcard/Download"
+
+#: src/player/mod.rs
+msgid "Installing {}…"
+msgstr "جارٍ تثبيت ⁨{}⁩…"
+
+#: src/player/mod.rs
+msgid "Reinstall {}?"
+msgstr "إعادة تثبيت ⁨{}⁩؟"
+
+#: src/player/mod.rs
+msgid "The installed app was signed with a different key. Reinstalling uninstalls it first, which deletes its data."
+msgstr "التطبيق المثبَّت موقَّع بمفتاح مختلف. إعادة التثبيت تُلغي تثبيته أولًا، فتُحذف بياناته."
+
+#: src/player/mod.rs
+msgid "Reinstall"
+msgstr "إعادة التثبيت"
+
+#: src/player/mod.rs
+msgid "Installed and opened {}"
+msgstr "ثُبّت ⁨{}⁩ وفُتح"
+
+#: src/player/mod.rs
+msgid "Installed {}"
+msgstr "ثُبّت ⁨{}⁩"
+
+#: src/player/mod.rs
+msgid "{} of {} lines · {n} error"
+msgid_plural "{} of {} lines · {n} errors"
+msgstr[0] "الأسطر: ⁨{}⁩ من ⁨{}⁩ · لا أخطاء"
+msgstr[1] "الأسطر: ⁨{}⁩ من ⁨{}⁩ · خطأ واحد"
+msgstr[2] "الأسطر: ⁨{}⁩ من ⁨{}⁩ · خطآن"
+msgstr[3] "الأسطر: ⁨{}⁩ من ⁨{}⁩ · ⁨{n}⁩ أخطاء"
+msgstr[4] "الأسطر: ⁨{}⁩ من ⁨{}⁩ · ⁨{n}⁩ خطأً"
+msgstr[5] "الأسطر: ⁨{}⁩ من ⁨{}⁩ · ⁨{n}⁩ خطأ"
+
+#: src/recording.rs
+msgid "Saved {} and copied it"
+msgstr "حُفظ ⁨{}⁩ ونُسخ"
+
+#: src/recording.rs
+msgid "Recording {}"
+msgstr "جارٍ التسجيل ⁨{}⁩"
+
+#: src/recording.rs
+msgid "Saved {} ({})"
+msgstr "حُفظ ⁨{}⁩ (⁨{}⁩)"
+
+#: src/root/cacerts/cacerts.slint
+msgid "CA certificates"
+msgstr "شهادات CA"
+
+#: src/root/cacerts/cacerts.slint
+msgid "Add…"
+msgstr "إضافة…"
+
+#: src/root/cacerts/cacerts.slint
+msgid "Trusted"
+msgstr "موثوقة"
+
+#: src/root/cacerts/cacerts.slint
+msgid "After restart"
+msgstr "بعد إعادة التشغيل"
+
+#: src/root/cacerts/cacerts.slint
+msgid "Remove"
+msgstr "إزالة"
+
+#: src/root/cacerts/cacerts.slint
+msgid "Start the device to add or remove CA certificates."
+msgstr "شغّل الجهاز لإضافة شهادات CA أو إزالتها."
+
+#: src/root/cacerts/cacerts.slint
+msgid "Trust Burp's or mitmproxy's CA as a system certificate. Adding one restarts the device."
+msgstr "اعتمد شهادة CA من Burp أو mitmproxy كشهادة نظام. إضافة شهادة تعيد تشغيل الجهاز."
+
+#: src/root/cacerts/cacerts.slint
+msgid "Apps trust these as system certificates. Adding or removing one restarts the device."
+msgstr "تثق التطبيقات بهذه الشهادات كشهادات نظام. إضافة أي منها أو إزالتها تعيد تشغيل الجهاز."
+
+#: src/root/cacerts/mod.rs
+msgid "That certificate is already trusted"
+msgstr "هذه الشهادة موثوقة بالفعل"
+
+#: src/root/cacerts/mod.rs
+msgid "{} is now a trusted system certificate"
+msgstr "أصبحت ⁨{}⁩ شهادة نظام موثوقة"
+
+#: src/root/cacerts/mod.rs
+msgid "The certificate is now a trusted system certificate"
+msgstr "أصبحت الشهادة شهادة نظام موثوقة"
+
+#: src/root/cacerts/mod.rs
+msgid "Certificate removed"
+msgstr "أُزيلت الشهادة"
+
+#: src/root/cacerts/mod.rs
+msgid "Choose a CA certificate (PEM or DER), e.g. Burp's cacert.der"
+msgstr "اختر شهادة CA بصيغة PEM أو DER، مثل cacert.der من Burp"
+
+#: src/root/mod.rs
+msgid "{} is now Shell root (adb)"
+msgstr "أصبح ⁨{}⁩ بجذر Shell ⁨(adb)⁩"
+
+#: src/root/mod.rs
+msgid "{} is now unrooted"
+msgstr "أصبح ⁨{}⁩ بلا جذر"
+
+#: src/root/mod.rs
+msgid "{} is rooted · Magisk {}"
+msgstr "أصبح ⁨{}⁩ مُجذَّرًا · Magisk ⁨{}⁩"
+
+#: src/root/mod.rs
+msgid "{} is rooted"
+msgstr "أصبح ⁨{}⁩ مُجذَّرًا"
+
+#: src/root/mod.rs
+msgid "Root failed: {}. Open {} to revert or try again."
+msgstr "فشل الجذر: ⁨{}⁩. افتح ⁨{}⁩ لإزالة الجذر أو إعادة المحاولة."
+
+#: src/root/mod.rs
+msgid "{} didn't finish booting after the reboot (waited {} s). Your data is intact and the original boot image is kept, so you can revert."
+msgstr "لم يكتمل إقلاع ⁨{}⁩ بعد إعادة التشغيل (بعد انتظار ⁨{}⁩ ث). بياناتك سليمة وصورة الإقلاع الأصلية محفوظة، لذا يمكنك إزالة الجذر."
+
+#: src/root/mod.rs
+msgid "Copied the root setup log"
+msgstr "نُسخ سجل إعداد الجذر"
+
+#: src/root/mod.rs
+msgid "Apps now get root without asking"
+msgstr "تحصل التطبيقات الآن على الجذر دون سؤال"
+
+#: src/root/mod.rs
+msgid "Apps ask before they get root"
+msgstr "تطلب التطبيقات الإذن قبل الحصول على الجذر"
+
+#: src/root/mod.rs src/root/root.slint
+msgid "Root failed: {}"
+msgstr "فشل الجذر: ⁨{}⁩"
+
+#: src/root/props/mod.rs
+msgid "patch {}"
+msgstr "تصحيح ⁨{}⁩"
+
+#: src/root/props/mod.rs
+msgid "Stock values"
+msgstr "القيم الأصلية"
+
+#: src/root/props/mod.rs
+msgid "Custom fingerprint"
+msgstr "بصمة مخصصة"
+
+#: src/root/props/mod.rs
+msgid "Build identity saved. Restart to apply it."
+msgstr "حُفظت هوية البناء. أعد التشغيل لتطبيقها."
+
+#: src/root/props/mod.rs
+msgid "Build identity saved. It applies on the next start."
+msgstr "حُفظت هوية البناء. ستُطبَّق عند التشغيل التالي."
+
+#: src/root/props/props.slint
+msgid "Model"
+msgstr "الطراز"
+
+#: src/root/props/props.slint
+msgid "Brand"
+msgstr "العلامة التجارية"
+
+#: src/root/props/props.slint
+msgid "Manufacturer"
+msgstr "الشركة المصنّعة"
+
+#: src/root/props/props.slint
+msgid "Device"
+msgstr "الجهاز"
+
+# unsure: shared msgid: build fingerprint (props) AND finger biometric panel; «البصمة» works for both.
+#: src/root/props/props.slint ui/widgets/panels.slint
+msgid "Fingerprint"
+msgstr "البصمة"
+
+#: src/root/props/props.slint
+msgid "Security patch"
+msgstr "تصحيح الأمان"
+
+#: src/root/props/props.slint
+msgid "Stock"
+msgstr "الأصلي"
+
+#: src/root/props/props.slint
+msgid "Build identity"
+msgstr "هوية البناء"
+
+#: src/root/props/props.slint
+msgid "Edit…"
+msgstr "تعديل…"
+
+#: src/root/props/props.slint
+msgid "Empty fields keep the image's value. Changes apply on the next start, which is a cold boot."
+msgstr "تحتفظ الحقول الفارغة بقيمة الصورة. تُطبَّق التغييرات عند التشغيل التالي، وهو إقلاع بارد."
+
+#: src/root/props/props.slint
+msgid "Saving…"
+msgstr "جارٍ الحفظ…"
+
+#: src/root/props/props.slint ui/device_form.slint ui/snapshots.slint
+msgid "Save"
+msgstr "حفظ"
+
+#: src/root/props/props.slint src/root/root.slint ui/device_form.slint ui/forms.slint ui/snapshots.slint ui/wizard.slint
+msgid "Cancel"
+msgstr "إلغاء"
+
+#: src/root/props/props.slint
+msgid "Reset to stock"
+msgstr "إعادة إلى الأصل"
+
+#: src/root/props/props.slint
+msgid "Applies on the next start"
+msgstr "يُطبَّق عند التشغيل التالي"
+
+#: src/root/props/props.slint
+msgid "Restart now"
+msgstr "إعادة التشغيل الآن"
+
+#: src/root/root.slint
+msgid "Download Magisk {}"
+msgstr "تنزيل Magisk ⁨{}⁩"
+
+#: src/root/root.slint
+msgid "Patch boot image"
+msgstr "ترقيع صورة الإقلاع"
+
+#: src/root/root.slint
+msgid "Rebooting"
+msgstr "جارٍ إعادة التشغيل"
+
+#: src/root/root.slint
+msgid "Reboot"
+msgstr "إعادة التشغيل"
+
+#: src/root/root.slint
+msgid "Install Magisk app · Verify"
+msgstr "تثبيت تطبيق Magisk · التحقق"
+
+#: src/root/root.slint
+msgid "Install Magisk app"
+msgstr "تثبيت تطبيق Magisk"
+
+#: src/root/root.slint
+msgid "Verify"
+msgstr "التحقق"
+
+#: src/root/root.slint
+msgid "Download Magisk {} › Patch › Reboot › Install › Verify"
+msgstr "تنزيل Magisk ⁨{}⁩ › الترقيع › إعادة التشغيل › التثبيت › التحقق"
+
+#: src/root/root.slint
+msgid "Booting Android… {}"
+msgstr "جارٍ إقلاع أندرويد… ⁨{}⁩"
+
+#: src/root/root.slint
+msgid "Original kept for revert"
+msgstr "الأصلية محفوظة للتراجع"
+
+#: src/root/root.slint
+msgid "Waiting for Android to report boot complete"
+msgstr "بانتظار أن يُبلغ أندرويد باكتمال الإقلاع"
+
+#: src/root/root.slint
+msgid "Boot complete never reported"
+msgstr "لم يُبلَّغ عن اكتمال الإقلاع"
+
+#: src/root/root.slint
+msgid "First boot of a Play Store image"
+msgstr "الإقلاع الأول لصورة متجر Play"
+
+#: src/root/root.slint
+msgid "Failed · {}"
+msgstr "فشل · ⁨{}⁩"
+
+#: src/root/root.slint
+msgid "Not run"
+msgstr "لم تُنفَّذ"
+
+#: src/root/root.slint
+msgid "Rooted emulators can't pass Play Integrity. Banking apps and some games from the Play Store will refuse to run on {} once it is rooted."
+msgstr "لا تجتاز المحاكيات المُجذَّرة فحص Play Integrity. سترفض تطبيقات البنوك وبعض ألعاب متجر Play العمل على ⁨{}⁩ بعد تجذيره."
+
+#: src/root/root.slint
+msgid "Rooted emulators can't pass Play Integrity. Apps that check it will refuse to run."
+msgstr "لا تجتاز المحاكيات المُجذَّرة فحص Play Integrity. سترفض العمل التطبيقات التي تتحقق منه."
+
+#: src/root/root.slint
+msgid "Check"
+msgstr "الفحص"
+
+#: src/root/root.slint ui/launcher.slint
+msgid "Magisk"
+msgstr "Magisk"
+
+#: src/root/root.slint
+msgid "{} · app installed"
+msgstr "⁨{}⁩ · التطبيق مثبَّت"
+
+#: src/root/root.slint
+msgid "Boot image"
+msgstr "صورة الإقلاع"
+
+#: src/root/root.slint
+msgid "patched · original kept"
+msgstr "مُرقَّعة · الأصلية محفوظة"
+
+#: src/root/root.slint
+msgid "Took"
+msgstr "المدة"
+
+#: src/root/root.slint
+msgid "{} · 5 of 5 steps"
+msgstr "⁨{}⁩ · 5 من 5 خطوات"
+
+#: src/root/root.slint
+msgid "Root setup"
+msgstr "إعداد الجذر"
+
+#: src/root/root.slint
+msgid "Full root · {}"
+msgstr "جذر كامل · ⁨{}⁩"
+
+#: src/root/root.slint
+msgid "Beta · Play Store image"
+msgstr "تجريبي · صورة متجر Play"
+
+#: src/root/root.slint
+msgid "Waiting to set up root"
+msgstr "بانتظار إعداد الجذر"
+
+# unsure: 'Grant' kept Latin (Magisk's English prompt on the device); Arabic Magisk shows «منح».
+#: src/root/root.slint
+msgid "Tap Grant on the device"
+msgstr "اضغط Grant على الجهاز"
+
+#: src/root/root.slint
+msgid "Setting up root… · step {} of 5"
+msgstr "جارٍ إعداد الجذر… · الخطوة ⁨{}⁩ من 5"
+
+#: src/root/root.slint
+msgid "Setting up root… · step 5 of 5"
+msgstr "جارٍ إعداد الجذر… · الخطوة 5 من 5"
+
+#: src/root/root.slint
+msgid "Rooted · Magisk {} · verified just now"
+msgstr "مُجذَّر · Magisk ⁨{}⁩ · تُحقِّق منه للتو"
+
+#: src/root/root.slint
+msgid "Reboots the device to finish root setup (about 40 s). Leave it running; you can close this sheet."
+msgstr "يُعيد تشغيل الجهاز لإكمال إعداد الجذر (نحو 40 ث). اتركه يعمل؛ يمكنك إغلاق هذه النافذة."
+
+# unsure: 'Jidr' rendered as «التطبيق» to avoid «جذر»/«الجذر» in one sentence.
+#: src/root/root.slint
+msgid "Jidr checked that su really answers as root before saying so."
+msgstr "تحقّق التطبيق من أن su يستجيب فعلًا بصلاحيات الجذر قبل أن يؤكد ذلك."
+
+#: src/root/root.slint
+msgid "Couldn't download Magisk {}. Nothing on {} changed; check the connection and try again."
+msgstr "تعذّر تنزيل Magisk ⁨{}⁩. لم يتغير شيء على ⁨{}⁩؛ تحقّق من الاتصال وحاول مجددًا."
+
+#: src/root/root.slint
+msgid "Couldn't patch the boot image. {} is unchanged."
+msgstr "تعذّر ترقيع صورة الإقلاع. لم يتغير ⁨{}⁩."
+
+#: src/root/root.slint
+msgid "{} didn't finish booting after the reboot. Your data is intact and the original boot image is kept, so you can revert."
+msgstr "لم يكتمل إقلاع ⁨{}⁩ بعد إعادة التشغيل. بياناتك سليمة وصورة الإقلاع الأصلية محفوظة، لذا يمكنك إزالة الجذر."
+
+#: src/root/root.slint
+msgid "Couldn't install the Magisk app on {}. Your data is intact and the original boot image is kept, so you can revert."
+msgstr "تعذّر تثبيت تطبيق Magisk على ⁨{}⁩. بياناتك سليمة وصورة الإقلاع الأصلية محفوظة، لذا يمكنك إزالة الجذر."
+
+#: src/root/root.slint
+msgid "su -c id didn't answer as root on {}. Your data is intact and the original boot image is kept, so you can revert."
+msgstr "لم يستجب الأمر su -c id بصلاحيات الجذر على ⁨{}⁩. بياناتك سليمة وصورة الإقلاع الأصلية محفوظة، لذا يمكنك إزالة الجذر."
+
+#: src/root/root.slint
+msgid "Root setup starts when Android finishes its first boot. Play Store images are signed by Google, so this path is less tested."
+msgstr "يبدأ إعداد الجذر عندما يُنهي أندرويد إقلاعه الأول. صور متجر Play موقَّعة من Google، لذا هذا المسار أقل اختبارًا."
+
+#: src/root/root.slint
+msgid "Magisk will ask to grant root to Shell. Tap Grant in the device window. Jidr waits {} more; \"Forever\" is up to you."
+msgstr "سيطلب Magisk منح الجذر لـ Shell. اضغط Grant في نافذة الجهاز. سينتظر التطبيق ⁨{}⁩ أخرى؛ واختيار \"Forever\" متروك لك."
+
+#: src/root/root.slint
+msgid "Shell wasn't granted root, so Jidr can't say {} is rooted. Try again and tap Grant, or revert to unrooted. Your data is intact."
+msgstr "لم يُمنح Shell الجذر، لذا لا يستطيع التطبيق تأكيد أن ⁨{}⁩ مُجذَّر. أعد المحاولة واضغط Grant، أو أزِل الجذر. بياناتك سليمة."
+
+#: src/root/root.slint
+msgid "Stop and revert"
+msgstr "إيقاف وإزالة الجذر"
+
+#: src/root/root.slint
+msgid "Hide steps"
+msgstr "إخفاء الخطوات"
+
+#: src/root/root.slint
+msgid "Show steps"
+msgstr "إظهار الخطوات"
+
+#: src/root/root.slint
+msgid "Copy log"
+msgstr "نسخ السجل"
+
+# unsure: button; alternative «لا تجذّر هذا الجهاز».
+#: src/root/root.slint
+msgid "Don't root this device"
+msgstr "عدم تجذير هذا الجهاز"
+
+#: src/root/root.slint ui/wizard.slint
+msgid "Continue in background"
+msgstr "المتابعة في الخلفية"
+
+#: src/root/root.slint ui/snapshots.slint
+msgid "Save snapshot…"
+msgstr "حفظ لقطة…"
+
+#: src/root/root.slint
+msgid "Revert to unrooted"
+msgstr "إزالة الجذر"
+
+#: src/root/root.slint
+msgid "Try again"
+msgstr "إعادة المحاولة"
+
+#: src/root/root.slint ui/components/status.slint
+msgid "Beta"
+msgstr "تجريبي"
+
+#: src/root/root.slint ui/device_form.slint ui/wizard.slint
+msgid "Root mode"
+msgstr "وضع الجذر"
+
+#: src/root/root.slint
+msgid "None"
+msgstr "بلا جذر"
+
+#: src/root/root.slint
+msgid "A stock device. Test apps as users see them."
+msgstr "جهاز أصلي. اختبر التطبيقات كما يراها المستخدمون."
+
+#: src/root/root.slint
+msgid "A stock device."
+msgstr "جهاز أصلي."
+
+#: src/root/root.slint
+msgid "adb root works. Nothing on the system changes."
+msgstr "يعمل adb root. لا يتغير شيء في النظام."
+
+#: src/root/root.slint
+msgid "adb root works. Nothing changes."
+msgstr "يعمل adb root. لا يتغير شيء."
+
+#: src/root/root.slint
+msgid "Installs and verifies Magisk {}. Reboots once (about 40 s)."
+msgstr "يثبّت Magisk ⁨{}⁩ ويتحقق منه. يعيد التشغيل مرة واحدة (نحو 40 ث)."
+
+#: src/root/root.slint
+msgid "Magisk, verified. One reboot."
+msgstr "Magisk مُتحقَّق منه. إعادة تشغيل واحدة."
+
+#: src/root/root.slint
+msgid "Root"
+msgstr "الجذر"
+
+#: src/root/root.slint
+msgid "Verified {}"
+msgstr "تُحقِّق منه ⁨{}⁩"
+
+#: src/root/root.slint
+msgid "Not verified yet"
+msgstr "لم يُتحقَّق منه بعد"
+
+#: src/root/root.slint
+msgid "Set up Full root…"
+msgstr "إعداد جذر كامل…"
+
+#: src/root/root.slint ui/launcher.slint
+msgid "Verify again"
+msgstr "إعادة التحقق"
+
+#: src/root/root.slint ui/launcher.slint
+msgid "Revert to unrooted…"
+msgstr "إزالة الجذر…"
+
+#: src/root/root.slint
+msgid "Auto-grant root to all apps"
+msgstr "منح الجذر تلقائيًا لكل التطبيقات"
+
+#: src/root/root.slint
+msgid "Needs a newer Jidr daemon."
+msgstr "يتطلب إصدارًا أحدث من الخدمة الخلفية."
+
+#: src/root/root.slint
+msgid "On: every app that asks gets root without a prompt."
+msgstr "عند التفعيل: يحصل كل تطبيق يطلب الجذر عليه دون سؤال."
+
+#: src/root/root.slint
+msgid "Off: apps ask and you tap Grant. adb shell is always granted."
+msgstr "عند الإيقاف: تطلب التطبيقات وتضغط أنت Grant. يُمنح adb shell دائمًا."
+
+# unsure: inserted after «فشل الجذر: »
+#: src/root/steps.rs
+msgid "stopped"
+msgstr "أُوقف"
+
+#: src/root/steps.rs
+msgid "Shell wasn't granted root"
+msgstr "لم يُمنح Shell الجذر"
+
+#: src/root/steps.rs
+msgid "boot timed out"
+msgstr "انتهت مهلة الإقلاع"
+
+#: src/root/steps.rs
+msgid "su didn't answer as root"
+msgstr "لم يستجب su بصلاحيات الجذر"
+
+#: src/root/steps.rs
+msgid "download failed"
+msgstr "فشل التنزيل"
+
+#: src/root/steps.rs
+msgid "patch step failed"
+msgstr "فشلت خطوة الترقيع"
+
+#: src/root/steps.rs
+msgid "boot failed"
+msgstr "فشل الإقلاع"
+
+#: src/root/steps.rs
+msgid "Magisk app install failed"
+msgstr "فشل تثبيت تطبيق Magisk"
+
+#: src/root/steps.rs
+msgid "verification failed"
+msgstr "فشل التحقق"
+
+#: src/settings/mod.rs ui/settings.slint
+msgid "System"
+msgstr "النظام"
+
+#: src/settings/mod.rs ui/settings.slint
+msgid "Ready"
+msgstr "جاهز"
+
+#: src/settings/mod.rs ui/app.slint ui/launcher.slint ui/shell.slint
+msgid "Not installed"
+msgstr "غير مثبَّت"
+
+#: src/settings/mod.rs
+msgid "OpenStreetMap (default)"
+msgstr "OpenStreetMap (الافتراضي)"
+
+#: src/settings/mod.rs
+msgid "Custom"
+msgstr "مخصص"
+
+#: src/settings/mod.rs
+msgid "Total"
+msgstr "الإجمالي"
+
+#: src/settings/mod.rs
+msgid "No devices"
+msgstr "لا أجهزة"
+
+#: src/settings/mod.rs
+msgid "claude_desktop_config.json isn't valid JSON: {}"
+msgstr "الملف claude_desktop_config.json ليس JSON صالحًا: ⁨{}⁩"
+
+#: src/settings/mod.rs
+msgid "claude_desktop_config.json isn't a JSON object"
+msgstr "الملف claude_desktop_config.json ليس كائن JSON"
+
+#: src/settings/mod.rs
+msgid "mcpServers isn't a JSON object"
+msgstr "الحقل mcpServers ليس كائن JSON"
+
+#: src/settings/mod.rs
+msgid "Emulator {}"
+msgstr "المحاكي ⁨{}⁩"
+
+#: src/settings/mod.rs
+msgid "Cleared the download cache"
+msgstr "مُسحت ذاكرة التنزيل المؤقتة"
+
+#: src/settings/mod.rs
+msgid "Added Jidr to Claude Desktop. Restart Claude to use it."
+msgstr "أُضيف جذر إلى Claude Desktop. أعد تشغيل Claude لاستخدامه."
+
+#: src/settings/mod.rs
+msgid "Can't find Claude Desktop's settings folder"
+msgstr "تعذّر العثور على مجلد إعدادات Claude Desktop"
+
+#: src/settings/mod.rs
+msgid "Copied"
+msgstr "نُسخ"
+
+#: src/settings/mod.rs
+msgid "Checking…"
+msgstr "جارٍ التحقق…"
+
+#: src/settings/mod.rs
+msgid "Couldn't save the setting: {}"
+msgstr "تعذّر حفظ الإعداد: ⁨{}⁩"
+
+#: src/settings/mod.rs
+msgid "{n} device"
+msgid_plural "{n} devices"
+msgstr[0] "لا أجهزة"
+msgstr[1] "جهاز واحد"
+msgstr[2] "جهازان"
+msgstr[3] "⁨{n}⁩ أجهزة"
+msgstr[4] "⁨{n}⁩ جهازًا"
+msgstr[5] "⁨{n}⁩ جهاز"
+
+#: src/settings/update.rs
+msgid "You're up to date ({})"
+msgstr "لديك أحدث إصدار (⁨{}⁩)"
+
+#: src/settings/update.rs
+msgid "Jidr {} is available. Update with {}"
+msgstr "الإصدار ⁨{}⁩ من جذر متاح. حدّثه بالأمر ⁨{}⁩"
+
+#: src/settings/update.rs
+msgid "Copy command"
+msgstr "نسخ الأمر"
+
+#: src/settings/update.rs
+msgid "Jidr {} is available"
+msgstr "الإصدار ⁨{}⁩ من جذر متاح"
+
+#: src/settings/update.rs ui/wizard.slint
+msgid "Download"
+msgstr "تنزيل"
+
+#: src/settings/update.rs
+msgid "Couldn't reach GitHub"
+msgstr "تعذّر الوصول إلى GitHub"
+
+#: src/settings/update.rs
+msgid "Open releases page"
+msgstr "فتح صفحة الإصدارات"
+
+#: src/snapshots/mod.rs
+msgid "Not tagged"
+msgstr "بلا وسم"
+
+# unsure: inserted as {2} in 'Snapshots taken with {2} can't be restored…' → «المأخوذة مع وضع جذر آخر».
+#: src/snapshots/mod.rs
+msgid "another root mode"
+msgstr "وضع جذر آخر"
+
+#: src/snapshots/mod.rs
+msgid "{0} is {1} now. Snapshots taken with {2} can't be restored until {2} is set up again."
+msgstr "وضع ⁨{0}⁩ الآن: ⁨{1}⁩. لا يمكن استعادة اللقطات المأخوذة مع ⁨{2}⁩ حتى يُعاد إعداد ⁨{2}⁩."
+
+#: src/snapshots/mod.rs
+msgid "Taken with: {}{}"
+msgstr "التُقطت مع: ⁨{}⁩⁨{}⁩"
+
+#: src/snapshots/mod.rs
+msgid "It was taken with {}. {} is {} now, so restoring it would bring back a root setup Jidr hasn't verified on this device."
+msgstr "التُقطت مع ⁨{}⁩. ووضع ⁨{}⁩ الآن: ⁨{}⁩، لذا فإن استعادتها ستُرجع إعداد جذر لم يتحقق منه التطبيق على هذا الجهاز."
+
+#: src/snapshots/mod.rs
+msgid "Set up {} first, then restore. Snapshots taken while {} restore as usual."
+msgstr "أجرِ إعداد ⁨{}⁩ أولًا، ثم استعِد اللقطة. اللقطات المأخوذة مع ⁨{}⁩ تُستعاد كالمعتاد."
+
+#: src/snapshots/mod.rs
+msgid "Set up {}…"
+msgstr "إعداد ⁨{}⁩…"
+
+#: src/snapshots/mod.rs
+msgid "Start {} to restore a snapshot"
+msgstr "شغّل ⁨{}⁩ لاستعادة لقطة"
+
+#: src/snapshots/mod.rs
+msgid "Restored “{}”"
+msgstr "تمت استعادة «⁨{}⁩»"
+
+#: src/snapshots/mod.rs
+msgid "Root set up; the snapshot can be restored now"
+msgstr "تم إعداد الجذر؛ يمكن استعادة اللقطة الآن"
+
+#: src/snapshots/mod.rs
+msgid "Start {} to save a snapshot"
+msgstr "شغّل ⁨{}⁩ لحفظ لقطة"
+
+#: src/snapshots/mod.rs
+msgid "Snapshots take about as much disk as the device's data."
+msgstr "تشغل اللقطات من القرص نحو حجم بيانات الجهاز."
+
+#: src/snapshots/mod.rs
+msgid "Its other snapshot is {} GB."
+msgstr "حجم لقطته الأخرى ⁨{}⁩ GB."
+
+#: src/snapshots/mod.rs
+msgid "Its other snapshots are {} and {} GB."
+msgstr "أحجام لقطاته الأخرى ⁨{}⁩ و⁨{}⁩ GB."
+
+#: src/snapshots/mod.rs
+msgid "Saving “{}”…"
+msgstr "جارٍ حفظ «⁨{}⁩»…"
+
+#: src/snapshots/mod.rs
+msgid "Saved snapshot “{}”"
+msgstr "حُفظت اللقطة «⁨{}⁩»"
+
+#: src/snapshots/mod.rs
+msgid "Delete “{}”?"
+msgstr "حذف «⁨{}⁩»؟"
+
+#: src/snapshots/mod.rs
+msgid "Frees {}. The device itself doesn't change. This can't be undone."
+msgstr "يحرّر ⁨{}⁩. لا يتغير الجهاز نفسه. لا يمكن التراجع عن ذلك."
+
+# unsure: inserted into «يحرّر {}.» → «يحرّر مساحتها على القرص».
+#: src/snapshots/mod.rs
+msgid "its disk space"
+msgstr "مساحتها على القرص"
+
+#: src/snapshots/mod.rs
+msgid "Delete"
+msgstr "حذف"
+
+#: src/snapshots/mod.rs
+msgid "Deleted the snapshot"
+msgstr "حُذفت اللقطة"
+
+#: src/snapshots/mod.rs
+msgid "Every snapshot remembers the root mode it was taken with. {} is {} now, so it can be restored. {} in total."
+msgid_plural "Every snapshot remembers the root mode it was taken with. {} is {} now, so all {n} can be restored. {} in total."
+msgstr[0] "تتذكر كل لقطة وضع الجذر الذي التُقطت معه. وضع ⁨{}⁩ الآن: ⁨{}⁩، لذا يمكن استعادتها جميعًا. المجموع ⁨{}⁩."
+msgstr[1] "تتذكر كل لقطة وضع الجذر الذي التُقطت معه. وضع ⁨{}⁩ الآن: ⁨{}⁩، لذا يمكن استعادتها. المجموع ⁨{}⁩."
+msgstr[2] "تتذكر كل لقطة وضع الجذر الذي التُقطت معه. وضع ⁨{}⁩ الآن: ⁨{}⁩، لذا يمكن استعادة اللقطتين كلتيهما. المجموع ⁨{}⁩."
+msgstr[3] "تتذكر كل لقطة وضع الجذر الذي التُقطت معه. وضع ⁨{}⁩ الآن: ⁨{}⁩، لذا يمكن استعادتها جميعًا، وعددها ⁨{n}⁩. المجموع ⁨{}⁩."
+msgstr[4] "تتذكر كل لقطة وضع الجذر الذي التُقطت معه. وضع ⁨{}⁩ الآن: ⁨{}⁩، لذا يمكن استعادتها جميعًا، وعددها ⁨{n}⁩. المجموع ⁨{}⁩."
+msgstr[5] "تتذكر كل لقطة وضع الجذر الذي التُقطت معه. وضع ⁨{}⁩ الآن: ⁨{}⁩، لذا يمكن استعادتها جميعًا، وعددها ⁨{n}⁩. المجموع ⁨{}⁩."
+
+#: src/widgets/gps.rs
+msgid "Latitude and longitude must be numbers"
+msgstr "يجب أن يكون خطا العرض والطول رقمين"
+
+#: src/widgets/gps.rs
+msgid "Choose a GPX or KML route"
+msgstr "اختر مسار GPX أو KML"
+
+#: src/wizard/mod.rs
+msgid "Found · used read-only"
+msgstr "موجود · يُستخدم للقراءة فقط"
+
+#: src/wizard/mod.rs
+msgid "Not found"
+msgstr "غير موجود"
+
+#: src/wizard/mod.rs
+msgid "Not set"
+msgstr "غير مضبوط"
+
+#: src/wizard/mod.rs
+msgid "Android Emulator and platform tools"
+msgstr "محاكي Android وأدوات المنصة"
+
+#: src/wizard/mod.rs
+msgid "size shown when it starts"
+msgstr "يظهر الحجم عند البدء"
+
+#: src/wizard/mod.rs
+msgid "emulator only"
+msgstr "المحاكي فقط"
+
+#: src/wizard/mod.rs
+msgid "{} + emulator"
+msgstr "⁨{}⁩ + المحاكي"
+
+#: src/wizard/mod.rs
+msgid "Created your first device"
+msgstr "أُنشئ جهازك الأول"
+
+#: src/wizard/mod.rs
+msgid "License accepted {}. You can close this window; downloads keep going in Jobs."
+msgstr "قُبلت الرخصة في ⁨{}⁩. يمكنك إغلاق هذه النافذة؛ تستمر التنزيلات في «المهام»."
+
+#: src/wizard/mod.rs
+msgid "{} (API {}) image"
+msgstr "صورة ⁨{}⁩ ⁨(API ⁨{}⁩)⁩"
+
+#: src/wizard/mod.rs
+msgid "Android Emulator"
+msgstr "محاكي Android"
+
+#: src/wizard/mod.rs
+msgid "Verify checksums"
+msgstr "التحقق من المجاميع الاختبارية"
+
+#: src/wizard/mod.rs
+msgid "After download"
+msgstr "بعد التنزيل"
+
+#: src/wizard/mod.rs
+msgid "About {n} min left"
+msgid_plural "About {n} min left"
+msgstr[0] "بقيت نحو ⁨{n}⁩ دقيقة"
+msgstr[1] "بقيت نحو دقيقة"
+msgstr[2] "بقيت نحو دقيقتين"
+msgstr[3] "بقيت نحو ⁨{n}⁩ دقائق"
+msgstr[4] "بقيت نحو ⁨{n}⁩ دقيقة"
+msgstr[5] "بقيت نحو ⁨{n}⁩ دقيقة"
+
+#: src/wizard/mod.rs
+msgid "About {n} s left"
+msgid_plural "About {n} s left"
+msgstr[0] "بقيت نحو ⁨{n}⁩ ثانية"
+msgstr[1] "بقيت نحو ثانية"
+msgstr[2] "بقيت نحو ثانيتين"
+msgstr[3] "بقيت نحو ⁨{n}⁩ ثوانٍ"
+msgstr[4] "بقيت نحو ⁨{n}⁩ ثانية"
+msgstr[5] "بقيت نحو ⁨{n}⁩ ثانية"
+
+#: ui/device_form.slint
+msgid "Changes apply the next time the device starts."
+msgstr "تُطبَّق التغييرات في المرة القادمة التي يُشغَّل فيها الجهاز."
+
+#: ui/device_form.slint ui/wizard.slint
+msgid "Defaults are filled in. Change what you need, then create."
+msgstr "القيم الافتراضية معبّأة. غيّر ما تحتاج إليه، ثم أنشئ الجهاز."
+
+#: ui/device_form.slint ui/snapshots.slint ui/wizard.slint
+msgid "Name"
+msgstr "الاسم"
+
+# unsure: alternative «ملف العتاد».
+#: ui/device_form.slint ui/wizard.slint
+msgid "Hardware profile"
+msgstr "ملف تعريف العتاد"
+
+#: ui/device_form.slint ui/wizard.slint
+msgid "Android version"
+msgstr "إصدار أندرويد"
+
+#: ui/device_form.slint
+msgid "Only images that run on Apple Silicon (arm64) are listed."
+msgstr "تُعرض فقط الصور التي تعمل على Apple Silicon ⁨(arm64)⁩."
+
+#: ui/device_form.slint ui/launcher.slint
+msgid "RAM"
+msgstr "الذاكرة"
+
+#: ui/device_form.slint
+msgid "Your Mac has {}."
+msgstr "يحتوي جهاز ماك لديك على ⁨{}⁩."
+
+#: ui/device_form.slint
+msgid "CPU cores"
+msgstr "نوى المعالج"
+
+#: ui/device_form.slint
+msgid "of {}"
+msgstr "من ⁨{}⁩"
+
+#: ui/device_form.slint ui/launcher.slint
+msgid "Screen"
+msgstr "الشاشة"
+
+#: ui/device_form.slint
+msgid "From the profile."
+msgstr "من ملف التعريف."
+
+# unsure: form section header; «استهلاك الذاكرة» so it differs from the RAM field «الذاكرة».
+#: ui/device_form.slint
+msgid "Memory"
+msgstr "استهلاك الذاكرة"
+
+#: ui/device_form.slint
+msgid "Lean preset"
+msgstr "الإعداد الخفيف"
+
+#: ui/device_form.slint
+msgid "Lean"
+msgstr "خفيف"
+
+#: ui/device_form.slint
+msgid "720×1280, 2 GB, 2 cores, no audio or cameras. About 4 GB of host RAM instead of about 6."
+msgstr "⁨720×1280⁩، 2 GB، نواتان، بلا صوت ولا كاميرات. نحو 4 GB من ذاكرة جهاز ماك بدلًا من نحو 6."
+
+#: ui/device_form.slint ui/settings.slint
+msgid "Auto-hibernate"
+msgstr "الإسبات التلقائي"
+
+#: ui/device_form.slint
+msgid "Saves its whole state and frees its RAM when idle."
+msgstr "يحفظ حالته كاملةً ويحرّر ذاكرته عند الخمول."
+
+#: ui/device_form.slint ui/wizard.slint
+msgid "Start after creating"
+msgstr "التشغيل بعد الإنشاء"
+
+#: ui/device_form.slint ui/wizard.slint
+msgid "Create"
+msgstr "إنشاء"
+
+#: ui/forms.slint
+msgid "Not enough RAM to start {}"
+msgstr "لا تكفي الذاكرة لتشغيل ⁨{}⁩"
+
+#: ui/forms.slint
+msgid "It needs about {}, and {} of the {} RAM budget is free."
+msgstr "يحتاج إلى نحو ⁨{}⁩، والمتاح ⁨{}⁩ من ميزانية الذاكرة البالغة ⁨{}⁩."
+
+#: ui/forms.slint
+msgid "Running devices, longest idle first"
+msgstr "الأجهزة العاملة، الأطول خمولًا أولًا"
+
+# unsure: tag next to a device in the not-enough-RAM dialog ('will be hibernated').
+#: ui/forms.slint
+msgid "Hibernates"
+msgstr "سيُسبَت"
+
+#: ui/forms.slint
+msgid "No running device has sat idle. Stop one in the Library, or start anyway."
+msgstr "لا يوجد جهاز عامل خامل. أوقف أحدها من المكتبة، أو شغّل على أي حال."
+
+#: ui/forms.slint
+msgid "Hibernating saves a device's whole state; Resume brings it back in seconds. Starting anyway can make the Mac swap and slow down."
+msgstr "الإسبات يحفظ حالة الجهاز كاملةً، و«استئناف» يعيده في ثوانٍ. التشغيل على أي حال قد يجعل جهاز ماك يلجأ إلى ذاكرة التبديل فيتباطأ."
+
+#: ui/forms.slint
+msgid "Start anyway"
+msgstr "التشغيل على أي حال"
+
+#: ui/forms.slint
+msgid "Hibernate {} and start"
+msgstr "إسبات ⁨{}⁩ ثم التشغيل"
+
+#: ui/forms.slint
+msgid "Hibernate {n} device and start"
+msgid_plural "Hibernate {n} devices and start"
+msgstr[0] "إسبات ⁨{n}⁩ جهاز ثم التشغيل"
+msgstr[1] "إسبات جهاز واحد ثم التشغيل"
+msgstr[2] "إسبات جهازين ثم التشغيل"
+msgstr[3] "إسبات ⁨{n}⁩ أجهزة ثم التشغيل"
+msgstr[4] "إسبات ⁨{n}⁩ جهازًا ثم التشغيل"
+msgstr[5] "إسبات ⁨{n}⁩ جهاز ثم التشغيل"
+
+#: ui/launcher.slint ui/snapshots.slint
+msgid "Restore"
+msgstr "استعادة"
+
+#: ui/launcher.slint ui/snapshots.slint
+msgid "Auto"
+msgstr "تلقائية"
+
+#: ui/launcher.slint
+msgid "Saved on every stop"
+msgstr "تُحفظ عند كل إيقاف"
+
+#: ui/launcher.slint
+msgid "This window only"
+msgstr "هذه النافذة فقط"
+
+#: ui/launcher.slint
+msgid "Open"
+msgstr "فتح"
+
+#: ui/launcher.slint ui/player.slint
+msgid "Start"
+msgstr "تشغيل"
+
+#: ui/launcher.slint ui/player.slint
+msgid "Resume"
+msgstr "استئناف"
+
+#: ui/launcher.slint
+msgid "Hibernate"
+msgstr "إسبات"
+
+#: ui/launcher.slint
+msgid "Stop"
+msgstr "إيقاف"
+
+#: ui/launcher.slint
+msgid "Its whole state is saved and it uses no RAM. Resume picks up where it left off, in seconds."
+msgstr "حالته كاملةً محفوظة ولا يستهلك ذاكرة. «استئناف» يكمل من حيث توقف، في ثوانٍ."
+
+#: ui/launcher.slint
+msgid "A read-only base: agents lease throwaway clones of it with pool.get. It never starts itself."
+msgstr "قاعدة للقراءة فقط: يحجز الوكلاء منها نسخًا مؤقتة عبر pool.get. لا تُشغَّل هي نفسها أبدًا."
+
+#: ui/launcher.slint
+msgid "A throwaway clone of {}, leased by an agent. Releasing it deletes it."
+msgstr "نسخة مؤقتة من ⁨{}⁩ يحجزها وكيل. تحريرها يحذفها."
+
+# unsure: Android spelled «أندرويد» in prose (as tokens.json and the site); kept Latin in product names (Android SDK, «محاكي Android», trademark line). Switch to Latin everywhere if preferred.
+#: ui/launcher.slint
+msgid "Android"
+msgstr "أندرويد"
+
+#: ui/launcher.slint
+msgid "Hardware"
+msgstr "العتاد"
+
+#: ui/launcher.slint
+msgid "Root health"
+msgstr "سلامة الجذر"
+
+#: ui/launcher.slint
+msgid "Version"
+msgstr "الإصدار"
+
+#: ui/launcher.slint
+msgid "Image"
+msgstr "صورة النظام"
+
+#: ui/launcher.slint
+msgid "Profile"
+msgstr "ملف التعريف"
+
+#: ui/launcher.slint
+msgid "Serial"
+msgstr "الرقم التسلسلي"
+
+#: ui/launcher.slint
+msgid "CPU"
+msgstr "المعالج"
+
+#: ui/launcher.slint
+msgid "Disk"
+msgstr "القرص"
+
+#: ui/launcher.slint
+msgid "Mode"
+msgstr "الوضع"
+
+#: ui/launcher.slint
+msgid "Verified"
+msgstr "التحقق"
+
+#: ui/launcher.slint ui/snapshots.slint
+msgid "Snapshots"
+msgstr "اللقطات"
+
+#: ui/launcher.slint
+msgid "Manage snapshots"
+msgstr "إدارة اللقطات"
+
+#: ui/launcher.slint
+msgid "No snapshots yet. Save one from the device window with ⌘S."
+msgstr "لا لقطات بعد. احفظ واحدة من نافذة الجهاز بالاختصار ⌘S."
+
+#: ui/launcher.slint
+msgid "Session"
+msgstr "الجلسة"
+
+#: ui/launcher.slint
+msgid "Save as base…"
+msgstr "حفظ كقاعدة…"
+
+#: ui/launcher.slint
+msgid "Uptime"
+msgstr "مدة التشغيل"
+
+#: ui/launcher.slint
+msgid "Last started"
+msgstr "آخر تشغيل"
+
+#: ui/launcher.slint
+msgid "Driven by"
+msgstr "يتحكم فيه"
+
+#: ui/launcher.slint
+msgid "Lease"
+msgstr "الحجز"
+
+#: ui/launcher.slint
+msgid "Base"
+msgstr "القاعدة"
+
+#: ui/launcher.slint
+msgid "Clones"
+msgstr "النسخ"
+
+#: ui/launcher.slint
+msgid "No devices yet"
+msgstr "لا أجهزة بعد"
+
+#: ui/launcher.slint
+msgid "Jidr needs Google's Android Emulator and one system image before it can create a device. Nothing downloads until you accept Google's license."
+msgstr "يحتاج جذر إلى محاكي Android من Google وصورة نظام واحدة قبل أن يُنشئ جهازًا. لا يُنزَّل شيء حتى تقبل رخصة Google."
+
+#: ui/launcher.slint
+msgid "Find an Android SDK on this Mac, or install one"
+msgstr "العثور على Android SDK في جهاز ماك هذا، أو تثبيته"
+
+#: ui/launcher.slint
+msgid "Read and accept Google's SDK license"
+msgstr "قراءة رخصة SDK من Google وقبولها"
+
+#: ui/launcher.slint
+msgid "Download the emulator and Android 15 (API 35)"
+msgstr "تنزيل المحاكي وأندرويد 15 ⁨(API 35)⁩"
+
+#: ui/launcher.slint
+msgid "Use an SDK I already have…"
+msgstr "استخدام SDK موجود لديّ…"
+
+#: ui/palette.slint
+msgid "Type a command or a device name"
+msgstr "اكتب أمرًا أو اسم جهاز"
+
+#: ui/palette.slint
+msgid "Nothing matches “{}”."
+msgstr "لا شيء يطابق «⁨{}⁩»."
+
+#: ui/player.slint
+msgid "Logcat"
+msgstr "Logcat"
+
+#: ui/player.slint
+msgid "Filter tag, pid or text"
+msgstr "تصفية حسب الوسم أو pid أو النص"
+
+# unsure: logcat auto-scroll toggle state; button 'Follow' is «تتبّع».
+#: ui/player.slint
+msgid "Following"
+msgstr "قيد التتبّع"
+
+#: ui/player.slint
+msgid "Follow"
+msgstr "تتبّع"
+
+#: ui/player.slint
+msgid "Paused"
+msgstr "متوقف مؤقتًا"
+
+#: ui/player.slint
+msgid "Battery"
+msgstr "البطارية"
+
+#: ui/player.slint
+msgid "GPS"
+msgstr "GPS"
+
+#: ui/player.slint
+msgid "Network"
+msgstr "الشبكة"
+
+#: ui/player.slint
+msgid "Sensors"
+msgstr "الحسّاسات"
+
+# unsure: alternative «بكسل مقابل بكسل».
+#: ui/player.slint
+msgid "Pixel-perfect · 1 device pixel = 1 screen pixel"
+msgstr "دقة البكسل · بكسل واحد من الجهاز = بكسل واحد من الشاشة"
+
+#: ui/player.slint
+msgid "Fit"
+msgstr "ملاءمة"
+
+#: ui/player.slint
+msgid "{n} error"
+msgid_plural "{n} errors"
+msgstr[0] "لا أخطاء"
+msgstr[1] "خطأ واحد"
+msgstr[2] "خطآن"
+msgstr[3] "⁨{n}⁩ أخطاء"
+msgstr[4] "⁨{n}⁩ خطأً"
+msgstr[5] "⁨{n}⁩ خطأ"
+
+#: ui/settings.slint
+msgid "Copy"
+msgstr "نسخ"
+
+#: ui/settings.slint
+msgid "General"
+msgstr "عام"
+
+#: ui/settings.slint
+msgid "Storage"
+msgstr "التخزين"
+
+#: ui/settings.slint
+msgid "Agents"
+msgstr "الوكلاء"
+
+#: ui/settings.slint
+msgid "About"
+msgstr "حول"
+
+#: ui/settings.slint
+msgid "Default root mode"
+msgstr "وضع الجذر الافتراضي"
+
+#: ui/settings.slint
+msgid "Used by New device and by jidr device create when --root is not given."
+msgstr "يستخدمه «جهاز جديد» والأمر jidr device create عند عدم تمرير --root."
+
+#: ui/settings.slint
+msgid "Map tiles"
+msgstr "مربعات الخريطة"
+
+#: ui/settings.slint
+msgid "Pick Custom to use your own tile server. The attribution stays visible on the GPS map."
+msgstr "اختر «مخصص» لاستخدام خادم مربعات خاص بك. تبقى إشارة حقوق الخريطة ظاهرة على خريطة GPS."
+
+# unsure: shared msgid: Appearance (System/Light/Dark) AND the ambient-light sensor row (lux) in Sensors > Environment. «فاتح» is wrong for the sensor (would be «الإضاءة»); needs a msgctxt to split.
+#: ui/settings.slint
+msgid "Light"
+msgstr "فاتح"
+
+#: ui/settings.slint
+msgid "Dark"
+msgstr "داكن"
+
+#: ui/settings.slint
+msgid "Language"
+msgstr "اللغة"
+
+#: ui/settings.slint
+msgid "System follows the order of your Mac's preferred languages."
+msgstr "يتبع «النظام» ترتيب اللغات المفضلة في جهاز ماك."
+
+#: ui/settings.slint
+msgid "Save a quick-boot snapshot when a device stops"
+msgstr "حفظ لقطة إقلاع سريع عند إيقاف الجهاز"
+
+#: ui/settings.slint
+msgid "Starts take seconds instead of a full boot. Uses disk per device."
+msgstr "يستغرق التشغيل ثوانيَ بدلًا من إقلاع كامل. يستهلك مساحة على القرص لكل جهاز."
+
+#: ui/settings.slint
+msgid "Hibernates running devices left idle that long, freeing their RAM. Devices can override it."
+msgstr "يضع الأجهزة العاملة التي تبقى خاملة هذه المدة في إسبات، فيحرّر ذاكرتها. ويمكن تغيير ذلك لكل جهاز."
+
+#: ui/settings.slint ui/shell.slint
+msgid "Android SDK"
+msgstr "Android SDK"
+
+#: ui/settings.slint ui/widgets/panels.slint
+msgid "Change…"
+msgstr "تغيير…"
+
+#: ui/settings.slint
+msgid "Show in Finder"
+msgstr "إظهار في Finder"
+
+#: ui/settings.slint ui/shell.slint
+msgid "Devices"
+msgstr "الأجهزة"
+
+#: ui/settings.slint
+msgid "System images"
+msgstr "صور النظام"
+
+#: ui/settings.slint
+msgid "Download cache"
+msgstr "ذاكرة التنزيل المؤقتة"
+
+#: ui/settings.slint
+msgid "Magisk and finished downloads. Safe to clear."
+msgstr "ملفات Magisk والتنزيلات المكتملة. مسحها آمن."
+
+#: ui/settings.slint
+msgid "Clear cache"
+msgstr "مسح الذاكرة المؤقتة"
+
+#: ui/settings.slint
+msgid "Jidr runs an MCP server, so an agent can take screenshots, tap, type and read logs. While it drives, the device shows Busy · in use by agent and you can watch in the device window."
+msgstr "يشغّل جذر خادم MCP، فيستطيع الوكيل التقاط صور الشاشة والنقر والكتابة وقراءة السجلات. وأثناء تحكّمه يظهر على الجهاز «مشغول · يستخدمه وكيل»، ويمكنك المتابعة في نافذة الجهاز."
+
+#: ui/settings.slint
+msgid "Claude Desktop"
+msgstr "Claude Desktop"
+
+#: ui/settings.slint
+msgid "Adds the server to claude_desktop_config.json. Restart Claude after."
+msgstr "يضيف الخادم إلى claude_desktop_config.json. أعد تشغيل Claude بعدها."
+
+#: ui/settings.slint
+msgid "Add to Claude Desktop"
+msgstr "إضافة إلى Claude Desktop"
+
+#: ui/settings.slint
+msgid "Claude Code"
+msgstr "Claude Code"
+
+#: ui/settings.slint
+msgid "Terminal"
+msgstr "الطرفية"
+
+#: ui/settings.slint
+msgid "Any other MCP client"
+msgstr "أي عميل MCP آخر"
+
+#: ui/settings.slint
+msgid "mcp config (JSON)"
+msgstr "إعدادات mcp ⁨(JSON)⁩"
+
+#: ui/settings.slint
+msgid "Tools"
+msgstr "الأدوات"
+
+#: ui/settings.slint
+msgid "Version {} · macOS 14+ · Apple Silicon"
+msgstr "الإصدار ⁨{}⁩ · ⁨macOS 14+⁩ · Apple Silicon"
+
+#: ui/settings.slint
+msgid "Check for updates"
+msgstr "التحقق من وجود تحديثات"
+
+#: ui/settings.slint
+msgid "Licences"
+msgstr "التراخيص"
+
+#: ui/settings.slint
+msgid "Jidr app (this window)"
+msgstr "تطبيق جذر (هذه النافذة)"
+
+#: ui/settings.slint
+msgid "jidr CLI and daemon"
+msgstr "أداة jidr CLI والخدمة الخلفية"
+
+#: ui/settings.slint
+msgid "Slint UI toolkit"
+msgstr "مكتبة واجهات Slint"
+
+#: ui/settings.slint
+msgid "Magisk, downloaded on your Mac"
+msgstr "تطبيق Magisk، يُنزَّل على جهاز ماك"
+
+#: ui/settings.slint
+msgid "Android Emulator and system images, downloaded on your Mac"
+msgstr "محاكي Android وصور النظام، تُنزَّل على جهاز ماك"
+
+#: ui/settings.slint
+msgid "Android SDK License"
+msgstr "رخصة Android SDK"
+
+#: ui/settings.slint
+msgid "Lucide icons"
+msgstr "أيقونات Lucide"
+
+#: ui/settings.slint
+msgid "Geist, Geist Mono, Noto Kufi Arabic"
+msgstr "خطوط Geist وGeist Mono وNoto Kufi Arabic"
+
+#: ui/settings.slint
+msgid "Map data © OpenStreetMap contributors"
+msgstr "بيانات الخريطة © مساهمو OpenStreetMap"
+
+#: ui/settings.slint
+msgid "Show full licence texts"
+msgstr "عرض نصوص التراخيص كاملة"
+
+#: ui/settings.slint
+msgid "Source on GitHub"
+msgstr "المصدر على GitHub"
+
+#: ui/settings.slint
+msgid "Sponsor Jidr"
+msgstr "ادعم جذر"
+
+#: ui/settings.slint
+msgid "Android is a trademark of Google LLC. Jidr is not affiliated with Google or Genymotion."
+msgstr "العلامة التجارية Android مملوكة لشركة Google LLC. جذر غير تابع لـ Google ولا لـ Genymotion."
+
+#: ui/shell.slint
+msgid "Library"
+msgstr "المكتبة"
+
+# unsure: drops 'fit' to stay short: 'running {} of about {n} devices'. Longer: «{} من نحو {n} أجهزة تتسع لها الذاكرة».
+#: ui/shell.slint
+msgid "{} of ~{n} device fit"
+msgid_plural "{} of ~{n} devices fit"
+msgstr[0] "يعمل ⁨{}⁩ من نحو ⁨{n}⁩ جهاز"
+msgstr[1] "يعمل ⁨{}⁩ من نحو جهاز واحد"
+msgstr[2] "يعمل ⁨{}⁩ من نحو جهازين"
+msgstr[3] "يعمل ⁨{}⁩ من نحو ⁨{n}⁩ أجهزة"
+msgstr[4] "يعمل ⁨{}⁩ من نحو ⁨{n}⁩ جهازًا"
+msgstr[5] "يعمل ⁨{}⁩ من نحو ⁨{n}⁩ جهاز"
+
+#: ui/shell.slint
+msgid "Full: hibernate or stop a device to start another."
+msgstr "ممتلئة: ضع جهازًا في الإسبات أو أوقفه لتشغيل آخر."
+
+#: ui/shell.slint
+msgid "{} of {} in use · room for one more"
+msgstr "⁨{}⁩ من ⁨{}⁩ قيد الاستخدام · يتسع لجهاز آخر"
+
+#: ui/shell.slint
+msgid "{} of {} RAM budget in use"
+msgstr "ميزانية الذاكرة: ⁨{}⁩ من ⁨{}⁩ قيد الاستخدام"
+
+#: ui/shell.slint
+msgid "Commands and devices"
+msgstr "الأوامر والأجهزة"
+
+#: ui/shell.slint
+msgid "No devices yet. Create one with ⌘N."
+msgstr "لا أجهزة بعد. أنشئ واحدًا بالاختصار ⌘N."
+
+#: ui/shell.slint
+msgid "No devices yet. They appear here once the SDK is ready."
+msgstr "لا أجهزة بعد. ستظهر هنا عندما يجهز SDK."
+
+#: ui/shell.slint
+msgid "Agent pool"
+msgstr "مجمّع الوكلاء"
+
+#: ui/shell.slint
+msgid "Bases"
+msgstr "القواعد"
+
+#: ui/shell.slint
+msgid "Jobs"
+msgstr "المهام"
+
+#: ui/snapshots.slint
+msgid "Saved on every stop · used for fast start"
+msgstr "تُحفظ عند كل إيقاف · للتشغيل السريع"
+
+#: ui/snapshots.slint
+msgid "No snapshots yet. A snapshot saves memory and disk exactly as they are, tagged with the root mode."
+msgstr "لا لقطات بعد. تحفظ اللقطة الذاكرة والقرص كما هما تمامًا، موسومةً بوضع الجذر."
+
+#: ui/snapshots.slint
+msgid "Save snapshot of {}"
+msgstr "حفظ لقطة من ⁨{}⁩"
+
+#: ui/snapshots.slint
+msgid "Saves memory and disk exactly as they are now. Android pauses for a few seconds while it saves."
+msgstr "يحفظ الذاكرة والقرص كما هما الآن تمامًا. يتوقف أندرويد بضع ثوانٍ أثناء الحفظ."
+
+# unsure: label before the root badge in the save sheet; alternative «الوسم».
+#: ui/snapshots.slint
+msgid "Will be tagged"
+msgstr "ستحمل الوسم"
+
+#: ui/snapshots.slint
+msgid "Can't restore “{}”"
+msgstr "تتعذّر استعادة «⁨{}⁩»"
+
+#: ui/snapshots.slint
+msgid "Snapshot"
+msgstr "اللقطة"
+
+#: ui/snapshots.slint
+msgid "Device now"
+msgstr "الجهاز الآن"
+
+#: ui/widgets/panels.slint
+msgid "Battery level"
+msgstr "مستوى البطارية"
+
+#: ui/widgets/panels.slint
+msgid "Charging"
+msgstr "قيد الشحن"
+
+# unsure: battery toggle; alternative «لا يُشحن».
+#: ui/widgets/panels.slint
+msgid "Discharging"
+msgstr "قيد التفريغ"
+
+#: ui/widgets/panels.slint
+msgid "Off: the level drops as Android uses power. Turn on to simulate a charger."
+msgstr "عند الإيقاف: ينخفض المستوى كلما استهلك أندرويد الطاقة. فعّله لمحاكاة شاحن."
+
+#: ui/widgets/panels.slint
+msgid "Quick set"
+msgstr "ضبط سريع"
+
+#: ui/widgets/panels.slint
+msgid "5% · low battery"
+msgstr "5% · بطارية منخفضة"
+
+#: ui/widgets/panels.slint
+msgid "100% · full"
+msgstr "100% · ممتلئة"
+
+#: ui/widgets/panels.slint
+msgid "Wi-Fi"
+msgstr "Wi-Fi"
+
+#: ui/widgets/panels.slint
+msgid "Mobile data"
+msgstr "بيانات الجوّال"
+
+#: ui/widgets/panels.slint
+msgid "Speed and latency"
+msgstr "السرعة والتأخير"
+
+#: ui/widgets/panels.slint
+msgid "Full speed"
+msgstr "السرعة الكاملة"
+
+#: ui/widgets/panels.slint
+msgid "No limit · no added delay"
+msgstr "بلا حد · بلا تأخير إضافي"
+
+#: ui/widgets/panels.slint
+msgid "Mobile signal"
+msgstr "إشارة الجوّال"
+
+#: ui/widgets/panels.slint
+msgid "Bars shown in Android's status bar."
+msgstr "الأشرطة الظاهرة في شريط حالة أندرويد."
+
+# unsure: «بروكسي» instead of Android's «الخادم الوكيل» because وكيل = agent in the glossary.
+#: ui/widgets/panels.slint
+msgid "HTTP proxy"
+msgstr "بروكسي HTTP"
+
+#: ui/widgets/panels.slint
+msgid "Change"
+msgstr "تغيير"
+
+#: ui/widgets/panels.slint
+msgid "Set proxy"
+msgstr "ضبط البروكسي"
+
+#: ui/widgets/panels.slint
+msgid "Clear"
+msgstr "مسح"
+
+#: ui/widgets/panels.slint
+msgid "HTTP(S) traffic goes through {}. For HTTPS, trust the proxy's CA under More › Developer tools › CA certificates."
+msgstr "تمر حركة ⁨HTTP(S)⁩ عبر ⁨{}⁩. ولـ HTTPS، ثِق بشهادة CA الخاصة بالبروكسي من المزيد › أدوات المطوّرين › شهادات CA."
+
+#: ui/widgets/panels.slint
+msgid "Off. 10.0.2.2 is this Mac; Burp and mitmproxy listen on 8080."
+msgstr "متوقف. العنوان 10.0.2.2 هو جهاز ماك هذا؛ ويستمع Burp وmitmproxy على المنفذ 8080."
+
+#: ui/widgets/panels.slint
+msgid "Rotation"
+msgstr "التدوير"
+
+#: ui/widgets/panels.slint
+msgid "Turns the device; apps that allow rotation follow."
+msgstr "يُدير الجهاز؛ وتتبعه التطبيقات التي تسمح بالتدوير."
+
+#: ui/widgets/panels.slint
+msgid "Motion"
+msgstr "الحركة"
+
+#: ui/widgets/panels.slint
+msgid "Upright"
+msgstr "قائم"
+
+#: ui/widgets/panels.slint
+msgid "Flat on a table"
+msgstr "مسطّح على طاولة"
+
+#: ui/widgets/panels.slint
+msgid "Upside down"
+msgstr "مقلوب"
+
+#: ui/widgets/panels.slint
+msgid "Environment"
+msgstr "البيئة"
+
+#: ui/widgets/panels.slint
+msgctxt "light sensor"
+msgid "Light"
+msgstr "الإضاءة"
+
+#: ui/widgets/panels.slint
+msgid "Temperature"
+msgstr "درجة الحرارة"
+
+#: ui/widgets/panels.slint
+msgid "Pressure"
+msgstr "الضغط"
+
+#: ui/widgets/panels.slint
+msgid "Humidity"
+msgstr "الرطوبة"
+
+#: ui/widgets/panels.slint
+msgid "Something near the screen"
+msgstr "شيء قرب الشاشة"
+
+#: ui/widgets/panels.slint
+msgid "Proximity sensor: covers the screen during calls."
+msgstr "حسّاس القرب: يغطي الشاشة أثناء المكالمات."
+
+#: ui/widgets/panels.slint
+msgid "Phone"
+msgstr "الهاتف"
+
+#: ui/widgets/panels.slint
+msgid "Incoming call"
+msgstr "مكالمة واردة"
+
+#: ui/widgets/panels.slint
+msgid "Answer"
+msgstr "رد"
+
+#: ui/widgets/panels.slint
+msgid "End"
+msgstr "إنهاء"
+
+#: ui/widgets/panels.slint
+msgid "SMS text"
+msgstr "نص الرسالة القصيرة"
+
+#: ui/widgets/panels.slint
+msgid "Send SMS"
+msgstr "إرسال رسالة قصيرة"
+
+#: ui/widgets/panels.slint
+msgid "Android controls"
+msgstr "عناصر تحكم أندرويد"
+
+#: ui/widgets/panels.slint
+msgid "Previous"
+msgstr "السابق"
+
+#: ui/widgets/panels.slint
+msgid "Play / pause"
+msgstr "تشغيل / إيقاف مؤقت"
+
+#: ui/widgets/panels.slint
+msgid "Next"
+msgstr "التالي"
+
+#: ui/widgets/panels.slint
+msgid "Developer tools"
+msgstr "أدوات المطوّرين"
+
+#: ui/widgets/panels.slint
+msgid "Show taps"
+msgstr "إظهار النقرات"
+
+#: ui/widgets/panels.slint
+msgid "Pointer location"
+msgstr "موقع المؤشر"
+
+#: ui/widgets/panels.slint
+msgid "Layout bounds"
+msgstr "حدود التخطيط"
+
+#: ui/widgets/panels.slint
+msgid "Animation scale"
+msgstr "مقياس الرسوم المتحركة"
+
+#: ui/widgets/panels.slint
+msgid "Clipboard"
+msgstr "الحافظة"
+
+#: ui/widgets/panels.slint
+msgid "Text for the device clipboard"
+msgstr "نص لحافظة الجهاز"
+
+#: ui/widgets/panels.slint
+msgid "Send to device"
+msgstr "إرسال إلى الجهاز"
+
+#: ui/widgets/panels.slint
+msgid "Read from device"
+msgstr "القراءة من الجهاز"
+
+#: ui/widgets/panels.slint
+msgid "Recognised"
+msgstr "مُعترف بها"
+
+#: ui/widgets/panels.slint
+msgid "Unrecognised"
+msgstr "غير مُعترف بها"
+
+#: ui/widgets/panels.slint
+msgid "Lift"
+msgstr "رفع الإصبع"
+
+#: ui/widgets/panels.slint
+msgid "Recognised uses finger 1; enrol it once in Android's Security settings."
+msgstr "«مُعترف بها» تستخدم الإصبع 1؛ سجّله مرة واحدة في إعدادات الأمان في أندرويد."
+
+#: ui/widgets/panels.slint
+msgid "Back camera"
+msgstr "الكاميرا الخلفية"
+
+#: ui/widgets/panels.slint
+msgid "Emulated"
+msgstr "مُحاكاة"
+
+#: ui/widgets/panels.slint
+msgid "Webcam"
+msgstr "كاميرا الويب"
+
+#: ui/widgets/panels.slint
+msgid "Scene"
+msgstr "مشهد"
+
+#: ui/widgets/panels.slint
+msgctxt "camera"
+msgid "None"
+msgstr "بلا كاميرا"
+
+#: ui/widgets/panels.slint
+msgid "Applies the next time the device starts."
+msgstr "يُطبَّق في المرة القادمة التي يُشغَّل فيها الجهاز."
+
+#: ui/widgets/panels.slint
+msgid "Latitude"
+msgstr "خط العرض"
+
+#: ui/widgets/panels.slint
+msgid "Longitude"
+msgstr "خط الطول"
+
+#: ui/widgets/panels.slint
+msgid "Altitude"
+msgstr "الارتفاع"
+
+#: ui/widgets/panels.slint
+msgid "Bearing"
+msgstr "الاتجاه"
+
+#: ui/widgets/panels.slint
+msgid "Set location"
+msgstr "تعيين الموقع"
+
+#: ui/widgets/panels.slint
+msgid "Replay a GPX or KML route"
+msgstr "إعادة تشغيل مسار GPX أو KML"
+
+#: ui/widgets/panels.slint
+msgid "Choose a file…"
+msgstr "اختيار ملف…"
+
+#: ui/widgets/panels.slint
+msgid "Loop"
+msgstr "تكرار"
+
+# unsure: «إعداد تطبيق جذر» to avoid clashing with «إعداد الجذر» (Set up root); alternative «إعداد جذر».
+#: ui/wizard.slint
+msgid "Set up Jidr"
+msgstr "إعداد تطبيق جذر"
+
+#: ui/wizard.slint
+msgid "Find SDK"
+msgstr "البحث عن SDK"
+
+#: ui/wizard.slint
+msgid "License"
+msgstr "الرخصة"
+
+#: ui/wizard.slint
+msgid "First device"
+msgstr "الجهاز الأول"
+
+#: ui/wizard.slint
+msgid "Found an Android SDK"
+msgstr "عُثر على Android SDK"
+
+#: ui/wizard.slint
+msgid "No Android SDK on this Mac"
+msgstr "لا يوجد Android SDK على جهاز ماك هذا"
+
+#: ui/wizard.slint
+msgid "Accept Google's SDK license"
+msgstr "قبول رخصة SDK من Google"
+
+#: ui/wizard.slint
+msgid "Downloaded"
+msgstr "نُزِّل"
+
+#: ui/wizard.slint
+msgid "Create your first device"
+msgstr "أنشئ جهازك الأول"
+
+#: ui/wizard.slint
+msgid "Jidr will use it read-only and keep its own downloads in a separate folder."
+msgstr "سيستخدمه جذر للقراءة فقط، ويحفظ تنزيلاته الخاصة في مجلد منفصل."
+
+#: ui/wizard.slint
+msgid "Jidr looked in the usual places. It can install what it needs in its own folder and leave your other tools alone."
+msgstr "بحث جذر في الأماكن المعتادة. يمكنه تثبيت ما يحتاج إليه في مجلده الخاص دون المساس بأدواتك الأخرى."
+
+#: ui/wizard.slint
+msgid "Jidr downloads Google's Android Emulator and a system image to your Mac. Google's license applies to those files. Jidr shows it in full, unchanged."
+msgstr "ينزّل جذر محاكي Android من Google وصورة نظام إلى جهاز ماك. تسري رخصة Google على هذه الملفات، ويعرضها جذر كاملةً دون تعديل."
+
+#: ui/wizard.slint
+msgid "Jidr will download, after you accept Google's license"
+msgstr "سينزّل جذر ما يلي بعد قبولك رخصة Google"
+
+#: ui/wizard.slint
+msgid "Into {}"
+msgstr "إلى ⁨{}⁩"
+
+#: ui/wizard.slint
+msgid "You reached the end. Accept to continue, or decline to leave the SDK uninstalled."
+msgstr "وصلت إلى النهاية. اقبل للمتابعة، أو ارفض لترك SDK دون تثبيت."
+
+#: ui/wizard.slint
+msgid "Scroll to the end to accept. Declining leaves the SDK uninstalled."
+msgstr "مرّر إلى النهاية لتتمكن من القبول. الرفض يترك SDK دون تثبيت."
+
+#: ui/wizard.slint
+msgid "Use an existing SDK…"
+msgstr "استخدام SDK موجود…"
+
+#: ui/wizard.slint
+msgid "Back"
+msgstr "رجوع"
+
+#: ui/wizard.slint
+msgid "Decline"
+msgstr "رفض"
+
+#: ui/wizard.slint
+msgid "More options…"
+msgstr "خيارات أخرى…"
+
+#: ui/wizard.slint
+msgid "Quit"
+msgstr "إنهاء"
+
+#: ui/wizard.slint
+msgid "Continue"
+msgstr "متابعة"
+
+#: ui/wizard.slint
+msgid "Download: {}"
+msgstr "التنزيل: ⁨{}⁩"
+
+#: ui/wizard.slint
+msgid "I accept"
+msgstr "أوافق"
