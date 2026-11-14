@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.6.0](https://github.com/jidr-dev/jidr/compare/v0.5.0...v0.6.0) (2026-11-14)
+
+
+### Features
+
+* **cli:** jidr flash runs file.flash ([130283b](https://github.com/jidr-dev/jidr/commit/130283bd8e35d376ae16e757a600849b6b488678))
+* flashable zips — ADR-0004, file.flash and jidr flash ([#72](https://github.com/jidr-dev/jidr/issues/72)) ([1841c2d](https://github.com/jidr-dev/jidr/commit/1841c2d06418b0b458c698b61917fe8ba1c97481))
+* **root:** detect zip types and add file.flash (ADR-0004) ([366b761](https://github.com/jidr-dev/jidr/commit/366b761d73793d97fec53aca13d4d13c8b10af47))
+* **ui:** send dropped zips through file.flash ([75ea6ec](https://github.com/jidr-dev/jidr/commit/75ea6ec16b62da19bc623d82e124fc12b97f0996))
+
 ## [0.5.0](https://github.com/AbdurahmanAlmehdi/jidr/compare/v0.4.0...v0.5.0) (2026-11-13)
 
 
