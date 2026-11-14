@@ -1,6 +1,6 @@
 [package]
 name = "xtask"
-description = "Jidr build automation: ci, license-check, skills-check, helper, e2e-mac, release."
+description = "Jidr build automation: ci, license-check, skills-check, i18n, helper, e2e-mac, release."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
