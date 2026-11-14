@@ -4,14 +4,17 @@
 //! and answers a typed RPC ([`rpc`]) on an abstract Unix socket. The daemon
 //! pushes it, starts it under `adb root` or Magisk `su`, and reaches it
 //! through `adb forward` ([`host`], behind the `host` feature). Privileged
-//! widgets (#17 packet loss first, then #18, #19, operator/SIM, disk limits,
-//! gamepad) add methods here instead of each shipping its own daemon.
+//! widgets (#17 packet loss first, #19 the Android ID, then #18,
+//! operator/SIM, disk limits, gamepad) add methods here instead of each
+//! shipping its own daemon.
 //!
 //! - [`rpc`]: the wire types, shared by both sides;
 //! - [`server`]: the request loop, independent of the socket;
 //! - [`netem`]: packet loss with `tc … netem` (#17);
+//! - [`identity`]: the Android ID, as apps read it (#19);
 //! - [`testing`]: a fake guest for offline tests.
 
+pub mod identity;
 pub mod netem;
 pub mod rpc;
 pub mod server;

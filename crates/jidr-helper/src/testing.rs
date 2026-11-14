@@ -1,14 +1,16 @@
 //! A fake guest for offline tests (not used by the product): the real
-//! request loop ([`Server`]) on a host TCP port with fake `ip` and `tc`, and
-//! an `adb` script whose `forward` points at it. Like a real device, nothing
-//! answers until `jidr-helper start` has run through `adb shell`, and a
-//! "reboot" stops the helper again.
+//! request loop ([`Server`]) on a host TCP port with fake `ip`, `tc`,
+//! `cmd package`, `stop`/`start` and files, and an `adb`
+//! script whose `forward` points at it. Like a real device, nothing answers
+//! until `jidr-helper start` has run through `adb shell`, and a "reboot"
+//! stops the helper again (keeping what lives in `/data`).
 
 use std::collections::HashMap;
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
+use crate::identity::{CHMOD, CHOWN, CMD, PIDOF, START, STOP};
 use crate::netem::{IP, Output, Run, TC};
 use crate::rpc::{PROTOCOL, Pong};
 use crate::server::{Next, Server};
@@ -24,6 +26,37 @@ pub struct GuestState {
     pub netem: bool,
     /// The running helper's uid (0 when started as root).
     pub uid: u32,
+    /// Files the helper wrote or reads, by path (kept across reboots).
+    pub files: HashMap<String, Vec<u8>>,
+    /// `cmd package list packages -U`.
+    pub packages: String,
+    /// system_server's pid; `None` while the framework is stopped.
+    pub system_server: Option<u32>,
+    /// The IMEI telephony reports.
+    pub imei: String,
+    /// Where the fake `adb` reads what the device reports.
+    dir: Option<std::path::PathBuf>,
+}
+
+impl GuestState {
+    /// Writes what the fake `adb` shows: the IMEI (as a `service call`
+    /// parcel) and system_server's pid. (The global Android ID is the file
+    /// `android_id`, which the fake `adb` reads and writes.)
+    fn sync(&self) {
+        let Some(dir) = &self.dir else { return };
+        let _ = std::fs::write(dir.join("imei"), parcel(&self.imei));
+        let pid = self
+            .system_server
+            .map(|p| p.to_string())
+            .unwrap_or_default();
+        let _ = std::fs::write(dir.join("system_server"), pid);
+    }
+}
+
+/// `service call`'s dump of a parcel holding `text` (UTF-16).
+fn parcel(text: &str) -> String {
+    let dots: String = text.chars().flat_map(|c| ['.', c]).collect();
+    format!("Result: Parcel(00000000 0000000f 00000000 '........{dots}')\n")
 }
 
 impl Default for GuestState {
@@ -38,6 +71,14 @@ impl Default for GuestState {
                 .into(),
             netem: true,
             uid: 0,
+            files: HashMap::new(),
+            packages: "package:android uid:1000\n\
+                       package:com.android.shell uid:2000\n\
+                       package:com.example.app uid:10123\n"
+                .into(),
+            system_server: Some(500),
+            imei: "867400022047199".into(),
+            dir: None,
         }
     }
 }
@@ -58,7 +99,24 @@ impl Run for Shared {
             stdout,
             ..Output::default()
         };
-        Ok(match (program, args) {
+        let out = match (program, args) {
+            (CMD, ["package", "list", "packages", "-U", ..]) => ok(s.packages.clone()),
+            (STOP, []) => {
+                s.system_server = None;
+                ok(String::new())
+            }
+            (START, []) => {
+                s.system_server = Some(501);
+                ok(String::new())
+            }
+            (PIDOF, ["system_server"]) => match s.system_server {
+                Some(pid) => ok(format!("{pid}\n")),
+                None => Output {
+                    status: 1,
+                    ..Output::default()
+                },
+            },
+            (CHOWN | CHMOD, _) => ok(String::new()),
             (IP, _) => ok(s.routes.clone()),
             (TC, ["qdisc", "show", "dev", dev]) => {
                 ok(s.qdiscs.get(*dev).cloned().unwrap_or_default())
@@ -82,7 +140,29 @@ impl Run for Shared {
                 stderr: format!("fake guest: no {program} {}", args.join(" ")),
                 ..Output::default()
             },
-        })
+        };
+        s.sync();
+        Ok(out)
+    }
+
+    fn read_file(&self, path: &str) -> std::io::Result<Vec<u8>> {
+        self.lock()
+            .files
+            .get(path)
+            .cloned()
+            .ok_or_else(|| std::io::Error::from(std::io::ErrorKind::NotFound))
+    }
+
+    fn write_file(&self, path: &str, contents: &[u8]) -> std::io::Result<()> {
+        self.lock()
+            .files
+            .insert(path.to_string(), contents.to_vec());
+        Ok(())
+    }
+
+    fn remove_file(&self, path: &str) -> std::io::Result<()> {
+        self.lock().files.remove(path);
+        Ok(())
     }
 }
 
@@ -104,6 +184,11 @@ case "$1" in
   shell)
     case "$2" in
       "getprop ro.product.cpu.abi") echo arm64-v8a;;
+      "settings get secure android_id") cat "$dir/android_id";;
+      "settings put secure android_id "*) echo "${2##* }" > "$dir/android_id";;
+      "service call iphonesubinfo 1 s16 com.android.shell") cat "$dir/imei";;
+      "pidof system_server") cat "$dir/system_server";;
+      "getprop service.bootanim.exit") echo 1;;
       id*) echo "uid=0(root) gid=0(root) groups=0(root)";;
       *"/data/local/tmp/jidr-helper start"*)
         rm -f "$dir/older-build"
@@ -152,6 +237,9 @@ impl FakeGuest {
             )?;
         }
         let state = Shared::default();
+        std::fs::write(dir.join("android_id"), "1f3842600e7f0f09\n")?;
+        state.lock().dir = Some(dir.clone());
+        state.lock().sync();
         let (st, started) = (state.clone(), dir.join("started"));
         let (pushed, older) = (dir.join("pushed"), dir.join("older-build"));
         std::thread::spawn(move || {
@@ -197,10 +285,27 @@ impl FakeGuest {
         self.state.lock()
     }
 
-    /// A reboot: the helper is gone and the kernel's shaping with it.
+    /// A reboot: the helper is gone, and with it the kernel's shaping;
+    /// `/data` (the Android ID, files) stays.
     pub fn reboot(&self) {
         let _ = std::fs::remove_file(self.dir.join("started"));
-        *self.state() = GuestState::default();
+        let mut s = self.state();
+        let fresh = GuestState {
+            files: std::mem::take(&mut s.files),
+            packages: std::mem::take(&mut s.packages),
+            dir: s.dir.take(),
+            ..GuestState::default()
+        };
+        *s = fresh;
+        s.sync();
+    }
+
+    /// The SSAID table the helper wrote, as text.
+    pub fn ssaid(&self) -> Option<String> {
+        self.state()
+            .files
+            .get(crate::identity::SSAID_FILE)
+            .map(|b| String::from_utf8_lossy(b).into_owned())
     }
 
     /// An older helper build is running, until `jidr-helper start`

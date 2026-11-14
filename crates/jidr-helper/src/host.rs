@@ -262,7 +262,9 @@ impl Helper {
         self.call_timeout(params, CALL_TIMEOUT).await
     }
 
-    async fn call_timeout<M: Method>(
+    /// Calls a typed method that may take longer than a usual call (one
+    /// that restarts part of Android).
+    pub async fn call_timeout<M: Method>(
         &mut self,
         params: &M,
         timeout: Duration,

@@ -7,8 +7,11 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
+use crate::identity;
 use crate::netem::{self, Run};
-use crate::rpc::{Error, Method, Ping, Pong, Request, Response, ShapingGet, ShapingSet, Shutdown};
+use crate::rpc::{
+    AndroidIdSet, Error, Method, Ping, Pong, Request, Response, ShapingGet, ShapingSet, Shutdown,
+};
 
 /// Answers requests: `ping` with `pong`, the rest through `run`.
 pub struct Server<R: Run> {
@@ -53,6 +56,9 @@ impl<R: Run> Server<R> {
             }
             ShapingGet::NAME => params(req.params).and_then(|p| result(netem::get(&self.run, &p))),
             ShapingSet::NAME => params(req.params).and_then(|p| result(netem::set(&self.run, &p))),
+            AndroidIdSet::NAME => {
+                params(req.params).and_then(|p| result(identity::set(&self.run, &p)))
+            }
             other => Err(Error::usage(format!("unknown method {other}"))),
         };
         let resp = match out {

@@ -24,9 +24,24 @@ pub struct Output {
     pub stderr: String,
 }
 
-/// Runs a program; real on the guest, fake in tests.
+/// Runs a program, and reads and writes files; real on the guest, fake in
+/// tests.
 pub trait Run {
     fn run(&self, program: &str, args: &[&str]) -> std::io::Result<Output>;
+
+    fn read_file(&self, path: &str) -> std::io::Result<Vec<u8>> {
+        std::fs::read(path)
+    }
+
+    /// Truncates and writes `path` in place (keeping its owner, mode and
+    /// SELinux label).
+    fn write_file(&self, path: &str, contents: &[u8]) -> std::io::Result<()> {
+        std::fs::write(path, contents)
+    }
+
+    fn remove_file(&self, path: &str) -> std::io::Result<()> {
+        std::fs::remove_file(path)
+    }
 }
 
 /// Runs programs with `std::process::Command`.

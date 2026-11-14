@@ -203,6 +203,27 @@ pub struct InterfaceShaping {
     pub loss_pct: f64,
 }
 
+/// `identity.android_id.set`: the Android ID as every installed app reads
+/// it (its SSAID). Restarts the Android framework.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct AndroidIdSet {
+    /// 16 hexadecimal digits.
+    pub android_id: String,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct AndroidIdSetResult {
+    /// The ID as set (lower case).
+    pub android_id: String,
+    /// How many app uids now read it.
+    pub apps: u32,
+}
+
+impl Method for AndroidIdSet {
+    const NAME: &'static str = "identity.android_id.set";
+    type Output = AndroidIdSetResult;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
