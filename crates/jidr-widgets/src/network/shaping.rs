@@ -212,7 +212,22 @@ pub async fn on_booted(ctx: &CallCtx, device: &Device) -> JidrResult<()> {
     if now.interfaces.iter().all(|i| applied(i, &want)) {
         return Ok(());
     }
-    helper.call(&want).await?;
+    if let Err(e) = helper.call(&want).await {
+        // A kernel that can't do it never will (API 30 has no netem or
+        // prio): forget it, so this warns once instead of at every boot.
+        let unsupported = e
+            .data
+            .as_ref()
+            .is_some_and(|d| d["helper_error"] == "unsupported");
+        if unsupported {
+            store(ctx, device, &NetworkShaping::default()).await?;
+            return Err(JidrError::usage(format!(
+                "{}: {}; its stored packet loss and bad DNS were forgotten",
+                device.name, e.message
+            )));
+        }
+        return Err(e);
+    }
     Ok(())
 }
 

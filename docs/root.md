@@ -337,9 +337,12 @@ and it comes back; or forget it with `jidr network loss <device> 0` and
 `jidr network dns <device> normal`, which work without root on a `none`
 device.
 
-Both need API 31 or later. API 30's emulator kernel has no netem, so the
-command fails there with `usage` ("this image's kernel has no netem") and
-changes nothing (D44).
+Packet loss and bad DNS both need API 31 or later. API 30's emulator kernel
+has neither netem nor the `prio` qdisc, so the command fails there with
+`usage` ("this image's kernel has no netem", or "no prio qdisc" for bad DNS)
+and changes nothing (D44). Nothing is stored either, so no boot tries again;
+and if a stored setting ever meets a kernel that can't do it, the boot hook
+forgets it after one warning.
 
 How it's reached: the helper listens on the abstract Unix socket
 `@jidr-helper` (no file, no port on the guest's network) and serves only

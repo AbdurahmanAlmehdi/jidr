@@ -179,7 +179,8 @@ async fn helper_starts_as_root_and_drops_packets() {
             .unwrap_err();
         assert_eq!(e.code, jidr_core::ErrorCode::Usage, "{e}");
         assert!(e.message.contains("netem"), "{e}");
-        // Bad DNS needs netem too, and is refused the same way.
+        // Bad DNS needs the prio qdisc and netem, which API 30's kernel
+        // lacks too: refused the same way (CI, 2026-11-14: "no prio qdisc").
         let e = p
             .call(
                 &ctx,
@@ -189,7 +190,17 @@ async fn helper_starts_as_root_and_drops_packets() {
             .await
             .unwrap_err();
         assert_eq!(e.code, jidr_core::ErrorCode::Usage, "{e}");
-        assert!(e.message.contains("netem"), "{e}");
+        assert!(e.message.contains("this image's kernel has no"), "{e}");
+        assert_eq!(
+            e.data.as_ref().unwrap()["helper_error"],
+            "unsupported",
+            "{e}"
+        );
+        // Nothing unsupported is stored, so no boot tries to re-apply it.
+        assert!(
+            state.device(&name).await.unwrap().network_shaping.is_off(),
+            "a refused setting isn't stored"
+        );
         for iface in &ifaces {
             let q = shell(&info, &format!("tc qdisc show dev {iface}"));
             assert!(

@@ -323,6 +323,32 @@ async fn a_quick_boot_that_kept_the_shaping_is_left_alone() {
     s.d.stop().await;
 }
 
+/// A stored setting the kernel turns out not to support (API 30 has no
+/// netem or prio) is forgotten at boot, so it warns once, not every boot.
+#[tokio::test]
+async fn a_setting_the_kernel_cant_do_is_forgotten_at_boot() {
+    let s = setup("adb").await;
+    dns(&s.c, json!({ "dns": "fail" })).await.unwrap();
+    let mut events = s.c.subscribe(&["device.hook_failed"]).await.unwrap();
+    s.c.call("device.stop", json!({ "device": "P" }))
+        .await
+        .unwrap();
+    s.guest.reboot();
+    s.guest.state().kernel.netem = false;
+    s.c.run("device.start", json!({ "device": "P" }), |_| {})
+        .await
+        .unwrap();
+    let ev = events.recv().await.unwrap();
+    let msg = ev.data["error"]["message"].as_str().unwrap().to_string();
+    assert!(msg.contains("forgotten"), "{msg}");
+    assert_eq!(stored(&s).await, Value::Null);
+    // The next boot leaves the helper alone.
+    let starts = s.guest.starts();
+    cold_boot(&s).await;
+    assert_eq!(s.guest.starts(), starts);
+    s.d.stop().await;
+}
+
 /// A device whose root mode became `none` keeps its stored shaping, skips
 /// it at boot with a warning, and can still forget it without root.
 #[tokio::test]
