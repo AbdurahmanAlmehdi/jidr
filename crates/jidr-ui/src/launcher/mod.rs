@@ -13,6 +13,7 @@ use uuid::Uuid;
 use crate::app::{Ctx, report, toast};
 use crate::bridge::Bridge;
 use crate::device_form;
+use crate::i18n::tr;
 use crate::model::Exhausted;
 use crate::{AppWindow, DeviceForm, PaletteItem, RootChoice};
 
@@ -111,7 +112,7 @@ pub fn wire(ctx: &Rc<Ctx>) {
             .map(|d| d.name.clone())
             .collect();
         let w = c.app.as_weak();
-        toast(&w, format!("Hibernating {} to make room", names.join(", ")));
+        toast(&w, tr!("Hibernating {} to make room", names.join(", ")));
         let bridge = c.bridge.clone();
         let b2 = bridge.clone();
         hibernate_all(&bridge, picks, move |r| match r {
@@ -146,7 +147,7 @@ pub fn wire(ctx: &Rc<Ctx>) {
             c.bridge.call(
                 "jobs.cancel",
                 json!({ "job": job }),
-                report(&w, "Cancelled"),
+                report(&w, tr!("Cancelled")),
             );
         }
     });
@@ -159,7 +160,7 @@ pub fn wire(ctx: &Rc<Ctx>) {
                 "root.verify",
                 json!({ "device": id }),
                 |_| {},
-                report(&w, "Root verified"),
+                report(&w, tr!("Root verified")),
             );
         }
     });
@@ -171,16 +172,16 @@ pub fn wire(ctx: &Rc<Ctx>) {
         let c2 = c.clone();
         confirm(
             &c,
-            &format!("Revert {name} to unrooted?"),
-            "Removes root and cold boots the device (about 40 s). Apps and data stay. Snapshots taken with root can't be restored until root is set up again.",
-            "Revert",
+            &tr!("Revert {} to unrooted?", name),
+            &tr!("Removes root and cold boots the device (about 40 s). Apps and data stay. Snapshots taken with root can't be restored until root is set up again."),
+            &tr!("Revert"),
             move || {
                 let w = c2.app.as_weak();
                 c2.bridge.run(
                     "root.set",
                     json!({ "device": id, "mode": "none" }),
                     |_| {},
-                    report(&w, &format!("Reverted {name} to unrooted")),
+                    report(&w, &tr!("Reverted {} to unrooted", name)),
                 );
             },
         );
@@ -406,7 +407,7 @@ pub fn hibernate(c: &Rc<Ctx>, id: Uuid) {
         "device.hibernate",
         json!({ "device": id }),
         |_| {},
-        report(&w, format!("Hibernated {name}")),
+        report(&w, tr!("Hibernated {}", name)),
     );
 }
 
@@ -426,11 +427,13 @@ pub fn save_as_base(c: &Rc<Ctx>, id: Uuid) {
     let c2 = c.clone();
     confirm_with(
         c,
-        &format!("Save {name} as a base?"),
-        &format!(
-            "Agents lease throwaway clones of a base with pool.get. {name} stops, and \"{base}\" becomes a read-only copy of it, animations off."
+        &tr!("Save {} as a base?", name),
+        &tr!(
+            "Agents lease throwaway clones of a base with pool.get. {} stops, and “{}” becomes a read-only copy of it, animations off.",
+            name,
+            base
         ),
-        "Save as base",
+        &tr!("Save as base"),
         false,
         move || {
             let w = c2.app.as_weak();
@@ -438,7 +441,7 @@ pub fn save_as_base(c: &Rc<Ctx>, id: Uuid) {
                 "base.create",
                 json!({ "from_device": id, "name": base }),
                 |_| {},
-                report(&w, format!("Saved {base} as a base")),
+                report(&w, tr!("Saved {} as a base", base)),
             );
         },
     );
@@ -566,7 +569,7 @@ fn submit(c: &Rc<Ctx>, form: DeviceForm) {
                 // the Root sheet).
                 let mode = crate::root::mode_of(form.root);
                 let changed = mode != info.device.root.mode;
-                let saved = report(&w, &format!("Saved {}", form.name));
+                let saved = report(&w, &tr!("Saved {}", form.name));
                 c.bridge.call("device.edit", params, move |r| {
                     let ok = r.is_ok();
                     saved(r);
@@ -604,7 +607,7 @@ fn submit(c: &Rc<Ctx>, form: DeviceForm) {
         let b2 = bridge.clone();
         bridge.call("device.create", params, move |r| match r {
             Ok(dev) => {
-                toast(&w, format!("Created {name}"));
+                toast(&w, tr!("Created {}", name));
                 if full_root
                     && let Some(id) = dev
                         .get("id")

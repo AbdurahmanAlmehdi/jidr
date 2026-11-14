@@ -1,5 +1,7 @@
 //! Generates `ui/theme.slint` from `docs/design/tokens.json` (D41: one
-//! source, never hand-copied hex) and compiles the Slint UI.
+//! source, never hand-copied hex), compiles the Slint UI with the bundled
+//! translations, and turns the same catalogs into the table `src/i18n.rs`
+//! reads for the strings Rust builds.
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
@@ -25,9 +27,70 @@ fn main() -> Res<()> {
     println!("cargo:rerun-if-changed={}", icons.display());
     write_if_changed(&manifest.join("ui/icons.slint"), &generate_icons(&icons)?)?;
 
-    let config = slint_build::CompilerConfiguration::new().with_style("fluent".into());
+    let i18n = manifest.join("i18n");
+    println!("cargo:rerun-if-changed={}", i18n.display());
+    let out = PathBuf::from(std::env::var("OUT_DIR")?);
+    std::fs::write(out.join("i18n_catalog.rs"), generate_catalog(&i18n)?)?;
+
+    // No default context: one msgid has one translation wherever it appears,
+    // and the Rust side (which has no component names) shares the catalog.
+    let config = slint_build::CompilerConfiguration::new()
+        .with_style("fluent".into())
+        .with_bundled_translations(&i18n)
+        .with_default_translation_context(slint_build::DefaultTranslationContext::None);
     slint_build::compile_with_config(manifest.join("ui/app.slint"), config)?;
     Ok(())
+}
+
+/// `PLURAL_FORMS` and `CATALOG` (per language, translated entries sorted
+/// by msgid) from `i18n/<lang>/LC_MESSAGES/jidr-ui.po`.
+fn generate_catalog(dir: &Path) -> Res<String> {
+    use rspolib::TranslatedEntry as _;
+    let mut langs: Vec<(String, PathBuf)> = std::fs::read_dir(dir)?
+        .filter_map(|e| e.ok())
+        .map(|e| {
+            (
+                e.file_name().to_string_lossy().into_owned(),
+                e.path().join("LC_MESSAGES/jidr-ui.po"),
+            )
+        })
+        .filter(|(_, p)| p.exists())
+        .collect();
+    langs.sort();
+    let mut forms = String::from(
+        "/// Each catalog's `Plural-Forms` (checked against `Lang::plural` in a test).\n#[cfg_attr(not(test), allow(dead_code))]\npub(super) static PLURAL_FORMS: &[(&str, &str)] = &[\n",
+    );
+    let mut cat = String::from(
+        "/// msgid → msgstr forms, sorted by msgid.\npub(super) type Entries = &'static [(&'static str, &'static [&'static str])];\npub(super) static CATALOG: &[(&str, Entries)] = &[\n",
+    );
+    for (lang, path) in langs {
+        let po = rspolib::pofile(path.as_path()).map_err(|e| format!("{}: {e}", path.display()))?;
+        let pf = po.metadata.get("Plural-Forms").cloned().unwrap_or_default();
+        writeln!(forms, "    ({lang:?}, {pf:?}),")?;
+        let mut entries: Vec<(String, Vec<String>)> = po
+            .entries
+            .iter()
+            .filter(|e| e.translated() && !e.fuzzy() && e.msgctxt.is_none())
+            .map(|e| {
+                let strs = if e.msgid_plural.is_some() {
+                    e.msgstr_plural.clone()
+                } else {
+                    e.msgstr.iter().cloned().collect()
+                };
+                (e.msgid.clone(), strs)
+            })
+            .collect();
+        entries.sort_by(|a, b| a.0.cmp(&b.0));
+        entries.dedup_by(|a, b| a.0 == b.0);
+        writeln!(cat, "    ({lang:?}, &[")?;
+        for (id, strs) in entries {
+            writeln!(cat, "        ({id:?}, &{strs:?}),")?;
+        }
+        writeln!(cat, "    ]),")?;
+    }
+    forms.push_str("];\n");
+    cat.push_str("];\n");
+    Ok(format!("{forms}{cat}"))
 }
 
 fn write_if_changed(path: &Path, text: &str) -> Res<()> {
@@ -148,6 +211,11 @@ fn generate_theme(tokens_path: &Path, bundle_css: &Path) -> Res<String> {
     writeln!(s, "    in-out property <bool> rtl: false;")?;
     writeln!(
         s,
+        "    /// Arabic text: `font-ui` becomes Noto Kufi Arabic (Latin words included, as on the site) and the type roles take their `-ar` sizes."
+    )?;
+    writeln!(s, "    in-out property <bool> arabic: false;")?;
+    writeln!(
+        s,
         "    /// macOS Reduce Motion: motion-* durations switch to their reduced values."
     )?;
     writeln!(s, "    in-out property <bool> reduce-motion: false;")?;
@@ -208,13 +276,47 @@ fn generate_theme(tokens_path: &Path, bundle_css: &Path) -> Res<String> {
             .unwrap_or_default()
             .trim()
             .trim_matches('"');
-        writeln!(s, "    out property <string> font-{key}: \"{first}\";")?;
+        if key == "ui" {
+            let ar = str_of(families, "arabic")?;
+            let ar = ar
+                .split(',')
+                .next()
+                .unwrap_or_default()
+                .trim()
+                .trim_matches('"');
+            writeln!(
+                s,
+                "    out property <string> font-ui: arabic ? \"{ar}\" : \"{first}\";"
+            )?;
+        } else {
+            writeln!(s, "    out property <string> font-{key}: \"{first}\";")?;
+        }
     }
     let groups = root
         .get("type")
         .and_then(|t| t.get("groups"))
         .and_then(Value::as_array)
         .ok_or("tokens.json: no type.groups")?;
+    // name → (size, line height, letter spacing); the Arabic roles
+    // (`type-body-ar`, …) replace their Latin twins while `arabic` is on.
+    let mut metrics: BTreeMap<String, (String, String, String)> = BTreeMap::new();
+    for g in groups {
+        for st in g
+            .get("styles")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            metrics.insert(
+                str_of(st, "name")?,
+                (
+                    str_of(st, "fontSize")?,
+                    str_of(st, "lineHeight")?,
+                    str_of(st, "letterSpacing")?,
+                ),
+            );
+        }
+    }
     for g in groups {
         let gfamily = str_of(g, "family")?;
         for st in g
@@ -230,12 +332,18 @@ fn generate_theme(tokens_path: &Path, bundle_css: &Path) -> Res<String> {
                 .unwrap_or(&gfamily)
                 .to_string();
             let weight = st.get("fontWeight").and_then(Value::as_i64).unwrap_or(400);
+            let (size, lh, ls) = metrics.get(&id).cloned().unwrap_or_default();
+            let pick = |latin: &str, ar: Option<&str>| match ar {
+                Some(ar) if ar != latin => format!("arabic ? {ar} : {latin}"),
+                _ => latin.to_string(),
+            };
+            let ar = metrics.get(&format!("{id}-ar"));
             writeln!(
                 s,
                 "    out property <length> {id}-size: {};\n    out property <length> {id}-line-height: {};\n    out property <int> {id}-weight: {weight};\n    out property <length> {id}-letter-spacing: {};\n    out property <string> {id}-family: font-{family};",
-                str_of(st, "fontSize")?,
-                str_of(st, "lineHeight")?,
-                str_of(st, "letterSpacing")?,
+                pick(&size, ar.map(|a| a.0.as_str())),
+                pick(&lh, ar.map(|a| a.1.as_str())),
+                pick(&ls, ar.map(|a| a.2.as_str())),
             )?;
         }
     }

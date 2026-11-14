@@ -8,6 +8,7 @@ use serde::Deserialize;
 use slint::SharedString;
 use uuid::Uuid;
 
+use crate::i18n::{tr, trn};
 use crate::{
     BudgetLevel, BudgetVm, DevKind, DevState, DeviceVm, ExhaustedRow, FormFactor, JobTone, JobVm,
     RootKind, SnapshotVm, TabVm,
@@ -179,11 +180,11 @@ pub fn ram(mb: u32) -> String {
 pub fn duration(secs: i64) -> String {
     let secs = secs.max(0);
     if secs < 60 {
-        format!("{secs}\u{a0}s")
+        tr!("{}\u{a0}s", secs)
     } else if secs < 3600 {
-        format!("{}\u{a0}m", secs / 60)
+        tr!("{}\u{a0}m", secs / 60)
     } else {
-        format!("{}\u{a0}h {}\u{a0}m", secs / 3600, (secs % 3600) / 60)
+        tr!("{}\u{a0}h {}\u{a0}m", secs / 3600, (secs % 3600) / 60)
     }
 }
 
@@ -191,14 +192,36 @@ pub fn duration(secs: i64) -> String {
 pub fn ago(then: DateTime<Utc>, now: DateTime<Utc>) -> String {
     let s = (now - then).num_seconds().max(0);
     if s < 60 {
-        "just now".into()
+        tr!("just now")
     } else if s < 3600 {
-        format!("{} min ago", s / 60)
+        trn!("{n} min ago", "{n} min ago", s / 60)
     } else if s < 86_400 {
-        format!("{} h ago", s / 3600)
+        trn!("{n} h ago", "{n} h ago", s / 3600)
     } else {
-        format!("{} days ago", s / 86_400)
+        trn!("{n} day ago", "{n} days ago", s / 86_400)
     }
+}
+
+/// "Oct 13, 14:02" in the current language (UI timestamps, design system › Numbers).
+pub fn short_date(t: DateTime<FixedOffset>) -> String {
+    use chrono::{Datelike, Timelike};
+    let month = match t.month() {
+        1 => tr!("Jan"),
+        2 => tr!("Feb"),
+        3 => tr!("Mar"),
+        4 => tr!("Apr"),
+        5 => tr!("May"),
+        6 => tr!("Jun"),
+        7 => tr!("Jul"),
+        8 => tr!("Aug"),
+        9 => tr!("Sep"),
+        10 => tr!("Oct"),
+        11 => tr!("Nov"),
+        _ => tr!("Dec"),
+    };
+    let time = format!("{:02}:{:02}", t.hour(), t.minute());
+    // {0} month, {1} day, {2} 24-hour time.
+    tr!("{0} {1}, {2}", month, t.day(), time)
 }
 
 fn state_of(info: &DeviceInfo) -> DevState {
@@ -219,53 +242,52 @@ fn state_of(info: &DeviceInfo) -> DevState {
 /// A pool clone's lease: "1 h 12 m left", "While its agent is connected".
 pub fn lease_label(lease: &Lease, now: DateTime<Utc>) -> String {
     match (lease.ttl, lease.expires_at) {
-        (_, Some(t)) if t <= now => "Releasing…".into(),
-        (true, Some(t)) => format!("{} left", duration((t - now).num_seconds())),
-        (false, Some(t)) => format!(
+        (_, Some(t)) if t <= now => tr!("Releasing…"),
+        (true, Some(t)) => tr!("{} left", duration((t - now).num_seconds())),
+        (false, Some(t)) => tr!(
             "Agent gone · released in {}",
             duration((t - now).num_seconds())
         ),
-        (_, None) => "While its agent is connected".into(),
+        (_, None) => tr!("While its agent is connected"),
     }
 }
 
 /// "2 clones leased", "No clones leased".
 fn base_label(leases: usize) -> String {
     match leases {
-        0 => "No clones leased".into(),
-        1 => "1 clone leased".into(),
-        n => format!("{n} clones leased"),
+        0 => tr!("No clones leased"),
+        n => trn!("{n} clone leased", "{n} clones leased", n),
     }
 }
 
 /// The status line: "Running · 2 h 14 m", "Booting Android… 62%", …
 pub fn status_label(info: &DeviceInfo, now: DateTime<Utc>) -> String {
     if let Some(h) = &info.busy_holder {
-        return format!("Busy · in use by {h}");
+        return tr!("Busy · in use by {}", h);
     }
     if info.device.base {
-        return format!("Base · {}", base_label(info.base_leases));
+        return tr!("Base · {}", base_label(info.base_leases));
     }
     if let (Some(l), DeviceStatus::Running) = (&info.lease, &info.device.status) {
-        return format!("Leased · {}", lease_label(l, now));
+        return tr!("Leased · {}", lease_label(l, now));
     }
     match &info.device.status {
-        DeviceStatus::Stopped => "Stopped".into(),
-        DeviceStatus::Hibernated => "Hibernated".into(),
-        DeviceStatus::Starting => "Starting…".into(),
+        DeviceStatus::Stopped => tr!("Stopped"),
+        DeviceStatus::Hibernated => tr!("Hibernated"),
+        DeviceStatus::Starting => tr!("Starting…"),
         DeviceStatus::Booting => match info.boot_progress {
-            Some(p) => format!("Booting Android… {}%", (p * 100.0).round() as i64),
-            None => "Booting Android…".into(),
+            Some(p) => tr!("Booting Android… {}%", (p * 100.0).round() as i64),
+            None => tr!("Booting Android…"),
         },
         DeviceStatus::Running => match &info.device.runtime {
-            Some(rt) => format!(
+            Some(rt) => tr!(
                 "Running · {}",
                 duration((now - rt.started_at).num_seconds())
             ),
-            None => "Running".into(),
+            None => tr!("Running"),
         },
-        DeviceStatus::Stopping => "Stopping…".into(),
-        DeviceStatus::Crashed { .. } => "Crashed".into(),
+        DeviceStatus::Stopping => tr!("Stopping…"),
+        DeviceStatus::Crashed { .. } => tr!("Crashed"),
     }
 }
 
@@ -273,39 +295,36 @@ pub fn status_label(info: &DeviceInfo, now: DateTime<Utc>) -> String {
 pub fn root_labels(info: &DeviceInfo) -> (RootKind, String, String) {
     let root = &info.device.root;
     if info.root_job {
-        return (
-            RootKind::SettingUp,
-            "Setting up root…".into(),
-            "Setup".into(),
-        );
+        return (RootKind::SettingUp, tr!("Setting up root…"), tr!("Setup"));
     }
     match root.mode {
-        RootMode::None => (RootKind::None, "Not rooted".into(), "No root".into()),
-        RootMode::Adb => (RootKind::Shell, "Shell root (adb)".into(), "Shell".into()),
+        RootMode::None => (RootKind::None, tr!("Not rooted"), tr!("No root")),
+        RootMode::Adb => (RootKind::Shell, tr!("Shell root (adb)"), tr!("Shell")),
         RootMode::Magisk => match root.health {
             RootHealth::Ok => {
                 let long = match &root.magisk_version {
-                    Some(v) => format!("Rooted · Magisk {v}"),
-                    None => "Rooted".into(),
+                    Some(v) => tr!("Rooted · Magisk {}", v),
+                    None => tr!("Rooted"),
                 };
-                (RootKind::Verified, long, "Rooted".into())
+                (RootKind::Verified, long, tr!("Rooted"))
             }
-            RootHealth::Failed => (RootKind::Failed, "Root failed".into(), "Failed".into()),
+            RootHealth::Failed => (RootKind::Failed, tr!("Root failed"), tr!("Failed")),
             RootHealth::Unverified if root.verified_at.is_some() => (
                 RootKind::Unverified,
-                "Root unverified".into(),
-                "Unverified".into(),
+                tr!("Root unverified"),
+                tr!("Unverified"),
             ),
-            RootHealth::Unverified => (RootKind::Full, "Full root".into(), "Full".into()),
+            RootHealth::Unverified => (RootKind::Full, tr!("Full root"), tr!("Full")),
         },
     }
 }
 
-fn root_mode_name(mode: RootMode) -> &'static str {
+/// "Not rooted" / "Shell root" / "Full root", translated.
+pub fn root_mode_name(mode: RootMode) -> String {
     match mode {
-        RootMode::None => "Not rooted",
-        RootMode::Adb => "Shell root",
-        RootMode::Magisk => "Full root",
+        RootMode::None => tr!("Not rooted"),
+        RootMode::Adb => tr!("Shell root"),
+        RootMode::Magisk => tr!("Full root"),
     }
 }
 
@@ -328,8 +347,8 @@ pub fn device_vm(info: &DeviceInfo, clock: &Clock) -> DeviceVm {
     let verified = match d.root.verified_at {
         Some(t) if d.root.mode == RootMode::Magisk => format!("{} · su -c id → uid=0", ago(t, now)),
         Some(t) => format!("{} · adb shell id → uid=0", ago(t, now)),
-        None if d.root.mode == RootMode::None => "Not needed".into(),
-        None => "Not yet".into(),
+        None if d.root.mode == RootMode::None => tr!("Not needed"),
+        None => tr!("Not yet"),
     };
     let screen = if info.width > 0 {
         format!("{}×{} · {} dpi", info.width, info.height, info.density)
@@ -372,7 +391,7 @@ pub fn device_vm(info: &DeviceInfo, clock: &Clock) -> DeviceVm {
         }
         .into(),
         cpus: if info.cpus > 0 {
-            format!("{} cores", info.cpus)
+            trn!("{n} core", "{n} cores", info.cpus)
         } else {
             "—".into()
         }
@@ -387,7 +406,7 @@ pub fn device_vm(info: &DeviceInfo, clock: &Clock) -> DeviceVm {
         last_started: d
             .runtime
             .as_ref()
-            .map(|r| clock.local(r.started_at).format("Today, %H:%M").to_string())
+            .map(|r| tr!("Today, {}", clock.local(r.started_at).format("%H:%M")))
             .unwrap_or_else(|| "—".into())
             .into(),
         form: form_factor(info),
@@ -548,7 +567,7 @@ impl Exhausted {
             .iter()
             .map(|c| ExhaustedRow {
                 name: c.name.clone().into(),
-                detail: format!(
+                detail: tr!(
                     "Idle {} · {}",
                     duration(i64::try_from(c.idle_s).unwrap_or(i64::MAX)),
                     ram_gb(self.cost_of(c.id))
@@ -585,15 +604,15 @@ pub fn job_vm(job: &Job, title: &str, bytes: Option<(u64, u64)>, eta: Option<i64
             .error
             .as_ref()
             .map(|e| e.message.clone())
-            .unwrap_or_else(|| "Failed".into()),
-        (_, JobState::Cancelled) => "Cancelled".into(),
-        (_, JobState::Succeeded) => "Done".into(),
-        (_, JobState::Pending) => "Queued".into(),
+            .unwrap_or_else(|| tr!("Failed")),
+        (_, JobState::Cancelled) => tr!("Cancelled"),
+        (_, JobState::Succeeded) => tr!("Done"),
+        (_, JobState::Pending) => tr!("Queued"),
         _ => job.message.clone(),
     };
     let eta = match eta {
-        Some(s) if s >= 60 => format!("{} min left", (s + 59) / 60),
-        Some(s) => format!("{s} s left"),
+        Some(s) if s >= 60 => trn!("{n} min left", "{n} min left", (s + 59) / 60),
+        Some(s) => trn!("{n} s left", "{n} s left", s),
         None => String::new(),
     };
     JobVm {
@@ -623,19 +642,15 @@ pub fn snapshot_vm(
     };
     SnapshotVm {
         name: if auto {
-            "Quick boot".into()
+            tr!("Quick boot").into()
         } else {
             s.name.clone().into()
         },
-        tag: format!("Taken with: {}", root_mode_name(s.root_mode)).into(),
+        tag: tr!("Taken with: {}", root_mode_name(s.root_mode)).into(),
         root,
         auto,
         size: size.map(gb).unwrap_or_default().into(),
-        when: clock
-            .local(s.created_at)
-            .format("%b %-d, %H:%M")
-            .to_string()
-            .into(),
+        when: short_date(clock.local(s.created_at)).into(),
         refused: !auto && s.root_mode != device_mode,
         thumb: Default::default(),
         has_thumb: false,

@@ -144,7 +144,7 @@ export component TitleBar inherits Rectangle {
         }
         @children
         IconButton {
-            icon: Icons.panel-left;
+            icon: Theme.rtl ? Icons.panel-right : Icons.panel-left;
             icon-size: Theme.icon-md;
             clicked => { root.toggle-sidebar(); }
         }
@@ -241,7 +241,7 @@ export component BudgetMeter inherits Rectangle {
         y: 10px;
         width: parent.width - 44px;
         height: 18px;
-        text: @tr("{} of ~{} devices fit", root.budget.running, root.budget.fit);
+        text: @tr("{} of ~{n} device fit" | "{} of ~{n} devices fit" % root.budget.fit, root.budget.running);
         role: Role.label;
         font-weight: 600;
     }

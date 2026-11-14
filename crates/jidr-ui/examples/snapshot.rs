@@ -1,9 +1,11 @@
-//! Golden snapshots of every screen and state, in dark, light and RTL.
+//! Golden snapshots of every screen and state, in dark, light and RTL, plus
+//! a representative set in each translation (`<case>.<lang>.<variant>.png`).
 //!
 //! ```text
 //! cargo run -p jidr-ui --example snapshot -- --check     # compare with tests/golden
 //! cargo run -p jidr-ui --example snapshot -- --update    # rewrite the goldens
 //! cargo run -p jidr-ui --example snapshot -- --only launcher
+//! cargo run -p jidr-ui --example snapshot -- --only .ar.     # one language
 //! ```
 //! Renders with Slint's software renderer, so it runs headless and the same
 //! everywhere. Failures write `<target>/snapshots/<name>.png` for review.
@@ -11,7 +13,8 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use jidr_ui::goldens::{Variant, cases};
+use jidr_ui::goldens::{LOCALE_VARIANTS, Variant, cases, locale_cases};
+use jidr_ui::i18n::{self, Lang};
 use jidr_ui::offscreen;
 
 /// A channel may drift this much (font hinting, rounding)…
@@ -39,57 +42,62 @@ fn main() -> ExitCode {
     }
     let mut failed = Vec::new();
     let mut count = 0;
-    for case in cases() {
-        if only.as_deref().is_some_and(|o| !case.name.contains(o)) {
+    let english = cases()
+        .into_iter()
+        .flat_map(|c| Variant::ALL.map(|v| (Lang::En, c.name.to_string(), c.render, v)));
+    let translated = locale_cases().into_iter().flat_map(|(lang, c)| {
+        LOCALE_VARIANTS.map(|v| (lang, format!("{}.{}", c.name, lang.code()), c.render, v))
+    });
+    for (lang, base, render, variant) in english.chain(translated) {
+        let name = format!("{base}.{}", variant.suffix());
+        if only.as_deref().is_some_and(|o| !name.contains(o)) {
             continue;
         }
-        for variant in Variant::ALL {
-            let name = format!("{}.{}", case.name, variant.suffix());
-            let buf = match (case.render)(variant) {
-                Ok(b) => b,
-                Err(e) => {
-                    eprintln!("✗ {name}: render failed: {e}");
-                    failed.push(name);
-                    continue;
-                }
-            };
-            count += 1;
-            let path = golden.join(format!("{name}.png"));
-            if update {
-                if let Err(e) = offscreen::write_png(&path, &buf) {
-                    eprintln!("✗ {name}: {e}");
-                    failed.push(name);
-                }
+        i18n::set(lang);
+        let buf = match render(variant) {
+            Ok(b) => b,
+            Err(e) => {
+                eprintln!("✗ {name}: render failed: {e}");
+                failed.push(name);
                 continue;
             }
-            let verdict = offscreen::read_png(&path).map(|(w, h, px)| {
-                if (w, h) != (buf.width(), buf.height()) {
-                    return Err(format!(
-                        "size {}×{} vs golden {w}×{h}",
-                        buf.width(),
-                        buf.height()
-                    ));
-                }
-                let d = offscreen::diff(buf.as_bytes(), &px, TOLERANCE);
-                if d.ratio() > BUDGET {
-                    Err(format!(
-                        "{} of {} pixels differ ({:.2}%)",
-                        d.differing,
-                        d.total,
-                        d.ratio() * 100.0
-                    ))
-                } else {
-                    Ok(())
-                }
-            });
-            match verdict {
-                Ok(Ok(())) => println!("✓ {name}"),
-                Ok(Err(why)) | Err(why) => {
-                    let actual = out.join(format!("{name}.png"));
-                    let _ = offscreen::write_png(&actual, &buf);
-                    eprintln!("✗ {name}: {why}; actual: {}", actual.display());
-                    failed.push(name);
-                }
+        };
+        count += 1;
+        let path = golden.join(format!("{name}.png"));
+        if update {
+            if let Err(e) = offscreen::write_png(&path, &buf) {
+                eprintln!("✗ {name}: {e}");
+                failed.push(name);
+            }
+            continue;
+        }
+        let verdict = offscreen::read_png(&path).map(|(w, h, px)| {
+            if (w, h) != (buf.width(), buf.height()) {
+                return Err(format!(
+                    "size {}×{} vs golden {w}×{h}",
+                    buf.width(),
+                    buf.height()
+                ));
+            }
+            let d = offscreen::diff(buf.as_bytes(), &px, TOLERANCE);
+            if d.ratio() > BUDGET {
+                Err(format!(
+                    "{} of {} pixels differ ({:.2}%)",
+                    d.differing,
+                    d.total,
+                    d.ratio() * 100.0
+                ))
+            } else {
+                Ok(())
+            }
+        });
+        match verdict {
+            Ok(Ok(())) => println!("✓ {name}"),
+            Ok(Err(why)) | Err(why) => {
+                let actual = out.join(format!("{name}.png"));
+                let _ = offscreen::write_png(&actual, &buf);
+                eprintln!("✗ {name}: {why}; actual: {}", actual.display());
+                failed.push(name);
             }
         }
     }

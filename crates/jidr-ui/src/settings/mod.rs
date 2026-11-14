@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use slint::ComponentHandle;
 
+use crate::i18n::{Lang, tr, trn};
 use crate::model::{self, DeviceInfo};
 use crate::{OptionVm, RootChoice, UsageRow};
 
@@ -32,6 +33,9 @@ pub struct Prefs {
     pub quick_boot: bool,
     /// A copy of the daemon's `auto_hibernate_minutes` (D42); `0` = off.
     pub auto_hibernate_minutes: u32,
+    /// The app's language (issue #29): empty follows the Mac's preferred
+    /// languages, otherwise an `i18n::Lang` code (`ar`, `es`, `zh-Hans`, …).
+    pub language: String,
 }
 
 impl Default for Prefs {
@@ -42,6 +46,7 @@ impl Default for Prefs {
             tile_url: String::new(),
             quick_boot: true,
             auto_hibernate_minutes: 0,
+            language: String::new(),
         }
     }
 }
@@ -102,15 +107,65 @@ impl Prefs {
     }
 }
 
+/// Settings › General › Language: "System", then each language in its own
+/// name (never translated, so anyone can find theirs).
+pub fn language_options() -> Vec<OptionVm> {
+    std::iter::once(OptionVm {
+        id: "".into(),
+        label: tr!("System").into(),
+    })
+    .chain(Lang::ALL.iter().map(|l| OptionVm {
+        id: l.code().into(),
+        label: l.autonym().into(),
+    }))
+    .collect()
+}
+
+/// The menu index of a `language` pref (0 = System).
+pub fn language_index(pref: &str) -> i32 {
+    Lang::from_code(pref)
+        .and_then(|l| Lang::ALL.iter().position(|x| *x == l))
+        .map_or(0, |i| i as i32 + 1)
+}
+
+/// The `language` pref for a menu index.
+pub fn language_pref(index: i32) -> String {
+    usize::try_from(index - 1)
+        .ok()
+        .and_then(|i| Lang::ALL.get(i))
+        .map(|l| l.code().to_string())
+        .unwrap_or_default()
+}
+
+/// Re-sets the rows the Rust side labels, after a language change.
+fn relabel(win: &crate::SettingsWindow, ctx: &crate::app::Ctx) {
+    crate::i18n::theme(win);
+    let prefs = ctx.prefs.borrow().clone();
+    win.set_language_options(models(language_options()));
+    win.set_language_choice(language_index(&prefs.language));
+    win.set_tile_options(models(tile_options()));
+    set_hibernate(win, prefs.auto_hibernate_minutes);
+    let devices = ctx.state.borrow().data.devices.clone();
+    win.set_device_usage(models(device_usage(&devices, &[])));
+    win.set_sdk_state(
+        if win.get_sdk_ready() {
+            tr!("Ready")
+        } else {
+            tr!("Not installed")
+        }
+        .into(),
+    );
+}
+
 pub fn tile_options() -> Vec<OptionVm> {
     vec![
         OptionVm {
             id: "osm".into(),
-            label: "OpenStreetMap (default)".into(),
+            label: tr!("OpenStreetMap (default)").into(),
         },
         OptionVm {
             id: "custom".into(),
-            label: "Custom".into(),
+            label: tr!("Custom").into(),
         },
     ]
 }
@@ -139,8 +194,7 @@ pub fn device_usage(
                 name: d.device.name.clone().into(),
                 sub: match snaps {
                     0 => String::new(),
-                    1 => "1 snapshot".into(),
-                    n => format!("{n} snapshots"),
+                    n => trn!("{n} snapshot", "{n} snapshots", n),
                 }
                 .into(),
                 fraction: *bytes as f32 / max as f32,
@@ -150,7 +204,7 @@ pub fn device_usage(
         .collect();
     if !rows.is_empty() {
         rows.push(UsageRow {
-            name: "Total".into(),
+            name: tr!("Total").into(),
             sub: "".into(),
             fraction: -1.0,
             size: model::gb(total).into(),
@@ -169,9 +223,8 @@ pub fn image_usage(images: &[SystemImage], devices: &[DeviceInfo]) -> Vec<UsageR
             UsageRow {
                 name: crate::device_form::image_label(i).into(),
                 sub: match n {
-                    0 => "No devices".to_string(),
-                    1 => "1 device".to_string(),
-                    n => format!("{n} devices"),
+                    0 => tr!("No devices"),
+                    n => trn!("{n} device", "{n} devices", n),
                 }
                 .into(),
                 fraction: 0.0,
@@ -195,17 +248,17 @@ pub fn claude_config_path() -> Option<PathBuf> {
 pub fn merge_claude_config(existing: Option<&str>, jidr_bin: &str) -> Result<String, String> {
     let mut root: Value = match existing.map(str::trim) {
         Some(t) if !t.is_empty() => serde_json::from_str(t)
-            .map_err(|e| format!("claude_desktop_config.json isn't valid JSON: {e}"))?,
+            .map_err(|e| tr!("claude_desktop_config.json isn't valid JSON: {}", e))?,
         _ => json!({}),
     };
     let obj = root
         .as_object_mut()
-        .ok_or("claude_desktop_config.json isn't a JSON object")?;
+        .ok_or_else(|| tr!("claude_desktop_config.json isn't a JSON object"))?;
     let servers = obj
         .entry("mcpServers")
         .or_insert_with(|| json!({}))
         .as_object_mut()
-        .ok_or("mcpServers isn't a JSON object")?;
+        .ok_or_else(|| tr!("mcpServers isn't a JSON object"))?;
     servers.insert(
         "jidr".into(),
         json!({ "command": jidr_bin, "args": ["mcp"] }),
@@ -254,8 +307,8 @@ pub fn open(ctx: &std::rc::Rc<crate::app::Ctx>, tab: i32) {
     let theme = ctx.app.global::<crate::Theme>();
     let wt = win.global::<crate::Theme>();
     wt.set_dark(theme.get_dark());
-    wt.set_rtl(theme.get_rtl());
     wt.set_reduce_motion(theme.get_reduce_motion());
+    crate::i18n::theme(&win);
     win.set_draw_lights(false);
     win.set_tab(tab);
     win.set_version(env!("CARGO_PKG_VERSION").into());
@@ -265,6 +318,8 @@ pub fn open(ctx: &std::rc::Rc<crate::app::Ctx>, tab: i32) {
     win.set_tile_choice(if prefs.tile_url.is_empty() { 0 } else { 1 });
     win.set_tile_url(prefs.tile_url.clone().into());
     win.set_appearance(i32::from(prefs.appearance));
+    win.set_language_options(models(language_options()));
+    win.set_language_choice(language_index(&prefs.language));
     win.set_quick_boot(prefs.quick_boot);
     set_hibernate(&win, prefs.auto_hibernate_minutes);
     let devices = ctx.state.borrow().data.devices.clone();
@@ -286,12 +341,19 @@ pub fn open(ctx: &std::rc::Rc<crate::app::Ctx>, tab: i32) {
         let ready = crate::bridge::sdk_has_tools(&status);
         win.set_sdk_path(sdk.into());
         win.set_sdk_ready(ready);
-        win.set_sdk_state(if ready { "Ready" } else { "Not installed" }.into());
+        win.set_sdk_state(
+            if ready {
+                tr!("Ready")
+            } else {
+                tr!("Not installed")
+            }
+            .into(),
+        );
         win.set_sdk_note(
             status
                 .get("emulator_version")
                 .and_then(Value::as_str)
-                .map(|v| format!("Emulator {v}"))
+                .map(|v| tr!("Emulator {}", v))
                 .unwrap_or_default()
                 .into(),
         );
@@ -352,6 +414,16 @@ pub fn open(ctx: &std::rc::Rc<crate::app::Ctx>, tab: i32) {
         }
     });
     let c = ctx.clone();
+    let w = win.as_weak();
+    win.on_language_changed(move |i| {
+        c.prefs.borrow_mut().language = language_pref(i);
+        let _ = c.prefs.borrow().save(&c.paths.data);
+        c.apply_language();
+        if let Some(win) = w.upgrade() {
+            relabel(&win, &c);
+        }
+    });
+    let c = ctx.clone();
     win.on_quick_boot_changed(move |v| {
         c.prefs.borrow_mut().quick_boot = v;
         let _ = c.prefs.borrow().save(&c.paths.data);
@@ -385,7 +457,7 @@ pub fn open(ctx: &std::rc::Rc<crate::app::Ctx>, tab: i32) {
         if let Some(win) = w.upgrade() {
             win.set_cache_size(model::gb(0).into());
         }
-        crate::app::toast(&c.app.as_weak(), "Cleared the download cache".into());
+        crate::app::toast(&c.app.as_weak(), tr!("Cleared the download cache"));
     });
     let c = ctx.clone();
     win.on_add_to_claude(move || {
@@ -396,17 +468,17 @@ pub fn open(ctx: &std::rc::Rc<crate::app::Ctx>, tab: i32) {
             .into_owned();
         let msg = match claude_config_path() {
             Some(path) => match add_to_claude(&path, &bin) {
-                Ok(()) => "Added Jidr to Claude Desktop. Restart Claude to use it.".to_string(),
+                Ok(()) => tr!("Added Jidr to Claude Desktop. Restart Claude to use it."),
                 Err(e) => e,
             },
-            None => "Can't find Claude Desktop's settings folder".to_string(),
+            None => tr!("Can't find Claude Desktop's settings folder"),
         };
         crate::app::toast(&c.app.as_weak(), msg);
     });
     let c = ctx.clone();
     win.on_copy(move |t| {
         copy_text(&t);
-        crate::app::toast(&c.app.as_weak(), "Copied".into());
+        crate::app::toast(&c.app.as_weak(), tr!("Copied"));
     });
     let repo = env!("CARGO_PKG_REPOSITORY");
     win.on_open_source(move || open_external(&[repo]));
@@ -421,7 +493,7 @@ pub fn open(ctx: &std::rc::Rc<crate::app::Ctx>, tab: i32) {
         let url = win.get_update_url().to_string();
         if url.is_empty() {
             copy_text(update::BREW_UPGRADE);
-            crate::app::toast(&c.app.as_weak(), "Copied".into());
+            crate::app::toast(&c.app.as_weak(), tr!("Copied"));
         } else {
             open_external(&[&url]);
         }
@@ -473,7 +545,7 @@ fn check_updates(ctx: &crate::app::Ctx, weak: slint::Weak<crate::SettingsWindow>
     let repo = env!("CARGO_PKG_REPOSITORY");
     if let Some(win) = weak.upgrade() {
         win.set_update_checking(true);
-        win.set_update_status("Checking…".into());
+        win.set_update_status(tr!("Checking…").into());
         win.set_update_label("".into());
     }
     let token = crate::app::defer(move |check: update::Check| {
@@ -495,7 +567,7 @@ fn set_daemon_setting(ctx: &crate::app::Ctx, params: Value) {
     let weak = ctx.app.as_weak();
     ctx.bridge.call("settings.set", params, move |r| {
         if let Err(e) = r {
-            crate::app::toast(&weak, format!("Couldn't save the setting: {}", e.message));
+            crate::app::toast(&weak, tr!("Couldn't save the setting: {}", e.message));
         }
     });
 }
@@ -514,6 +586,7 @@ mod tests {
             tile_url: "https://t.example/{z}/{x}/{y}.png".into(),
             quick_boot: false,
             auto_hibernate_minutes: 30,
+            language: "ar".into(),
         };
         p.save(tmp.path()).unwrap();
         let back = Prefs::load(tmp.path());
@@ -546,6 +619,21 @@ mod tests {
         assert_eq!(rows[0].name, "Pixel-ish 6.1");
         assert_eq!(rows[0].sub, "3 snapshots");
         assert_eq!(rows.last().unwrap().size, "19.2 GB");
+    }
+
+    #[test]
+    fn language_menu_round_trips_and_old_prefs_follow_the_system() {
+        let opts = language_options();
+        assert_eq!(opts.len(), 6);
+        assert_eq!(opts[2].label, "العربية");
+        for (i, o) in opts.iter().enumerate() {
+            assert_eq!(language_pref(i as i32), o.id.as_str());
+            assert_eq!(language_index(o.id.as_str()), i as i32);
+        }
+        assert_eq!(language_index("klingon"), 0);
+        // gui-prefs.json written before issue #29 has no `language`.
+        let old: Prefs = serde_json::from_str(r#"{"appearance":2}"#).unwrap();
+        assert_eq!(old.language, "");
     }
 
     /// Gap B4: the daemon's settings replace the cached copy; unknown or

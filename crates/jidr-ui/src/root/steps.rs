@@ -3,6 +3,7 @@
 //! reports finer job messages (`crates/jidr-root/src/magisk/mod.rs`); this
 //! maps them onto the steps, monotonically, and classifies a failure.
 
+use crate::i18n::tr;
 use jidr_core::{ErrorCode, JidrError};
 
 /// The design's steps, in order.
@@ -74,22 +75,21 @@ pub fn failure(err: &JidrError, step: usize) -> Failure {
     let cancelled = flag("cancelled").and_then(|v| v.as_bool()) == Some(true);
     let unverified = flag("state").and_then(|v| v.as_str()) == Some("awaiting_user_grant");
     let reason = if cancelled {
-        "stopped".to_string()
+        tr!("stopped")
     } else if unverified {
-        "Shell wasn't granted root".to_string()
+        tr!("Shell wasn't granted root")
     } else if err.code == ErrorCode::BootTimeout {
-        "boot timed out".to_string()
+        tr!("boot timed out")
     } else if err.message.contains("su -c id") {
-        "su didn't answer as root".to_string()
+        tr!("su didn't answer as root")
     } else {
         match step {
-            DOWNLOAD => "download failed",
-            PATCH => "patch step failed",
-            REBOOT => "boot failed",
-            INSTALL => "Magisk app install failed",
-            _ => "verification failed",
+            DOWNLOAD => tr!("download failed"),
+            PATCH => tr!("patch step failed"),
+            REBOOT => tr!("boot failed"),
+            INSTALL => tr!("Magisk app install failed"),
+            _ => tr!("verification failed"),
         }
-        .to_string()
     };
     Failure {
         reason,

@@ -11,6 +11,7 @@ use jidr_core::{Device, HardwareProfile, JidrError, JidrPaths, JidrResult, Job};
 use serde_json::{Value, json};
 use uuid::Uuid;
 
+use crate::i18n::tr;
 use crate::model::{DeviceInfo, HostBudget, Lease};
 
 /// How often to check that the daemon is still there.
@@ -115,7 +116,7 @@ impl Bridge {
                 sink(Update::Conn(if first {
                     Conn::Connecting
                 } else {
-                    Conn::Reconnecting("Reconnecting to the daemon…".into())
+                    Conn::Reconnecting(tr!("Reconnecting to the daemon…"))
                 }));
                 first = false;
                 match Client::connect_or_spawn(&paths, "gui", &opts).await {

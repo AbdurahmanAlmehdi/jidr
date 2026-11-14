@@ -177,6 +177,9 @@ export component SettingsWindow inherits Window {
     in-out property <int> tile-choice: 0;
     in-out property <string> tile-url;
     in-out property <int> appearance: 0;
+    /// System, then each language in its own name (gui-prefs `language`).
+    in property <[OptionVm]> language-options;
+    in-out property <int> language-choice: 0;
     in-out property <bool> quick-boot: true;
     in property <[OptionVm]> hibernate-options;
     in-out property <int> hibernate-choice: 0;
@@ -203,6 +206,7 @@ export component SettingsWindow inherits Window {
     callback default-root-changed(RootChoice);
     callback tiles-changed(int, string);
     callback appearance-changed(int);
+    callback language-changed(int);
     callback quick-boot-changed(bool);
     callback hibernate-changed(int);
     callback change-sdk();
@@ -325,6 +329,26 @@ export component SettingsWindow inherits Window {
                 selected: root.appearance;
                 stretch: true;
                 changed(i) => { root.appearance-changed(i); }
+            }
+        }
+        Row {
+            label: @tr("Language");
+            row-height: 52px;
+            Select {
+                x: Theme.rtl ? parent.cw - self.width : 0px;
+                y: 0px;
+                width: 220px;
+                options: root.language-options;
+                selected: root.language-choice;
+                changed(i) => {
+                    root.language-choice = i;
+                    root.language-changed(i);
+                }
+            }
+            Hint {
+                y: 36px;
+                height: 15px;
+                text: @tr("System follows the order of your Mac's preferred languages.");
             }
         }
         Row {

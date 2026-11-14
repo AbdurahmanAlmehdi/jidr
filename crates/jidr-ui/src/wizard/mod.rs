@@ -9,6 +9,7 @@ use serde_json::{Value, json};
 use slint::{ComponentHandle, ModelRc, VecModel};
 
 use crate::app::Ctx;
+use crate::i18n::{tr, trn};
 use crate::model;
 use crate::{DetectRow, JobTone, JobVm, PlanRow, RootChoice, SetupWindow, Theme};
 
@@ -37,16 +38,16 @@ pub fn detect_rows(
     };
     let rows = vec![
         match studio {
-            Some(p) => row(&tilde(p), "Found · used read-only", true),
-            None => row("~/Library/Android/sdk", "Not found", false),
+            Some(p) => row(&tilde(p), &tr!("Found · used read-only"), true),
+            None => row("~/Library/Android/sdk", &tr!("Not found"), false),
         },
         match android_home {
             Some(p) if !p.is_empty() => row("$ANDROID_HOME", &tilde(p), true),
-            _ => row("$ANDROID_HOME", "Not set", false),
+            _ => row("$ANDROID_HOME", &tr!("Not set"), false),
         },
         match sdk_root {
             Some(p) if !p.is_empty() => row("$ANDROID_SDK_ROOT", &tilde(p), true),
-            _ => row("$ANDROID_SDK_ROOT", "Not set", false),
+            _ => row("$ANDROID_SDK_ROOT", &tr!("Not set"), false),
         },
     ];
     (rows, tools.is_some())
@@ -86,8 +87,8 @@ pub fn plan(needs_emulator: bool, image: Option<&SystemImage>) -> (Vec<PlanRow>,
     let mut unknown = false;
     if needs_emulator {
         rows.push(PlanRow {
-            label: "Android Emulator and platform tools".into(),
-            size: "size shown when it starts".into(),
+            label: tr!("Android Emulator and platform tools").into(),
+            size: tr!("size shown when it starts").into(),
         });
         unknown = true;
     }
@@ -109,8 +110,8 @@ pub fn plan(needs_emulator: bool, image: Option<&SystemImage>) -> (Vec<PlanRow>,
         total += img.size;
     }
     let total = match (total, unknown) {
-        (0, true) => "emulator only".to_string(),
-        (t, true) => format!("{} + emulator", model::gb(t)),
+        (0, true) => tr!("emulator only"),
+        (t, true) => tr!("{} + emulator", model::gb(t)),
         (t, false) => model::gb(t),
     };
     (rows, total)
@@ -126,7 +127,7 @@ pub fn open(ctx: &Rc<Ctx>) {
     let theme = ctx.app.global::<Theme>();
     let wt = win.global::<Theme>();
     wt.set_dark(theme.get_dark());
-    wt.set_rtl(theme.get_rtl());
+    crate::i18n::theme(&win);
     wt.set_reduce_motion(theme.get_reduce_motion());
     win.set_draw_lights(false);
 
@@ -249,7 +250,7 @@ pub fn open(ctx: &Rc<Ctx>) {
                         if start && let Some(id) = dev.get("id").cloned() {
                             bridge.run("device.start", json!({ "device": id }), |_| {}, |_| {});
                         }
-                        crate::app::toast(&app, "Created your first device".into());
+                        crate::app::toast(&app, tr!("Created your first device"));
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(win) = w2.upgrade() {
                                 let _ = win.hide();
@@ -347,10 +348,11 @@ fn accept_and_download(ctx: &Rc<Ctx>, win: &SetupWindow, st: &St) {
     let lics = lock(st).licenses.clone();
     let pkgs = packages(&lock(st));
     let image = lock(st).image.clone();
-    let accepted = chrono::Local::now().format("%b %-d, %H:%M").to_string();
+    let accepted = model::short_date(chrono::Local::now().fixed_offset());
     win.set_accepted_note(
-        format!(
-            "License accepted {accepted}. You can close this window; downloads keep going in Jobs."
+        tr!(
+            "License accepted {}. You can close this window; downloads keep going in Jobs.",
+            accepted
         )
         .into(),
     );
@@ -358,13 +360,13 @@ fn accept_and_download(ctx: &Rc<Ctx>, win: &SetupWindow, st: &St) {
     let title = image
         .as_ref()
         .map(|i| {
-            format!(
+            tr!(
                 "{} (API {}) image",
                 model::android_version(i.image.api),
                 i.image.api
             )
         })
-        .unwrap_or_else(|| "Android Emulator".into());
+        .unwrap_or_else(|| tr!("Android Emulator"));
     let size = image.as_ref().map(|i| i.size).unwrap_or(0);
     set_download(win, &title, JobTone::Running, 0.0, size, "");
     let bridge = ctx.bridge.clone();
@@ -425,7 +427,7 @@ fn accept_and_download(ctx: &Rc<Ctx>, win: &SetupWindow, st: &St) {
                     let Some(win) = wd.upgrade() else { return };
                     match r {
                         Ok(_) => {
-                            set_download(&win, &td, JobTone::Done, 1.0, size, "Done");
+                            set_download(&win, &td, JobTone::Done, 1.0, size, &tr!("Done"));
                             win.set_downloads_done(true);
                             if let Some(i) = lock(&st2).image.as_mut() {
                                 i.installed_in = Some("installed".into());
@@ -448,9 +450,13 @@ fn eta_text(elapsed: f32, progress: f32) -> String {
     }
     let left = elapsed * (1.0 - progress) / progress;
     if left >= 60.0 {
-        format!("About {} min left", (left / 60.0).ceil() as i64)
+        trn!(
+            "About {n} min left",
+            "About {n} min left",
+            (left / 60.0).ceil() as i64
+        )
     } else {
-        format!("About {} s left", left.ceil() as i64)
+        trn!("About {n} s left", "About {n} s left", left.ceil() as i64)
     }
 }
 
@@ -476,7 +482,7 @@ fn set_download(win: &SetupWindow, title: &str, tone: JobTone, p: f32, size: u64
     };
     let verify = JobVm {
         id: "".into(),
-        title: "Verify checksums".into(),
+        title: tr!("Verify checksums").into(),
         tone: if tone == JobTone::Done {
             JobTone::Done
         } else {
@@ -485,15 +491,15 @@ fn set_download(win: &SetupWindow, title: &str, tone: JobTone, p: f32, size: u64
         progress: 0.0,
         indeterminate: false,
         detail: if tone == JobTone::Done {
-            "Done"
+            tr!("Done")
         } else {
-            "Queued"
+            tr!("Queued")
         }
         .into(),
         eta: if tone == JobTone::Done {
-            ""
+            String::new()
         } else {
-            "After download"
+            tr!("After download")
         }
         .into(),
         cancellable: false,
@@ -529,7 +535,7 @@ fn to_first_device(ctx: &Rc<Ctx>, win: &SetupWindow, st: &St) {
             win.set_profiles(models(crate::device_form::profile_options(&profiles)));
             if let Some(i) = images.first() {
                 win.set_image_label(crate::device_form::image_label(i).into());
-                win.set_image_status(format!("Installed · {}", model::gb(i.size)).into());
+                win.set_image_status(tr!("Installed · {}", model::gb(i.size)).into());
                 win.set_image_play_store(!i.image.allows_adb_root());
             }
             win.set_form(form);

@@ -12,6 +12,7 @@ use slint::ComponentHandle;
 use uuid::Uuid;
 
 use crate::app::{Ctx, toast};
+use crate::i18n::tr;
 
 /// Recordings in progress, per device: the clock text each one shows.
 #[derive(Debug, Default)]
@@ -112,11 +113,18 @@ pub fn screenshot(ctx: &Rc<Ctx>, device: Uuid) {
             Ok(v) => {
                 let path = path_of(&v);
                 copy_image(&path);
-                toast(&w, format!("Saved {} and copied it", file_name(&path)));
+                toast(&w, tr!("Saved {} and copied it", file_name(&path)));
             }
             Err(e) => toast(&w, e.message),
         },
     );
+}
+
+/// The daemon's "Recording 1:24" job message in the current language.
+fn clock_text(message: &str) -> String {
+    message
+        .strip_prefix("Recording ")
+        .map_or_else(|| message.to_string(), |t| tr!("Recording {}", t))
 }
 
 /// Starts or stops `media.record`; the job's progress drives the clock.
@@ -132,12 +140,15 @@ pub fn toggle(ctx: &Rc<Ctx>, device: Uuid) {
             });
         return;
     }
-    ACTIVE.with(|a| a.borrow_mut().set(device, Some("Recording 0:00".into())));
+    ACTIVE.with(|a| {
+        a.borrow_mut()
+            .set(device, Some(tr!("Recording {}", "0:00")))
+    });
     show(ctx, Some(device));
     ctx.bridge.run(
         "media.record",
         json!({ "device": device }),
-        move |job| update(device, Some(job.message.clone())),
+        move |job| update(device, Some(clock_text(&job.message))),
         move |r| {
             update(device, None);
             match r {
@@ -145,7 +156,7 @@ pub fn toggle(ctx: &Rc<Ctx>, device: Uuid) {
                     let secs = v.get("duration_s").and_then(Value::as_f64).unwrap_or(0.0);
                     toast(
                         &w,
-                        format!(
+                        tr!(
                             "Saved {} ({})",
                             file_name(&path_of(&v)),
                             crate::model::duration(secs.round() as i64)

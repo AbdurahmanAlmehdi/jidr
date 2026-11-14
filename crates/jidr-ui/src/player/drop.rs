@@ -1,5 +1,6 @@
 //! What a file dropped on the device does (plan 7c, D35).
 
+use crate::i18n::tr;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -9,10 +10,7 @@ pub enum DropAction {
     /// Full-root device: `root.module.install` + reboot (D35).
     MagiskModule(PathBuf),
     /// Anything else, or a zip without Full root: `file.push` to Download.
-    Push {
-        path: PathBuf,
-        note: Option<&'static str>,
-    },
+    Push { path: PathBuf, note: Option<String> },
 }
 
 pub fn classify(path: &Path, full_root: bool) -> DropAction {
@@ -26,7 +24,9 @@ pub fn classify(path: &Path, full_root: bool) -> DropAction {
         "zip" if full_root => DropAction::MagiskModule(path.to_path_buf()),
         "zip" => DropAction::Push {
             path: path.to_path_buf(),
-            note: Some("Magisk modules need Full root, so it was copied to Download."),
+            note: Some(tr!(
+                "Magisk modules need Full root, so it was copied to Download."
+            )),
         },
         _ => DropAction::Push {
             path: path.to_path_buf(),
@@ -44,20 +44,21 @@ pub fn hover_text(action: &DropAction, device: &str) -> (String, String) {
     };
     match action {
         DropAction::InstallApk(p) => (
-            format!("Release to install {}", name(p)),
-            format!(
-                "adb install -r on {device}. Replaces the installed version and keeps its data."
+            tr!("Release to install {}", name(p)),
+            tr!(
+                "adb install -r on {}. Replaces the installed version and keeps its data.",
+                device
             ),
         ),
         DropAction::MagiskModule(p) => (
-            format!("Release to install {} as a Magisk module", name(p)),
-            "Installs the module and reboots the device (about 40 s).".into(),
+            tr!("Release to install {} as a Magisk module", name(p)),
+            tr!("Installs the module and reboots the device (about 40 s)."),
         ),
         DropAction::Push { path, note } => (
-            format!("Release to copy {}", name(path)),
+            tr!("Release to copy {}", name(path)),
             match note {
-                Some(n) => (*n).to_string(),
-                None => format!("Goes to /sdcard/Download on {device}."),
+                Some(n) => n.clone(),
+                None => tr!("Goes to /sdcard/Download on {}.", device),
             },
         ),
     }

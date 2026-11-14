@@ -347,7 +347,7 @@ export component SensorsPanel inherits VerticalLayout {
     VerticalLayout {
         spacing: 8px;
         Cap { text: @tr("Environment"); }
-        NumberRow { label: @tr("Light"); unit: "lux"; value: root.vm.light; set(t) => { root.action("sensor.light", t); } }
+        NumberRow { label: @tr("light sensor" => "Light"); unit: "lux"; value: root.vm.light; set(t) => { root.action("sensor.light", t); } }
         NumberRow { label: @tr("Temperature"); unit: "°C"; value: root.vm.temperature; set(t) => { root.action("sensor.temperature", t); } }
         NumberRow { label: @tr("Pressure"); unit: "hPa"; value: root.vm.pressure; set(t) => { root.action("sensor.pressure", t); } }
         NumberRow { label: @tr("Humidity"); unit: "%"; value: root.vm.humidity; set(t) => { root.action("sensor.humidity", t); } }
@@ -427,9 +427,9 @@ export component MorePanel inherits Rectangle {
                     }
                     VerticalLayout {
                         spacing: 6px;
-                        Button { small: true; has-icon: true; icon: Icons.skip-back; text: @tr("Previous"); clicked => { root.action("key.press", "previous"); } }
+                        Button { small: true; has-icon: true; icon: Theme.rtl ? Icons.skip-forward : Icons.skip-back; text: @tr("Previous"); clicked => { root.action("key.press", "previous"); } }
                         Button { small: true; has-icon: true; icon: Icons.play; text: @tr("Play / pause"); clicked => { root.action("key.press", "play_pause"); } }
-                        Button { small: true; has-icon: true; icon: Icons.skip-forward; text: @tr("Next"); clicked => { root.action("key.press", "next"); } }
+                        Button { small: true; has-icon: true; icon: Theme.rtl ? Icons.skip-back : Icons.skip-forward; text: @tr("Next"); clicked => { root.action("key.press", "next"); } }
                     }
                 }
             }
@@ -484,7 +484,7 @@ export component MorePanel inherits Rectangle {
                 spacing: 8px;
                 Cap { text: @tr("Back camera"); }
                 Segmented {
-                    items: [@tr("Emulated"), @tr("Webcam"), @tr("Scene"), @tr("None")];
+                    items: [@tr("Emulated"), @tr("Webcam"), @tr("Scene"), @tr("camera" => "None")];
                     stretch: true;
                     selected: root.vm.camera-back;
                     changed(i) => { root.action("camera.back", i); }

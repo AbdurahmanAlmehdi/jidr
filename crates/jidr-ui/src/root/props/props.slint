@@ -153,7 +153,7 @@ export component PropsBlock inherits VerticalLayout {
                 small: true;
                 kind: ButtonKind.tertiary;
                 has-icon: true;
-                icon: Icons.undo-2;
+                icon: Theme.rtl ? Icons.undo-2-rtl : Icons.undo-2;
                 enabled: !saving && !busy;
                 text: @tr("Reset to stock");
                 clicked => { root.action("reset"); }

@@ -130,7 +130,7 @@ pub fn sync(ctx: &Rc<Ctx>) {
                 c.player.borrow_mut().opening = None;
                 toast(
                     &c.app.as_weak(),
-                    format!("Can't show the screen: {}", e.message),
+                    tr!("Can't show the screen: {}", e.message),
                 );
             }
         }
@@ -370,17 +370,17 @@ fn tool_action(ctx: &Rc<Ctx>, tool: &str) {
             toast(
                 &w,
                 if on {
-                    "Sharing the clipboard with the device"
+                    tr!("Sharing the clipboard with the device")
                 } else {
-                    "Stopped sharing the clipboard"
-                }
-                .into(),
+                    tr!("Stopped sharing the clipboard")
+                },
             );
         }
         _ => {}
     }
 }
 
+use crate::i18n::{tr, trn};
 use crate::recording::file_name;
 
 fn toggle_overlay(ctx: &Rc<Ctx>) {
@@ -442,12 +442,12 @@ fn refresh_log(ctx: &Rc<Ctx>) {
             .into(),
     );
     ctx.app.set_log_summary(
-        format!(
-            "{} of {} lines · {} error{}",
-            vis.len(),
-            p.log_lines.len(),
+        trn!(
+            "{} of {} lines · {n} error",
+            "{} of {} lines · {n} errors",
             errors.len(),
-            if errors.len() == 1 { "" } else { "s" }
+            vis.len(),
+            p.log_lines.len()
         )
         .into(),
     );
@@ -558,10 +558,7 @@ pub fn handle_drop(ctx: &Rc<Ctx>, path: &Path) {
     };
     let w = ctx.app.as_weak();
     if !running {
-        toast(
-            &w,
-            "Start the device first, then drop the file again".into(),
-        );
+        toast(&w, tr!("Start the device first, then drop the file again"));
         return;
     }
     let name = file_name(&path.to_string_lossy());
@@ -576,7 +573,7 @@ pub fn handle_drop(ctx: &Rc<Ctx>, path: &Path) {
                 json!({ "device": id, "path": zip }),
                 |_| {},
                 move |r| match r {
-                    Ok(_) => toast(&w2, format!("Installed {name}; the device is rebooting")),
+                    Ok(_) => toast(&w2, tr!("Installed {}; the device is rebooting", name)),
                     Err(e)
                         if e.message.contains("Unknown method")
                             || e.message.contains("unknown method")
@@ -588,8 +585,9 @@ pub fn handle_drop(ctx: &Rc<Ctx>, path: &Path) {
                             json!({ "device": id, "local": zip2 }),
                             report(
                                 &w2,
-                                &format!(
-                                    "Copied {name} to Download (module install isn't available yet)"
+                                &tr!(
+                                    "Copied {} to Download (module install isn't available yet)",
+                                    name
                                 ),
                             ),
                         );
@@ -600,8 +598,8 @@ pub fn handle_drop(ctx: &Rc<Ctx>, path: &Path) {
         }
         drop::DropAction::Push { path, note } => {
             let msg = match note {
-                Some(n) => format!("Copied {name} to Download. {n}"),
-                None => format!("Copied {name} to /sdcard/Download"),
+                Some(n) => tr!("Copied {} to Download. {}", name, n),
+                None => tr!("Copied {} to /sdcard/Download", name),
             };
             ctx.bridge.call(
                 "file.push",
@@ -615,7 +613,7 @@ pub fn handle_drop(ctx: &Rc<Ctx>, path: &Path) {
 fn install_apk(ctx: &Rc<Ctx>, id: Uuid, apk: PathBuf, reinstall: bool) {
     let w = ctx.app.as_weak();
     let name = file_name(&apk.to_string_lossy());
-    toast(&w, format!("Installing {name}…"));
+    toast(&w, tr!("Installing {}…", name));
     let b = ctx.bridge.clone();
     let apk2 = apk.clone();
     let token = crate::app::defer(move |r: jidr_core::JidrResult<()>| {
@@ -627,9 +625,11 @@ fn install_apk(ctx: &Rc<Ctx>, id: Uuid, apk: PathBuf, reinstall: bool) {
                 let apk3 = apk2.clone();
                 crate::launcher::confirm(
                     &c,
-                    &format!("Reinstall {}?", file_name(&apk2.to_string_lossy())),
-                    "The installed app was signed with a different key. Reinstalling uninstalls it first, which deletes its data.",
-                    "Reinstall",
+                    &tr!("Reinstall {}?", file_name(&apk2.to_string_lossy())),
+                    &tr!(
+                        "The installed app was signed with a different key. Reinstalling uninstalls it first, which deletes its data."
+                    ),
+                    &tr!("Reinstall"),
                     move || install_apk(&c2, id, apk3.clone(), true),
                 );
             }
@@ -665,11 +665,11 @@ fn install_apk(ctx: &Rc<Ctx>, id: Uuid, apk: PathBuf, reinstall: bool) {
         let r = match r {
             Ok(_) => match call("app.launch", json!({ "device": id, "apk": apk })).await {
                 Ok(_) => {
-                    toast(&w2, format!("Installed and opened {name}"));
+                    toast(&w2, tr!("Installed and opened {}", name));
                     Ok(())
                 }
                 Err(_) => {
-                    toast(&w2, format!("Installed {name}"));
+                    toast(&w2, tr!("Installed {}", name));
                     Ok(())
                 }
             },

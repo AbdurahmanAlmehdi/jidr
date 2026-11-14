@@ -86,7 +86,7 @@ component Toolbar inherits Rectangle {
         spacing: 2px;
         alignment: start;
         for t[i] in [
-            { id: "back", icon: Icons.arrow-left, sep: false },
+            { id: "back", icon: Theme.rtl ? Icons.arrow-right : Icons.arrow-left, sep: false },
             { id: "home", icon: Icons.circle, sep: false },
             { id: "recents", icon: Icons.square, sep: true },
             { id: "volume-up", icon: Icons.volume-2, sep: false },
@@ -128,7 +128,7 @@ component Toolbar inherits Rectangle {
     }
     IconButton {
         y: parent.height - 8px - self.height;
-        icon: Icons.panel-right;
+        icon: Theme.rtl ? Icons.panel-left : Icons.panel-right;
         on: root.panel-open;
         clicked => { root.tool("panel"); }
     }
@@ -556,7 +556,7 @@ export component DeviceView inherits Rectangle {
                     small: true;
                     has-icon: false;
                     tone: Tone.negative;
-                    text: root.log-errors == 1 ? @tr("1 error") : @tr("{} errors", root.log-errors);
+                    text: @tr("{n} error" | "{n} errors" % root.log-errors);
                 }
                 T {
                     text: root.log-last-error;

@@ -13,6 +13,7 @@ use uuid::Uuid;
 
 use crate::RootUi;
 use crate::app::{Ctx, toast};
+use crate::i18n::tr;
 use crate::model::DeviceInfo;
 
 /// The props' wire names, in form order.
@@ -92,13 +93,13 @@ pub fn summary(values: &Values) -> String {
         }
     }
     if !patch.trim().is_empty() {
-        parts.push(format!("patch {}", patch.trim()));
+        parts.push(tr!("patch {}", patch.trim()));
     }
     if parts.is_empty() {
         if fingerprint.trim().is_empty() {
-            "Stock values".into()
+            tr!("Stock values")
         } else {
-            "Custom fingerprint".into()
+            tr!("Custom fingerprint")
         }
     } else {
         parts.join(" · ")
@@ -291,8 +292,8 @@ fn save(ctx: &Rc<Ctx>, id: Uuid, props: Value) {
         json!({ "device": id, "props": props }),
         move |r: JidrResult<Value>| {
             let msg = match &r {
-                Ok(_) if running => Some("Build identity saved. Restart to apply it.".to_string()),
-                Ok(_) => Some("Build identity saved. It applies on the next start.".to_string()),
+                Ok(_) if running => Some(tr!("Build identity saved. Restart to apply it.")),
+                Ok(_) => Some(tr!("Build identity saved. It applies on the next start.")),
                 Err(_) => None,
             };
             if let Some(m) = msg {

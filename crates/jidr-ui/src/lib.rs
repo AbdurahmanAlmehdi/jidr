@@ -20,6 +20,7 @@ pub mod bridge;
 pub mod device_form;
 pub mod fixtures;
 pub mod goldens;
+pub mod i18n;
 pub mod launcher;
 pub mod model;
 pub mod offscreen;

@@ -530,7 +530,7 @@ export component RootLayer inherits Rectangle {
                     second := Button {
                         visible: i == 0;
                         has-icon: st == RootSheetState.failed || st == RootSheetState.unverified;
-                        icon: Icons.undo-2;
+                        icon: Theme.rtl ? Icons.undo-2-rtl : Icons.undo-2;
                         text: busy ? @tr("Continue in background")
                             : st == RootSheetState.success ? @tr("Save snapshot…")
                             : @tr("Revert to unrooted");
@@ -802,7 +802,7 @@ export component RootDevTools inherits VerticalLayout {
                     small: true;
                     kind: ButtonKind.tertiary;
                     has-icon: true;
-                    icon: Icons.undo-2;
+                    icon: Theme.rtl ? Icons.undo-2-rtl : Icons.undo-2;
                     enabled: !RootUi.tools-busy;
                     text: @tr("Revert to unrooted…");
                     clicked => { RootUi.tools-action("revert", ""); }
