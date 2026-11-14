@@ -127,3 +127,5 @@ The device screen itself never animates.
 ## RTL
 
 Layouts mirror cleanly for the Arabic build: the window (traffic lights included, as macOS does), sidebar, inspector, device toolbar and widget panel swap sides. Logcat, code, CLI, kbd hints and the Android screen do not mirror.
+
+In Arabic the app sets UI text in Noto Kufi Arabic (Latin words included, as the Arabic site does) at the `type-*-ar` sizes, and every value inserted into a translated string (device names, serials, sizes, paths) sits inside U+2068 … U+2069 (first-strong isolate, the app's `<bdi>`). The translation check enforces the isolates.

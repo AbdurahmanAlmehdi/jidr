@@ -25,6 +25,7 @@ Or [download the DMG](https://github.com/AbdurahmanAlmehdi/jidr/releases/latest)
 - **Build identity:** set build properties (model, brand, fingerprint…) on Full-root devices.
 - **CLI:** every action is a `jidr` command, with `--json` output and stable exit codes for CI.
 - **MCP server:** `jidr mcp` lets Claude and other MCP clients see and drive a device: screenshot, tap, type, UI tree, logs.
+- **Languages:** the app is in English, العربية (right to left), Español, 简体中文 and Português (Brasil). It follows your Mac's preferred languages, or pick one in Settings › General. The CLI and MCP stay in English.
 
 No accounts, no telemetry, no paid tier.
 
