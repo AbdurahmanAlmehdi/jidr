@@ -1,6 +1,6 @@
 # ADR-0004: Flashable zips on Jidr devices
 
-- **Status:** Proposed (2026-11-14)
+- **Status:** Accepted (2026-11-14, D45). Proposed the same day in #100.
 - **Issue:** #72 (parity row "Zip flash"). Builds on D35 and D3.
 - **Built in the same pull request:** zip-type detection, the `file.flash` command, `jidr flash`, the player's drop routing, and an emulator test of a module install.
 
