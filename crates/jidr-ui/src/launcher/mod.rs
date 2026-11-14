@@ -27,8 +27,14 @@ pub fn wire(ctx: &Rc<Ctx>) {
     let c = ctx.clone();
     app.on_select_device(move |i| {
         let id = c.device_id(i);
-        c.state.borrow_mut().selected = id;
+        {
+            let mut st = c.state.borrow_mut();
+            st.selected = id;
+            st.selected_phone = None;
+            st.phone_open = false;
+        }
         c.rerender();
+        crate::phones::sync(&c);
         crate::snapshots::load(&c);
     });
 

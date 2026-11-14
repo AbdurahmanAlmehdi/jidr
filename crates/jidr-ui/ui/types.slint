@@ -245,3 +245,35 @@ export struct WidgetsVm {
     route-speed: int,
     route-loop: bool,
 }
+
+/// How a physical phone's state looks (#92): ready, on its way (connecting),
+/// or needing the user (unauthorized, offline, no USB permission).
+export enum PhoneLook { ready, waiting, problem }
+
+/// A USB phone adb sees (`physical.list`), labels computed in Rust.
+export struct PhoneVm {
+    serial: string,
+    /// Model, else the serial: "Pixel 8".
+    name: string,
+    /// "Google · Android 14 · API 34"
+    subtitle: string,
+    ready: bool,
+    look: PhoneLook,
+    /// "Ready", "Unauthorized", "Offline", "No USB permission", …
+    state: string,
+    /// Sidebar line: "Ready · 87%", "Allow USB debugging on the phone".
+    status: string,
+    /// What to do when it isn't ready.
+    hint: string,
+    /// "87% · charging"
+    battery: string,
+    /// "Android 14 · API 34"
+    android: string,
+    abi: string,
+    manufacturer: string,
+    model: string,
+    /// "1080×2400 · 420 dpi"
+    screen: string,
+    /// "USB 1-1", "Wi-Fi"
+    via: string,
+}

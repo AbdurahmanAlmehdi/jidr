@@ -560,6 +560,87 @@ impl Exhausted {
     }
 }
 
+/// A USB phone's view model (#92).
+pub fn phone_vm(p: &jidr_core::PhysicalDevice) -> crate::PhoneVm {
+    use jidr_core::PhoneState as S;
+    let look = match p.state {
+        S::Ready => crate::PhoneLook::Ready,
+        S::Connecting => crate::PhoneLook::Waiting,
+        _ => crate::PhoneLook::Problem,
+    };
+    let state = match p.state {
+        S::Ready => "Ready",
+        S::Unauthorized => "Unauthorized",
+        S::Offline => "Offline",
+        S::NoPermissions => "No USB permission",
+        S::Connecting => "Connecting",
+        S::Other => "Recovery or bootloader",
+    };
+    let battery = p
+        .battery
+        .map(|b| {
+            if b.charging {
+                format!("{}% · charging", b.level)
+            } else {
+                format!("{}%", b.level)
+            }
+        })
+        .unwrap_or_default();
+    let android = match (&p.android, p.api) {
+        (Some(a), Some(api)) => format!("Android {a} · API {api}"),
+        (None, Some(api)) => android_label(api),
+        _ => String::new(),
+    };
+    let status = match p.state {
+        S::Ready if !battery.is_empty() => {
+            format!("Ready · {}", battery.replace(" · charging", ""))
+        }
+        S::Ready => "Ready".into(),
+        S::Unauthorized => "Allow USB debugging on the phone".into(),
+        S::Offline => "Offline · replug it".into(),
+        _ => state.into(),
+    };
+    let subtitle = [p.manufacturer.clone().unwrap_or_default(), android.clone()]
+        .into_iter()
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join(" · ");
+    let subtitle = if subtitle.is_empty() {
+        "USB debugging connection".to_string()
+    } else {
+        subtitle
+    };
+    let screen = p
+        .screen
+        .map(|s| match s.density {
+            Some(d) => format!("{}×{} · {d} dpi", s.width, s.height),
+            None => format!("{}×{}", s.width, s.height),
+        })
+        .unwrap_or_default();
+    let via = match (p.connection, &p.usb) {
+        (jidr_core::PhoneConnection::Wifi, _) => "Wi-Fi".to_string(),
+        (_, Some(port)) => format!("USB {port}"),
+        _ => "USB".to_string(),
+    };
+    crate::PhoneVm {
+        serial: p.serial.clone().into(),
+        name: p.display_name().into(),
+        subtitle: subtitle.into(),
+        ready: p.state == S::Ready,
+        look,
+        state: state.into(),
+        status: status.into(),
+        hint: p.hint.clone().unwrap_or_default().into(),
+        battery: battery.into(),
+        android: android.into(),
+        abi: p.abi.clone().unwrap_or_default().into(),
+        manufacturer: p.manufacturer.clone().unwrap_or_default().into(),
+        model: p.model.clone().unwrap_or_default().into(),
+        screen: screen.into(),
+        via: via.into(),
+    }
+}
+
 pub fn tab_vm(vm: &DeviceVm) -> TabVm {
     TabVm {
         id: vm.id.clone(),
@@ -818,6 +899,25 @@ mod tests {
         assert_eq!(parsed.free_mb(), 2048);
         assert_eq!(parsed.picks(), vec![id]);
         assert_eq!(parsed.rows()[0].detail, "Idle 10\u{a0}m · 6.3 GB");
+    }
+
+    #[test]
+    fn phones_say_what_state_they_are_in() {
+        let phones = crate::fixtures::phones();
+        let ready = phone_vm(&phones[0]);
+        assert!(ready.ready);
+        assert_eq!(ready.look, crate::PhoneLook::Ready);
+        assert_eq!(ready.status, "Ready · 87%");
+        assert_eq!(ready.subtitle, "Google · Android 14 · API 34");
+        assert_eq!(ready.battery, "87% · charging");
+        assert_eq!(ready.screen, "1080×2400 · 420 dpi");
+        assert_eq!(ready.via, "USB 1-1");
+        let waiting = phone_vm(&phones[1]);
+        assert!(!waiting.ready);
+        assert_eq!(waiting.look, crate::PhoneLook::Problem);
+        assert_eq!(waiting.name, "0A1B2C3D", "no model before authorization");
+        assert_eq!(waiting.status, "Allow USB debugging on the phone");
+        assert!(waiting.hint.contains("Allow"));
     }
 
     #[test]

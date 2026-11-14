@@ -17,6 +17,9 @@ use crate::model::{DeviceInfo, HostBudget, Lease};
 const HEALTH_EVERY: Duration = Duration::from_secs(3);
 /// Wait between reconnect attempts.
 const RETRY_EVERY: Duration = Duration::from_secs(2);
+/// How often to refresh connected phones (battery); plugging and
+/// unplugging arrive as events.
+const PHONES_EVERY: Duration = Duration::from_secs(30);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Conn {
@@ -34,6 +37,8 @@ pub struct Data {
     pub sdk_ready: bool,
     /// `host.budget`; `None` from an older daemon.
     pub budget: Option<HostBudget>,
+    /// USB phones adb sees (`physical.list`, #92); empty from an older daemon.
+    pub phones: Vec<jidr_core::PhysicalDevice>,
 }
 
 pub enum Update {
@@ -50,6 +55,8 @@ struct Cache {
     details: HashMap<Uuid, Value>,
     profiles: BTreeMap<String, HardwareProfile>,
     boot: HashMap<Uuid, f32>,
+    /// `physical.details` screens by serial, until the phone changes.
+    screens: HashMap<String, Option<jidr_core::PhoneScreen>>,
 }
 
 pub struct Bridge {
@@ -138,7 +145,9 @@ impl Bridge {
     /// One connected session: subscribe, load, then follow events until the
     /// health check fails.
     async fn session(&self, c: &Arc<Client>, sink: &Sink, cache: &mut Cache) -> JidrResult<()> {
-        let mut events = c.subscribe(&["device.", "job.", "pool."]).await?;
+        let mut events = c
+            .subscribe(&["device.", "job.", "pool.", "physical."])
+            .await?;
         cache.details.clear();
         if let Ok(p) = c
             .call_as::<_, Vec<HardwareProfile>>("profile.list", json!({}))
@@ -146,8 +155,12 @@ impl Bridge {
         {
             cache.profiles = p.into_iter().map(|p| (p.id.clone(), p)).collect();
         }
-        sink(Update::Data(self.load(c, cache).await?));
+        let data = self.load(c, cache).await?;
+        let mut has_phones = !data.phones.is_empty();
+        sink(Update::Data(data));
         let mut health = tokio::time::interval(HEALTH_EVERY);
+        let mut phones = tokio::time::interval(PHONES_EVERY);
+        phones.tick().await;
         loop {
             tokio::select! {
                 ev = events.recv() => match ev {
@@ -161,7 +174,9 @@ impl Bridge {
                                 self.note(&ev, cache);
                                 sink(Update::Event(ev));
                             }
-                            sink(Update::Data(self.load(c, cache).await?));
+                            let data = self.load(c, cache).await?;
+                            has_phones = !data.phones.is_empty();
+                            sink(Update::Data(data));
                         }
                     }
                     Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
@@ -171,6 +186,11 @@ impl Bridge {
                 },
                 _ = health.tick() => {
                     c.call("daemon.status", json!({})).await?;
+                }
+                _ = phones.tick(), if has_phones => {
+                    let data = self.load(c, cache).await?;
+                    has_phones = !data.phones.is_empty();
+                    sink(Update::Data(data));
                 }
             }
         }
@@ -192,13 +212,24 @@ impl Bridge {
                 }
                 true
             }
+            t if t.starts_with("physical.") => {
+                if let Some(serial) = ev.data.get("serial").and_then(Value::as_str) {
+                    cache.screens.remove(serial);
+                }
+                true
+            }
             "device.created" | "device.updated" | "device.deleted" => {
                 if let Some(d) = device {
                     cache.details.remove(&d);
                 }
                 true
             }
-            t => t.starts_with("device.") || t.starts_with("job.") || t.starts_with("pool."),
+            t => {
+                t.starts_with("device.")
+                    || t.starts_with("job.")
+                    || t.starts_with("pool.")
+                    || t.starts_with("physical.")
+            }
         }
     }
 
@@ -211,6 +242,27 @@ impl Bridge {
             .map(|v| sdk_has_tools(&v))
             .unwrap_or(false);
         let budget: Option<HostBudget> = c.call_as("host.budget", json!({})).await.ok();
+        let mut phones: Vec<jidr_core::PhysicalDevice> = c
+            .call_as("physical.list", json!({}))
+            .await
+            .unwrap_or_default();
+        for p in phones
+            .iter_mut()
+            .filter(|p| p.state == jidr_core::PhoneState::Ready)
+        {
+            if !cache.screens.contains_key(&p.serial) {
+                let screen = c
+                    .call_as::<_, jidr_core::PhysicalDevice>(
+                        "physical.details",
+                        json!({ "device": p.serial }),
+                    )
+                    .await
+                    .ok()
+                    .and_then(|d| d.screen);
+                cache.screens.insert(p.serial.clone(), screen);
+            }
+            p.screen = cache.screens.get(&p.serial).copied().flatten();
+        }
         let leases = c
             .call("pool.list", json!({}))
             .await
@@ -273,6 +325,7 @@ impl Bridge {
             jobs,
             sdk_ready,
             budget,
+            phones,
         })
     }
 

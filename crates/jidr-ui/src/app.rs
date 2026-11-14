@@ -21,6 +21,10 @@ pub struct State {
     pub selected: Option<Uuid>,
     pub tabs: Vec<Uuid>,
     pub active: Option<usize>,
+    /// The selected USB phone's serial (#92); it wins over `selected`.
+    pub selected_phone: Option<String>,
+    /// The selected phone's screen view is open.
+    pub phone_open: bool,
 }
 
 pub type Shared = Rc<RefCell<State>>;
@@ -89,6 +93,17 @@ pub fn render(app: &AppWindow, state: &State) {
         .and_then(|id| state.data.devices.iter().position(|d| d.device.id == *id));
     app.set_active_device(active_device.map(|i| i as i32).unwrap_or(-1));
     app.set_sdk_ready(state.data.sdk_ready);
+    let phones: Vec<_> = state.data.phones.iter().map(model::phone_vm).collect();
+    let phone = state
+        .selected_phone
+        .as_ref()
+        .and_then(|s| state.data.phones.iter().position(|p| &p.serial == s));
+    app.set_phones(ModelRc::new(VecModel::from(phones)));
+    app.set_selected_phone(phone.map(|i| i as i32).unwrap_or(-1));
+    app.set_phone_open(phone.is_some() && state.phone_open);
+    if phone.is_some() {
+        app.set_selected(-1);
+    }
     app.set_budget(
         state
             .data
@@ -273,6 +288,7 @@ pub fn apply_data(app: &AppWindow, data: Data) {
     drop(st);
     if let Some(c) = ctx() {
         crate::player::sync(&c);
+        crate::phones::sync(&c);
         // Starts a root setup queued for a device that just arrived (a new
         // Full-root device), instead of waiting for the next selection.
         crate::root::sync(&c);
@@ -308,6 +324,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     crate::widgets::wire(&ctx);
     crate::snapshots::wire(&ctx);
     crate::root::wire(&ctx);
+    crate::phones::wire(&ctx);
     auto_open(&ctx);
     bridge.connect(paths, sink(app.as_weak()));
     app.run()?;

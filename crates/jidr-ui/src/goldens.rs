@@ -274,6 +274,16 @@ pub(crate) fn device_tab(v: Variant, device: usize) -> Result<AppWindow, String>
     Ok(app)
 }
 
+/// The populated launcher with the fixture phones, phone `selected` picked.
+fn with_phones(v: Variant, selected: i32) -> Result<AppWindow, String> {
+    let app = populated(v)?;
+    let phones: Vec<_> = fixtures::phones().iter().map(model::phone_vm).collect();
+    app.set_phones(model(phones));
+    app.set_selected_phone(selected);
+    app.set_selected(-1);
+    Ok(app)
+}
+
 /// Launcher with the four sample devices, Pixel-ish 6.1 selected.
 pub fn populated(v: Variant) -> Result<AppWindow, String> {
     let app = app(v)?;
@@ -660,6 +670,24 @@ pub fn cases() -> Vec<Case> {
                 app.set_sheet_open(true);
                 shot(&app, 1440, 900)
             },
+        },
+        // USB phones (#92): the Phones group empty (launcher-populated
+        // shows it too), a ready phone, and one waiting for the RSA prompt.
+        Case {
+            name: "phones-empty",
+            render: |v| {
+                let app = populated(v)?;
+                app.set_phones(model(Vec::new()));
+                shot(&app, 1440, 900)
+            },
+        },
+        Case {
+            name: "phones-ready",
+            render: |v| shot(&with_phones(v, 0)?, 1440, 900),
+        },
+        Case {
+            name: "phones-unauthorized",
+            render: |v| shot(&with_phones(v, 1)?, 1440, 900),
         },
         Case {
             name: "launcher-reconnecting",

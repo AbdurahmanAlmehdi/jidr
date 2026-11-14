@@ -275,6 +275,13 @@ pub fn wire(ctx: &Rc<Ctx>) {
         use slint::winit_030::{EventResult, WinitWindowAccessor, winit::event::WindowEvent};
         app.window().on_winit_window_event(move |_, ev| {
             match ev {
+                // An open USB phone screen takes the file instead (#92).
+                WindowEvent::HoveredFile(p) if crate::phones::takes_drop(&c) => {
+                    crate::phones::hover(&c, Some(p));
+                }
+                WindowEvent::DroppedFile(p) if crate::phones::takes_drop(&c) => {
+                    crate::phones::drop_file(&c, p);
+                }
                 WindowEvent::HoveredFile(p) => hover(&c, Some(p.clone())),
                 WindowEvent::HoveredFileCancelled => hover(&c, None),
                 WindowEvent::DroppedFile(p) => {

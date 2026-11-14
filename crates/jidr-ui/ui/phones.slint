@@ -1,0 +1,449 @@
+// USB phones (#92): the sidebar's Phones group, a phone's detail, and its
+// live screen. Phones get what plain adb can do; root, snapshots and the
+// sensor widgets are emulator-only, so they aren't shown here at all.
+
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { T, Role, Tone, Tones, Icon, IconButton, Button, ButtonKind, Panel, Pill, KV, Scroll, SectionHeader } from "components/base.slint";
+import { PhoneVm, PhoneLook } from "types.slint";
+
+export global PhoneStyle {
+    public pure function tone(l: PhoneLook) -> Tone {
+        return l == PhoneLook.ready ? Tone.positive
+            : l == PhoneLook.waiting ? Tone.transition
+            : Tone.warning;
+    }
+}
+
+/// A phone's state as a pill (plated) or a bare sidebar line.
+export component PhonePill inherits Pill {
+    in property <PhoneLook> look;
+    tone: PhoneStyle.tone(look);
+    dot: look == PhoneLook.ready;
+    spinning: look == PhoneLook.waiting;
+    icon: Icons.triangle-alert;
+}
+
+/// Sidebar phone row: model + connection, then state.
+export component SidebarPhone inherits Rectangle {
+    in property <PhoneVm> phone;
+    in property <bool> selected;
+    callback clicked();
+    callback double-clicked();
+    height: 52px;
+    border-radius: Theme.radius-md;
+    background: selected ? Theme.surface-selected : ta.has-hover ? Theme.surface-control-hover.with-alpha(0.4) : transparent;
+    via := Pill {
+        x: Theme.rtl ? 8px : parent.width - 8px - self.width;
+        y: 8px;
+        small: true;
+        tone: Tone.neutral;
+        icon: Icons.plug;
+        text: phone.via == "Wi-Fi" ? @tr("Wi-Fi") : @tr("USB");
+    }
+    T {
+        x: Theme.rtl ? via.x + via.width + 6px : 8px;
+        y: 8px;
+        height: 20px;
+        width: parent.width - 22px - via.width;
+        text: phone.name;
+        role: Role.label;
+        font-weight: 600;
+        overflow: elide;
+    }
+    PhonePill {
+        x: Theme.rtl ? parent.width - 8px - self.width : 8px;
+        y: 30px;
+        height: 16px;
+        bare: true;
+        small: true;
+        look: phone.look;
+        text: phone.status;
+    }
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+        double-clicked => { root.double-clicked(); }
+    }
+}
+
+/// The Phones group: header, then the phones or a hint.
+export component PhonesGroup inherits VerticalLayout {
+    in property <[PhoneVm]> phones;
+    in property <int> selected: -1;
+    callback select(int);
+    callback open(int);
+    spacing: 2px;
+    SectionHeader {
+        text: @tr("Phones");
+        trailing: root.phones.length > 0 ? root.phones.length : "";
+    }
+    if root.phones.length == 0: T {
+        height: 34px;
+        x: 8px;
+        width: parent.width - 16px;
+        text: @tr("Plug in a phone with USB debugging on.");
+        font-size: 12px;
+        color: Theme.text-secondary;
+        wrap: word-wrap;
+        vertical-alignment: top;
+    }
+    for p[i] in root.phones: SidebarPhone {
+        phone: p;
+        selected: i == root.selected;
+        clicked => { root.select(i); }
+        double-clicked => { root.open(i); }
+    }
+}
+
+/// Neutral phone outline, lit when the phone is ready.
+component PhoneShape inherits Rectangle {
+    in property <bool> on;
+    width: 72px;
+    height: 120px;
+    border-radius: 14px;
+    background: Theme.surface-device-bezel;
+    Rectangle {
+        x: 5px;
+        y: 5px;
+        width: parent.width - 10px;
+        height: parent.height - 10px;
+        border-radius: 10px;
+        background: on ? #ebe5d6 : Theme.surface-sunken;
+    }
+    Icon {
+        visible: !on;
+        size: 24px;
+        source: Icons.smartphone;
+        colorize: Theme.text-tertiary;
+    }
+}
+
+/// Section title (`.h-sec`).
+component H inherits T {
+    font-size: 13px;
+    font-weight: 600;
+    height: 18px;
+}
+
+/// A selected phone in the library.
+export component PhoneDetail inherits Rectangle {
+    in property <PhoneVm> phone;
+    in property <bool> recording;
+    /// "phone-open", "screenshot", "record", "install", "push", "pull",
+    /// "logcat", "shell", "reboot".
+    callback action(string);
+    background: Theme.surface-base;
+    property <length> px: 32px;
+    property <length> cw: self.width - 2 * px;
+    Scroll {
+        content-height: 640px;
+        sil := PhoneShape {
+            x: Theme.rtl ? px + cw - self.width : px;
+            y: 28px;
+            on: phone.ready;
+        }
+        acts := HorizontalLayout {
+            x: Theme.rtl ? px : px + cw - self.preferred-width;
+            y: 28px;
+            height: 30px;
+            spacing: 8px;
+            if phone.ready: Button {
+                kind: ButtonKind.primary;
+                has-icon: true;
+                icon: Icons.external-link;
+                text: @tr("Open");
+                kbd: "↵";
+                clicked => { root.action("phone-open"); }
+            }
+            if phone.ready: Button {
+                has-icon: true;
+                icon: Icons.camera;
+                text: @tr("Screenshot");
+                clicked => { root.action("screenshot"); }
+            }
+        }
+        property <length> tx: Theme.rtl ? acts.x + acts.preferred-width + 20px : sil.x + sil.width + 20px;
+        property <length> tw: cw - sil.width - acts.preferred-width - 40px;
+        T {
+            x: tx;
+            y: 28px;
+            width: tw;
+            height: 38px;
+            text: phone.name;
+            role: Role.hero;
+            overflow: elide;
+        }
+        T {
+            x: tx;
+            y: 70px;
+            width: tw;
+            height: 18px;
+            text: phone.subtitle;
+            color: Theme.text-secondary;
+        }
+        badges := HorizontalLayout {
+            x: Theme.rtl ? tx + tw - self.preferred-width : tx;
+            y: 96px;
+            height: 24px;
+            spacing: 8px;
+            for slot[j] in 3: Rectangle {
+                property <int> i: Theme.rtl ? 2 - j : j;
+                width: i == 0 ? st.width : i == 1 ? (phone.battery != "" ? bat.width : 0px) : serial.preferred-width;
+                st := PhonePill {
+                    visible: i == 0;
+                    look: phone.look;
+                    text: phone.state;
+                }
+                bat := Pill {
+                    visible: i == 1 && phone.battery != "";
+                    tone: Tone.neutral;
+                    icon: Icons.battery;
+                    text: phone.battery;
+                }
+                serial := T {
+                    visible: i == 2;
+                    text: phone.serial;
+                    role: Role.code;
+                    color: Theme.text-secondary;
+                }
+            }
+        }
+        T {
+            x: tx;
+            y: 130px;
+            width: tw;
+            height: 18px;
+            text: @tr("A phone over adb: no root modes, snapshots or sensor controls.");
+            role: Role.caption;
+            color: Theme.text-secondary;
+        }
+
+        // Not ready: what to do, in place of the panels.
+        if !phone.ready: Panel {
+            x: px;
+            y: 172px;
+            width: cw;
+            height: 96px;
+            Icon {
+                x: Theme.rtl ? parent.width - 18px - self.width : 18px;
+                y: 18px;
+                size: Theme.icon-md;
+                source: phone.look == PhoneLook.waiting ? Icons.loader-circle : Icons.smartphone;
+                colorize: Tones.on(PhoneStyle.tone(phone.look));
+            }
+            H {
+                x: Theme.rtl ? 18px : 48px;
+                y: 18px;
+                width: parent.width - 66px;
+                text: phone.look == PhoneLook.waiting ? @tr("Connecting") : @tr("Waiting for the phone");
+            }
+            T {
+                x: Theme.rtl ? 18px : 48px;
+                y: 44px;
+                width: parent.width - 66px;
+                height: 40px;
+                text: phone.hint;
+                wrap: word-wrap;
+                vertical-alignment: top;
+                color: Theme.text-secondary;
+            }
+        }
+
+        property <length> gw: (cw - 32px) / 3;
+        for p[j] in phone.ready ? 3 : 0: Panel {
+            property <int> i: Theme.rtl ? 2 - j : j;
+            x: px + j * (gw + 16px);
+            y: 172px;
+            width: gw;
+            height: 152px;
+            H {
+                x: 16px;
+                y: 14px;
+                width: parent.width - 32px;
+                text: i == 0 ? @tr("Android") : i == 1 ? @tr("Hardware") : @tr("Connection");
+            }
+            VerticalLayout {
+                x: 16px;
+                y: 44px;
+                width: parent.width - 32px;
+                spacing: 6px;
+                alignment: LayoutAlignment.start;
+                if i == 0: KV { key: @tr("Version"); value: phone.android; key-width: 80px; }
+                if i == 0: KV { key: @tr("ABI"); value: phone.abi; mono: true; key-width: 80px; }
+                if i == 0: KV { key: @tr("Serial"); value: phone.serial; mono: true; key-width: 80px; }
+                if i == 1: KV { key: @tr("Maker"); value: phone.manufacturer; key-width: 80px; }
+                if i == 1: KV { key: @tr("Model"); value: phone.model; key-width: 80px; }
+                if i == 1: KV { key: @tr("Screen"); value: phone.screen; mono: true; key-width: 80px; }
+                if i == 1: KV { key: @tr("Battery"); value: phone.battery; key-width: 80px; }
+                if i == 2: KV { key: @tr("Via"); value: phone.via; key-width: 80px; }
+                if i == 2: KV { key: @tr("State"); value: phone.state; key-width: 80px; }
+                if i == 2: KV { key: @tr("Root"); value: @tr("Not available"); key-width: 80px; }
+            }
+        }
+
+        // Everything adb can do, one click each.
+        if phone.ready: H {
+            x: Theme.rtl ? px + cw - self.preferred-width : px;
+            y: 352px;
+            width: self.preferred-width;
+            text: @tr("Tools");
+        }
+        if phone.ready: HorizontalLayout {
+            x: Theme.rtl ? px + cw - self.preferred-width : px;
+            y: 382px;
+            height: 30px;
+            spacing: 8px;
+            Button { has-icon: true; icon: recording ? Icons.square : Icons.video; text: recording ? @tr("Stop recording") : @tr("Record"); clicked => { root.action("record"); } }
+            Button { has-icon: true; icon: Icons.download; text: @tr("Install APK…"); clicked => { root.action("install"); } }
+            Button { has-icon: true; icon: Icons.upload; text: @tr("Push file…"); clicked => { root.action("push"); } }
+            Button { has-icon: true; icon: Icons.folder-open; text: @tr("Pull file…"); clicked => { root.action("pull"); } }
+        }
+        if phone.ready: HorizontalLayout {
+            x: Theme.rtl ? px + cw - self.preferred-width : px;
+            y: 422px;
+            height: 30px;
+            spacing: 8px;
+            Button { has-icon: true; icon: Icons.scroll-text; text: @tr("Logcat"); clicked => { root.action("logcat"); } }
+            Button { has-icon: true; icon: Icons.square-terminal; text: @tr("Shell"); clicked => { root.action("shell"); } }
+            Button { has-icon: true; kind: ButtonKind.tertiary; icon: Icons.rotate-ccw; text: @tr("Reboot…"); clicked => { root.action("reboot"); } }
+        }
+        if phone.ready: T {
+            x: px;
+            y: 466px;
+            width: cw;
+            height: 18px;
+            text: @tr("Drop an APK on the open screen to install it, or any other file to copy it to Download.");
+            role: Role.caption;
+            color: Theme.text-secondary;
+        }
+    }
+}
+
+/// An open phone: its live screen (adb screencap) with keys and tools.
+export component PhoneView inherits Rectangle {
+    in property <PhoneVm> phone;
+    in property <image> frame;
+    in property <bool> has-frame;
+    in property <int> frame-w: 1080;
+    in property <int> frame-h: 2400;
+    in property <bool> recording;
+    in property <string> rate;
+    in property <bool> drop-hover;
+    in property <string> drop-title;
+    in property <string> drop-body;
+    callback action(string);
+    /// 0 = press, 1 = release; x and y are fractions of the screen.
+    callback pointer(int, float, float);
+    background: Theme.surface-sunken;
+    bar := Rectangle {
+        height: 48px;
+        y: 0px;
+        background: Theme.surface-base;
+        Rectangle {
+            y: parent.height - 1px;
+            height: 1px;
+            background: Theme.border-default;
+        }
+        back := Button {
+            x: Theme.rtl ? parent.width - 12px - self.width : 12px;
+            small: true;
+            kind: ButtonKind.tertiary;
+            has-icon: true;
+            icon: Theme.rtl ? Icons.chevron-right : Icons.chevron-left;
+            text: @tr("Details");
+            clicked => { root.action("phone-close"); }
+        }
+        T {
+            x: Theme.rtl ? back.x - 12px - self.width : back.x + back.width + 12px;
+            width: self.preferred-width;
+            text: phone.name;
+            role: Role.label;
+            font-weight: 600;
+        }
+        HorizontalLayout {
+            x: Theme.rtl ? 12px : parent.width - 12px - self.preferred-width;
+            y: 8px;
+            height: 32px;
+            spacing: 2px;
+            for k[j] in [
+                { a: "back", i: Icons.arrow-left },
+                { a: "home", i: Icons.circle },
+                { a: "recents", i: Icons.square },
+                { a: "volume_down", i: Icons.volume-1 },
+                { a: "volume_up", i: Icons.volume-2 },
+                { a: "power", i: Icons.power },
+                { a: "screenshot", i: Icons.camera },
+                { a: "record", i: Icons.video },
+                { a: "install", i: Icons.download },
+                { a: "logcat", i: Icons.scroll-text },
+                { a: "shell", i: Icons.square-terminal },
+            ]: IconButton {
+                icon: k.i;
+                icon-size: Theme.icon-md;
+                on: k.a == "record" && root.recording;
+                clicked => { root.action(k.a); }
+            }
+        }
+    }
+    area := Rectangle {
+        y: bar.height + 16px;
+        x: 16px;
+        width: parent.width - 32px;
+        height: parent.height - bar.height - 52px;
+        property <float> k: min(self.width / max(1px, root.frame-w * 1px), self.height / max(1px, root.frame-h * 1px));
+        screen := Rectangle {
+            width: root.frame-w * 1px * area.k;
+            height: root.frame-h * 1px * area.k;
+            border-radius: 12px;
+            clip: true;
+            background: #000;
+            if root.has-frame: Image {
+                width: parent.width;
+                height: parent.height;
+                source: root.frame;
+                image-fit: fill;
+            }
+            if !root.has-frame: T {
+                width: parent.width;
+                horizontal-alignment: center;
+                text: @tr("Connecting to the screen…");
+                color: #ffffffb0;
+            }
+            TouchArea {
+                mouse-cursor: crosshair;
+                pointer-event(ev) => {
+                    if (ev.button == PointerEventButton.left && ev.kind == PointerEventKind.down) {
+                        root.pointer(0, self.mouse-x / self.width, self.mouse-y / self.height);
+                    }
+                    if (ev.button == PointerEventButton.left && ev.kind == PointerEventKind.up) {
+                        root.pointer(1, self.mouse-x / self.width, self.mouse-y / self.height);
+                    }
+                }
+            }
+            if root.drop-hover: Rectangle {
+                background: Theme.surface-base.with-alpha(0.85);
+                border-width: 2px;
+                border-color: Theme.accent-fill;
+                border-radius: 12px;
+                VerticalLayout {
+                    alignment: center;
+                    padding: 16px;
+                    spacing: 6px;
+                    T { text: root.drop-title; role: Role.title; horizontal-alignment: center; wrap: word-wrap; }
+                    T { text: root.drop-body; color: Theme.text-secondary; horizontal-alignment: center; wrap: word-wrap; }
+                }
+            }
+        }
+    }
+    T {
+        x: 16px;
+        y: parent.height - 28px;
+        width: parent.width - 32px;
+        height: 16px;
+        horizontal-alignment: center;
+        text: root.recording ? @tr("Recording… press the record button again to save it") : root.rate;
+        role: Role.caption;
+        color: root.recording ? Theme.negative : Theme.text-tertiary;
+    }
+}
