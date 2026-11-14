@@ -2,7 +2,7 @@
 
 Android on your Mac, rooted in a minute.
 
-[![Latest release](https://img.shields.io/github/v/release/AbdurahmanAlmehdi/jidr)](https://github.com/AbdurahmanAlmehdi/jidr/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/jidr-dev/jidr)](https://github.com/jidr-dev/jidr/releases/latest)
 ![macOS 14+ on Apple Silicon](https://img.shields.io/badge/macOS_14%2B-Apple_Silicon-black)
 
 Jidr creates and runs virtual Android phones and tablets on Apple Silicon Macs. Pick **Full root** and Magisk is patched in and verified for you; pick **Shell root** for `adb root`; or keep the device stock. It's a free, open-source alternative to Genymotion Desktop, written in Rust, with a desktop app, a CLI and an MCP server for AI agents.
@@ -11,7 +11,7 @@ Jidr creates and runs virtual Android phones and tablets on Apple Silicon Macs. 
 brew install --cask abdurahmanalmehdi/tap/jidr
 ```
 
-Or [download the DMG](https://github.com/AbdurahmanAlmehdi/jidr/releases/latest). Site: [jidr.ly](https://jidr.ly). News: [@Jidr_ly on X](https://x.com/Jidr_ly).
+Or [download the DMG](https://github.com/jidr-dev/jidr/releases/latest). Site: [jidr.ly](https://jidr.ly). News: [@Jidr_ly on X](https://x.com/Jidr_ly).
 
 ![Jidr in 25 seconds: create an API 35 device with Full root, watch Magisk 30.7 get patched and verified, then su -c id and frida-ps from the terminal](docs/images/demo.gif)
 
@@ -35,7 +35,7 @@ No accounts, no telemetry, no paid tier.
 You need macOS 14 or later on Apple Silicon, and about 10 GB of free disk space for the SDK and one system image.
 
 - **Homebrew:** `brew install --cask abdurahmanalmehdi/tap/jidr` installs `Jidr.app` and puts the `jidr` CLI on your `PATH`. Update with `brew upgrade --cask jidr`.
-- **DMG:** download `Jidr-<version>-arm64.dmg` from the [latest release](https://github.com/AbdurahmanAlmehdi/jidr/releases/latest) and drag Jidr to Applications. The CLI is at `/Applications/Jidr.app/Contents/Helpers/jidr`.
+- **DMG:** download `Jidr-<version>-arm64.dmg` from the [latest release](https://github.com/jidr-dev/jidr/releases/latest) and drag Jidr to Applications. The CLI is at `/Applications/Jidr.app/Contents/Helpers/jidr`.
 
 On first launch the app finds or downloads the Android SDK and a system image, after you accept Google's license.
 
@@ -56,12 +56,12 @@ Add Jidr to Claude Code as an MCP server:
 claude mcp add jidr -- jidr mcp
 ```
 
-For Claude Desktop, open `jidr-mcp-<version>-darwin-arm64.mcpb` from the [latest release](https://github.com/AbdurahmanAlmehdi/jidr/releases/latest). Jidr is also in the [MCP Registry](https://registry.modelcontextprotocol.io) as `io.github.AbdurahmanAlmehdi/jidr`. [docs/mcp.md](docs/mcp.md) lists the tools.
+For Claude Desktop, open `jidr-mcp-<version>-darwin-arm64.mcpb` from the [latest release](https://github.com/jidr-dev/jidr/releases/latest). Jidr is also in the [MCP Registry](https://registry.modelcontextprotocol.io) as `io.github.jidr-dev/jidr`. [docs/mcp.md](docs/mcp.md) lists the tools.
 
 Agent skills teach Claude Code, Cursor, Codex and other agents to create and drive Jidr devices with the CLI (`jidr`), to test an app on them (`jidr-app-testing`), to get devices of their own without crowding the machine (`jidr-agent-devices`) and to root them, install Magisk modules and intercept HTTPS (`jidr-root`). Install them with the open [skills](https://skills.sh) CLI:
 
 ```bash
-npx skills add AbdurahmanAlmehdi/jidr
+npx skills add jidr-dev/jidr
 ```
 
 They live in [skills/](skills/).
@@ -81,7 +81,7 @@ They live in [skills/](skills/).
 ## Build from source
 
 ```bash
-git clone https://github.com/AbdurahmanAlmehdi/jidr
+git clone https://github.com/jidr-dev/jidr
 cd jidr
 cargo build --release -p jidr -p jidr-gui
 ```
@@ -96,7 +96,7 @@ Jidr downloads the Android Emulator and system images from Google under the Andr
 
 ## Questions and contributing
 
-Questions, ideas and setups you want to share go in [Discussions](https://github.com/AbdurahmanAlmehdi/jidr/discussions); bugs go in [Issues](https://github.com/AbdurahmanAlmehdi/jidr/issues).
+Questions, ideas and setups you want to share go in [Discussions](https://github.com/jidr-dev/jidr/discussions); bugs go in [Issues](https://github.com/jidr-dev/jidr/issues).
 
 Contributions are welcome: read [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues as described in [SECURITY.md](SECURITY.md). If you work with an AI coding agent, point it at [AGENTS.md](AGENTS.md).
 

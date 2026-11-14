@@ -10,7 +10,7 @@ Claude Code:
 claude mcp add jidr -- jidr mcp
 ```
 
-Claude Desktop: download `jidr-mcp-<version>-darwin-arm64.mcpb` from the [latest release](https://github.com/AbdurahmanAlmehdi/jidr/releases/latest) and open it, or add Jidr by hand to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+Claude Desktop: download `jidr-mcp-<version>-darwin-arm64.mcpb` from the [latest release](https://github.com/jidr-dev/jidr/releases/latest) and open it, or add Jidr by hand to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ```json
 {
@@ -22,7 +22,7 @@ Claude Desktop: download `jidr-mcp-<version>-darwin-arm64.mcpb` from the [latest
 
 Cursor (`~/.cursor/mcp.json`) takes the same `mcpServers` entry. `jidr uninstall` removes these entries again (D31).
 
-Each release also publishes Jidr to the [MCP Registry](https://registry.modelcontextprotocol.io) as `io.github.AbdurahmanAlmehdi/jidr`, pointing at that `.mcpb`.
+Each release also publishes Jidr to the [MCP Registry](https://registry.modelcontextprotocol.io) as `io.github.jidr-dev/jidr`, pointing at that `.mcpb`.
 
 ## Tools
 

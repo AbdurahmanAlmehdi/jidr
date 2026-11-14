@@ -38,7 +38,7 @@ Scripts such as rootAVD automate these steps. What they leave to you is keeping 
 
 ## Doing it in one step with Jidr
 
-[Jidr](https://github.com/AbdurahmanAlmehdi/jidr) is a free, open-source emulator manager for Apple Silicon Macs that treats root as a device setting:
+[Jidr](https://github.com/jidr-dev/jidr) is a free, open-source emulator manager for Apple Silicon Macs that treats root as a device setting:
 
 ```bash
 jidr image install 35 --accept-licenses   # you accept Google's SDK licence
@@ -68,6 +68,6 @@ Snapshots taken with one root mode can't be restored under another, because the 
 
 ## Further reading
 
-- [Root modes in the Jidr docs](https://github.com/AbdurahmanAlmehdi/jidr/blob/main/docs/root.md): the full Magisk flow, auto-grant, build properties, offline Magisk
+- [Root modes in the Jidr docs](https://github.com/jidr-dev/jidr/blob/main/docs/root.md): the full Magisk flow, auto-grant, build properties, offline Magisk
 - [Magisk's installation docs](https://topjohnwu.github.io/Magisk/install.html)
 - [Jidr vs Genymotion Desktop](/vs/genymotion/)
