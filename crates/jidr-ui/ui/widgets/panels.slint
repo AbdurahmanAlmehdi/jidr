@@ -365,7 +365,7 @@ export component MorePanel inherits Rectangle {
     in property <WidgetsVm> vm;
     callback action(string, string);
     Scroll {
-        content-height: 1150px;
+        content-height: 1290px;
         VerticalLayout {
             padding: 16px;
             padding-left: 14px;
@@ -397,6 +397,39 @@ export component MorePanel inherits Rectangle {
                 HorizontalLayout {
                     alignment: Theme.rtl ? LayoutAlignment.end : LayoutAlignment.start;
                     Button { small: true; has-icon: true; icon: Icons.message-square; text: @tr("Send SMS"); clicked => { root.action("phone.sms", ""); } }
+                }
+            }
+            // Identifiers (#19): `identity.set` through the on-device helper.
+            VerticalLayout {
+                spacing: 8px;
+                Cap { text: @tr("Identifiers"); }
+                T { height: 16px; text: @tr("Android ID"); color: Theme.text-secondary; }
+                HorizontalLayout {
+                    spacing: 6px;
+                    TextField {
+                        text: root.vm.android-id;
+                        placeholder: @tr("16 hex digits");
+                        mono: true;
+                        edited(t) => { root.action("identity.android-id", t); }
+                        accepted => { root.action("identity.set-android-id", ""); }
+                    }
+                    Button { small: true; kind: ButtonKind.tertiary; text: @tr("Random"); clicked => { root.action("identity.random-android-id", ""); } }
+                    Button {
+                        small: true;
+                        enabled: !root.vm.identity-busy && root.vm.android-id != root.vm.android-id-now;
+                        text: @tr("Apply");
+                        clicked => { root.action("identity.set-android-id", ""); }
+                    }
+                }
+                HorizontalLayout {
+                    spacing: 8px;
+                    T { height: 16px; text: @tr("IMEI"); color: Theme.text-secondary; }
+                    T { height: 16px; text: root.vm.imei-now != "" ? root.vm.imei-now : "—"; mono: true; ltr: true; }
+                }
+                Hint {
+                    height: 44px;
+                    text: root.vm.identity-busy ? @tr("Applying… Android restarts, and the app you're testing with it.")
+                        : @tr("Needs Shell or Full root. Apps installed later get their own ID. The emulator's IMEI can't be changed.");
                 }
             }
             // Android controls.

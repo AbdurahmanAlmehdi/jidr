@@ -12,6 +12,8 @@ publish.workspace = true
 [dependencies]
 jidr-core.workspace = true
 jidr-client.workspace = true
+# The Android ID check (Apache-2.0, without its `host` feature).
+jidr-helper.workspace = true
 jidr-proto.workspace = true
 slint = { workspace = true, features = ["unstable-winit-030"] }
 tokio.workspace = true

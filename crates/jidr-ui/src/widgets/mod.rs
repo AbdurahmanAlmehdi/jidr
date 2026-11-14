@@ -11,6 +11,7 @@ use crate::WidgetsVm;
 use crate::app::{Ctx, toast};
 
 pub mod gps;
+pub mod identity;
 
 pub const PROFILES: [&str; 7] = ["full", "lte", "hsdpa", "umts", "edge", "gprs", "gsm"];
 pub const SCALES: [f32; 7] = [0.0, 0.5, 1.0, 1.5, 2.0, 5.0, 10.0];
@@ -230,6 +231,7 @@ pub fn merge(vm: &mut WidgetsVm, method: &str, v: &Value) {
             let back = v.get("back").and_then(Value::as_str).unwrap_or("default");
             vm.camera_back = CAMERAS.iter().position(|c| *c == back).unwrap_or(0) as i32;
         }
+        "identity.get" => identity::merge(vm, v),
         "clipboard.get" => {
             vm.clipboard = v
                 .get("text")
@@ -280,6 +282,7 @@ pub fn load(ctx: &Rc<Ctx>) {
         "dev.get",
         "camera.get",
         "gps.get",
+        "identity.get",
     ] {
         call_and_merge(ctx, id, m, json!({}));
     }
@@ -290,7 +293,7 @@ pub fn wire(ctx: &Rc<Ctx>) {
     let c = ctx.clone();
     ctx.app.on_widget_action(move |action, value| {
         let Some(id) = active(&c) else { return };
-        if gps_action(&c, id, &action, &value) {
+        if gps_action(&c, id, &action, &value) || identity::action(&c, id, &action, &value) {
             return;
         }
         let mut vm = c.app.get_widgets();

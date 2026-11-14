@@ -244,4 +244,10 @@ export struct WidgetsVm {
     /// Index into 1×, 2×, 4×.
     route-speed: int,
     route-loop: bool,
+    /// Identifiers (#19): the device's values ("" when unknown), the
+    /// Android ID draft, and whether `identity.set` runs.
+    android-id-now: string,
+    imei-now: string,
+    android-id: string,
+    identity-busy: bool,
 }

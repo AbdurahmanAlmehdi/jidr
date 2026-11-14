@@ -3127,6 +3127,7 @@ dependencies = [
  "jidr-client",
  "jidr-core",
  "jidr-daemon",
+ "jidr-helper",
  "jidr-proto",
  "png",
  "reqwest",
