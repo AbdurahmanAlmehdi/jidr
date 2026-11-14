@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # Builds a tiny test app with the SDK's build tools (used read-only).
-# Usage: build-hello-apk.sh <out.apk> [hello|locprobe]
+# Usage: build-hello-apk.sh <out.apk> [hello|locprobe|idprobe]
 #   hello     ly.jidr.hello: shows "Hello from Jidr"
 #   locprobe  ly.jidr.locprobe: requests GPS updates and logs each fix as
 #             "JidrLocProbe: <lat>,<lon>" (install with -g to grant location)
+#   idprobe   ly.jidr.idprobe: logs the Android ID it reads at each start as
+#             "JidrIdProbe: <id>" (Settings.Secure.ANDROID_ID, its SSAID)
 # Env: JIDR_TEST_SDK (default ~/Library/Android/sdk). Never shipped.
 set -euo pipefail
 out="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
@@ -33,6 +35,22 @@ public class MainActivity extends android.app.Activity implements android.locati
     }
     @Override public void onLocationChanged(android.location.Location l) {
         android.util.Log.i("JidrLocProbe", String.format(java.util.Locale.US, "%.5f,%.5f", l.getLatitude(), l.getLongitude()));
+    }
+}
+JAVA
+elif [ "$variant" = idprobe ]; then
+  perm=''
+  cat > "$work/src/ly/jidr/$variant/MainActivity.java" <<'JAVA'
+package ly.jidr.idprobe;
+public class MainActivity extends android.app.Activity {
+    @Override protected void onCreate(android.os.Bundle b) {
+        super.onCreate(b);
+        String id = android.provider.Settings.Secure.getString(
+            getContentResolver(), android.provider.Settings.Secure.ANDROID_ID);
+        android.util.Log.i("JidrIdProbe", String.valueOf(id));
+        android.widget.TextView t = new android.widget.TextView(this);
+        t.setText("Android ID: " + id);
+        setContentView(t);
     }
 }
 JAVA

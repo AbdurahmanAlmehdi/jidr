@@ -18,6 +18,7 @@ pub mod device;
 pub mod devtools;
 pub mod extras;
 pub mod gps;
+pub mod identity;
 pub mod media;
 pub mod network;
 pub mod phone;
@@ -53,6 +54,7 @@ impl CommandProvider for WidgetsProvider {
         v.extend(devtools::specs());
         v.extend(extras::specs());
         v.extend(gps::specs());
+        v.extend(identity::specs());
         v.extend(media::specs());
         v.extend(snapshots::specs());
         v
@@ -69,6 +71,7 @@ impl CommandProvider for WidgetsProvider {
             "key" | "dev" | "clipboard" => devtools::call(ctx, method, params).await,
             "fingerprint" | "camera" => extras::call(ctx, method, params).await,
             "gps" => gps::call(ctx, &self.routes, method, params).await,
+            "identity" => identity::call(ctx, method, params).await,
             "media" => media::call(ctx, &self.recordings, method, params).await,
             "snapshot" => snapshots::call(ctx, method, params).await,
             _ => Err(JidrError::usage(format!("unknown method {method}"))),
