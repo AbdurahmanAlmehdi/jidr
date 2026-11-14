@@ -35,6 +35,11 @@ jidr --json device start Phone --timeout 300 || exit $?
 | `push <name> <local> [remote]`, `pull <name> <remote> <local>` | Copy files (push defaults to `/sdcard/Download/`). |
 | `logcat <name> [-n N] [--filter spec…] [-f] [--clear]` | Dump, follow (`-f`) or clear the log. |
 | `flash <name> <zip>` | Not available yet (open research item). |
+| `phone list`, `phone details <phone>` | USB phones adb sees (USB debugging on, #92): serial, state (`ready`, `unauthorized`, `offline`, `no_permissions`…), model, Android version and battery; `details` adds the screen size. A phone that isn't ready gets a hint (unlock it and tap Allow on the USB debugging prompt…). See [Phones](#phones). |
+| `phone screenshot <phone> [-o path]`, `phone record <phone> [-o path] [--seconds N]` | A PNG of the screen (default `~/Pictures/Jidr`), or an MP4 (`screenrecord`, default `~/Movies/Jidr`) until Ctrl-C or `--seconds` (Android stops it at 180 s). |
+| `phone install <phone> <apk> [--no-replace] [--grant] [--downgrade]`, `phone push <phone> <local> [remote]`, `phone pull <phone> <remote> <local>` | Apps and files, as `install`, `push` and `pull` do for devices. |
+| `phone logcat <phone> [-n N] [--filter spec…] [-f]`, `phone shell <phone> [command…]`, `phone reboot <phone>` | The log, a shell command (an interactive `adb shell` without one; exit 1 when the command fails) and a reboot. |
+| `phone tap <phone> <x> <y>`, `phone swipe <phone> <x1> <y1> <x2> <y2> [--ms N]`, `phone key <phone> <key>`, `phone text <phone> <text>` | Input in screen pixels; keys as `back`, `home`, `recents`, `power`, `volume_up`, `enter`, a W3C name or a `KEYCODE_*`. |
 | `image list [--installed]`, `image install <img> [--accept-licenses]` | System images. |
 | `profile list` | Built-in hardware profiles (D24). `agent-lean` (720×1280, 2 GB, 2 cores, no audio or cameras) costs ~4 GB of host RAM instead of ~7.6 GB. |
 | `budget` | Host RAM, the device budget (`settings set --budget-percent`, 75% by default) and what each running device is expected to use and uses now (D42). |
@@ -136,6 +141,20 @@ jidr audio inject Phone capture.pcm --rate 16000      # headerless 16-bit little
 ```
 
 Jidr streams the file over the emulator's gRPC `injectAudio`. WAV files can be 8- or 16-bit PCM (sent as they are), or 24/32-bit PCM or 32/64-bit float (converted to 16-bit), mono or stereo, at 8–48 kHz. Other files, other rates and more channels exit 2; convert them first, e.g. `afconvert -f WAVE -d LEI16@44100 in.m4a out.wav`. The audio plays as the device reads its microphone: start the app's recording before or after, and if nothing records, playback waits (the progress stops) until something does or you stop it. `--loop` repeats until `audio stop`; `jobs cancel` also ends it. One file plays at a time per device; a second `audio inject` exits 4. The Mac's own microphone isn't routed to the device (yet).
+
+## Phones
+
+Jidr also shows the Android phones plugged into this Mac with USB debugging on (Settings › Developer options), next to the emulators, with everything plain `adb` can do:
+
+```bash
+jidr phone list
+jidr phone screenshot R5CT1234ABC
+jidr phone install "Pixel 8" app-debug.apk     # by model when only one phone has it
+jidr phone logcat R5CT1234ABC -f
+jidr phone shell R5CT1234ABC                   # interactive adb shell
+```
+
+Every command takes the phone's adb serial, or its model when only one connected phone has it. A phone that hasn't accepted this Mac's RSA key is listed as `unauthorized` and every other command exits 3 with what to do: unlock the phone and tap Allow on the "Allow USB debugging?" prompt. Phones paired for wireless debugging show up too (`connection: wifi`). Root modes, snapshots, the sensor and network widgets and hibernate are emulator-only. Under the hood these are the `physical.*` protocol commands (`jidr call physical.list`).
 
 ## Licenses (D8)
 

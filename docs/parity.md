@@ -53,9 +53,10 @@ Tests named `*_emulator` run on a real emulator: on Linux KVM in CI (API 30, 33,
 | Multitouch via modifiers | Free | 🚧 | ⌥ pinch and ⇧⌥ pan: `crates/jidr-ui/src/player/input.rs` `gestures_add_a_second_finger` (unit test only) |
 | Pixel-perfect, fullscreen, resize | Free | ✅ | Pixel-perfect and resize (golden `player-pixel-perfect`); fullscreen ⌃⌘F, Esc leaves (goldens `player-fullscreen`, `player-fullscreen-reveal`; `crates/jidr-ui/src/player/fullscreen.rs` unit tests; native window: manual check on a Mac) |
 | MCP server for AI agents | — (Jidr only) | ✅ | `crates/jidr-mcp/tests/mcp.rs:25` `tools_are_listed_with_annotations`, `mcp.rs:163` `destructive_policy_d5`; `crates/jidr-mcp/tests/agent_tasks.rs:175` `five_agent_tasks` (real emulator) |
+| USB phones next to the emulators | — (Jidr only) | 🚧 | `physical.*` over plain adb ([#92](https://github.com/AbdurahmanAlmehdi/jidr/issues/92)): list with live plug/unplug events, readiness hints, screenshot, recording, input, install, push/pull, logcat, shell and reboot against a fake adb in `crates/jidr-daemon/tests/physical.rs`; parsing in `crates/jidr-adb/src/physical.rs` unit tests; the Phones group's goldens `phones-empty`, `phones-ready`, `phones-unauthorized`. `crates/jidr-daemon/tests/physical_device.rs` (`JIDR_TEST_PHONE_SERIAL`) hasn't run on a real phone yet. No root, snapshots or sensor widgets on phones |
 | Shell REPL (Genymotion Shell) | Free | ✅ | `jidr shell` ([#73](https://github.com/AbdurahmanAlmehdi/jidr/issues/73)): `apps/jidr/tests/shell.rs` `piped_lines_run_with_the_current_device`, `a_script_stops_at_its_first_failure`, `source_runs_a_file_inside_the_shell`; device context and completion: `apps/jidr/src/shell/line.rs` `fills_in_the_current_device`, `apps/jidr/src/shell/complete.rs` `completes_commands_devices_and_methods` |
 
-**Breadth:** 28 / 43 ✅ (65%). Of the other 15: 8 🚧, 6 ⏭️, 1 ❌. Five rows are Jidr-only (not in Genymotion); three of them are ✅.
+**Breadth:** 28 / 44 ✅ (64%). Of the other 16: 9 🚧, 6 ⏭️, 1 ❌. Six rows are Jidr-only (not in Genymotion); three of them are ✅.
 
 **Ready for real work: about 70% for the core use case, lower for Genymotion power users.**
 

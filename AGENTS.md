@@ -57,6 +57,7 @@ See [docs/clean-room.md](docs/clean-room.md). In short: use only Genymotion's pu
   - `JIDR_TEST_SDK`: the SDK root (default `~/Library/Android/sdk`, used read-only);
   - `JIDR_TEST_IMAGE`: the sdkmanager package of the image (default on Apple Silicon `system-images;android-31;google_apis;arm64-v8a`);
   - `JIDR_TEST_API`: its API level.
+- `JIDR_TEST_PHONE_SERIAL` names a USB phone (debugging on, authorized) for `cargo nextest run -p jidr-daemon --test physical_device`; without it the test skips. It only reads and copies one file under `/sdcard/Download/jidr-test/`.
 - On a pull request, CI runs the emulator tests on Linux KVM with x86_64 images (API 30, 33 and 35). `cargo xtask e2e-mac` is the arm64 release gate on an Apple Silicon Mac (D28).
 
 ## Protocol
