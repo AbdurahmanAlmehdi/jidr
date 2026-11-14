@@ -5,7 +5,8 @@ import { Theme } from "theme.slint";
 import { Icons } from "icons.slint";
 import { T, Role, Tone, Tones, Icon, IconButton, Button, ButtonKind, Kbd, Bar, SectionHeader, TrafficLights, Pill } from "components/base.slint";
 import { StatusText, StatusStyle, RootBadge } from "components/status.slint";
-import { DeviceVm, JobVm, TabVm, DevState, DevKind, RootKind, JobTone, ConnState, FormFactor, BudgetVm, BudgetLevel } from "types.slint";
+import { DeviceVm, JobVm, TabVm, DevState, DevKind, RootKind, JobTone, ConnState, FormFactor, BudgetVm, BudgetLevel, PhoneVm } from "types.slint";
+import { PhonesGroup } from "phones.slint";
 
 /// One title-bar tab (`.tab`).
 export component TabItem inherits Rectangle {
@@ -354,8 +355,12 @@ export component Sidebar inherits Rectangle {
     in property <bool> sdk-ready: true;
     in property <string> sdk-label: @tr("Not installed");
     in property <BudgetVm> budget;
+    in property <[PhoneVm]> phones;
+    in property <int> selected-phone: -1;
     callback select(int);
     callback open(int);
+    callback select-phone(int);
+    callback open-phone(int);
     callback new-device();
     callback open-palette();
     callback open-settings();
@@ -437,6 +442,12 @@ export component Sidebar inherits Rectangle {
             selected: i == root.selected;
             clicked => { root.select(i); }
             double-clicked => { root.open(i); }
+        }
+        PhonesGroup {
+            phones: root.phones;
+            selected: root.selected-phone;
+            select(i) => { root.select-phone(i); }
+            open(i) => { root.open-phone(i); }
         }
         if root.jobs.length > 0: SectionHeader {
             text: @tr("Jobs");

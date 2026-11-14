@@ -1,6 +1,6 @@
 ---
 name: jidr
-description: "Run, watch and drive Android emulators with Jidr (CLI `jidr`, the Jidr desktop app, MCP server `jidr mcp`). Use when the user mentions Jidr or a Jidr device, or asks for an Android phone or tablet emulator to run something on, an emulator screenshot, logcat, rotation, snapshots, or starting and stopping a device. For testing an app's flows on a device, also load jidr-app-testing."
+description: "Run, watch and drive Android emulators with Jidr (CLI `jidr`, the Jidr desktop app, MCP server `jidr mcp`). Use when the user mentions Jidr or a Jidr device, or asks for an Android phone or tablet emulator to run something on, an emulator screenshot, logcat, rotation, snapshots, or starting and stopping a device. Also covers USB-connected physical phones (`jidr phone`). For testing an app's flows on a device, also load jidr-app-testing."
 ---
 
 # Jidr
@@ -60,9 +60,23 @@ jidr device stop Phone                       # saves the quick-boot state
 jidr device delete Phone --yes               # only a device you created
 ```
 
+## USB phones
+
+Jidr also lists Android phones plugged into this Mac with USB debugging on, with what plain adb can do (no root, snapshots or sensor widgets):
+
+```bash
+jidr phone list                              # SERIAL, STATE, MODEL, ANDROID, BATTERY
+jidr phone screenshot <serial> -o shot.png   # read the PNG to see the screen
+jidr phone tap <serial> 540 1200             # screen pixels; also swipe, key, text
+jidr phone install <serial> app.apk
+jidr phone logcat <serial> -n 200
+```
+
+A phone listed as `unauthorized` needs the user: they unlock it and tap Allow on the USB debugging prompt. A phone is the user's own device: use it only when they ask, never reboot it or run destructive shell commands on it without asking, and keep files you push under `/sdcard/Download/`.
+
 ## MCP instead of the CLI
 
-If the Jidr MCP server is connected (Claude Code: `claude mcp add jidr -- jidr mcp`), its tools do the same: `command_run` runs any protocol command (`device.create`, `device.start`…), and `screenshot`, `tap`, `swipe`, `type_text`, `press_key`, `ui_dump` and `logcat_tail` drive a device directly. `screenshot` returns the image itself, so you don't need to read a file. Devices created through `command_run device.create` are agent-owned automatically.
+If the Jidr MCP server is connected (Claude Code: `claude mcp add jidr -- jidr mcp`), its tools do the same: `command_run` runs any protocol command (`device.create`, `device.start`…), and `screenshot`, `tap`, `swipe`, `type_text`, `press_key`, `ui_dump` and `logcat_tail` drive a device directly (or a USB phone, by its serial). `screenshot` returns the image itself, so you don't need to read a file. Devices created through `command_run device.create` are agent-owned automatically.
 
 ## Exit codes (with `--json`)
 

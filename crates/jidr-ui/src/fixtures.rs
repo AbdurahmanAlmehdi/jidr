@@ -468,3 +468,46 @@ pub fn log_lines() -> Vec<crate::LogLine> {
     .filter_map(|l| crate::player::logcat::parse(l))
     .collect()
 }
+
+/// USB phones (#92): a ready Pixel and a phone waiting for the RSA prompt.
+pub fn phones() -> Vec<jidr_core::PhysicalDevice> {
+    use jidr_core::{PhoneBattery, PhoneConnection, PhoneScreen, PhoneState, PhysicalDevice};
+    let ready = PhysicalDevice {
+        serial: "R5CT1234ABC".into(),
+        state: PhoneState::Ready,
+        connection: PhoneConnection::Usb,
+        model: Some("Pixel 8".into()),
+        manufacturer: Some("Google".into()),
+        product: Some("shiba".into()),
+        android: Some("14".into()),
+        api: Some(34),
+        abi: Some("arm64-v8a".into()),
+        battery: Some(PhoneBattery {
+            level: 87,
+            charging: true,
+        }),
+        screen: Some(PhoneScreen {
+            width: 1080,
+            height: 2400,
+            density: Some(420),
+        }),
+        usb: Some("1-1".into()),
+        hint: None,
+    };
+    let unauthorized = PhysicalDevice {
+        serial: "0A1B2C3D".into(),
+        state: PhoneState::Unauthorized,
+        connection: PhoneConnection::Usb,
+        model: None,
+        manufacturer: None,
+        product: None,
+        android: None,
+        api: None,
+        abi: None,
+        battery: None,
+        screen: None,
+        usb: Some("2-1".into()),
+        hint: PhoneState::Unauthorized.hint().map(str::to_string),
+    };
+    vec![ready, unauthorized]
+}

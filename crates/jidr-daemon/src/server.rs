@@ -374,14 +374,28 @@ impl Daemon {
         tx: mpsc::UnboundedSender<String>,
     ) -> JidrResult<(Value, JoinHandle<()>)> {
         let p: LogcatFollowParams = parse_params(params)?;
-        let device = self.state.device(&p.device).await?;
-        let info = self.state.connect_info(device.id).await?;
+        // A Jidr device by name or id, else a ready phone by serial (#92).
+        let (adb, id) = match self.state.device(&p.device).await {
+            Ok(device) => {
+                let info = self.state.connect_info(device.id).await?;
+                (
+                    Adb::new(info.adb_path).device(info.adb_serial),
+                    json!(device.id),
+                )
+            }
+            Err(e) if e.code == jidr_core::ErrorCode::NotFound => {
+                let adb = Adb::new(self.state.adb_path()?);
+                let serial = crate::physical::ready_serial(&adb, &p.device)
+                    .await
+                    .ok_or(e)?;
+                (adb.device(serial.clone()), json!(serial))
+            }
+            Err(e) => return Err(e),
+        };
         let mut args = vec!["-v", "threadtime"];
         args.extend(p.filter.iter().map(String::as_str));
-        let mut stream = Adb::new(info.adb_path)
-            .device(info.adb_serial)
-            .logcat_follow(&args)?;
-        let id = device.id;
+        let mut stream = adb.logcat_follow(&args)?;
+        let following = id.clone();
         let task = tokio::spawn(async move {
             while let Some(l) = stream.lines.recv().await {
                 let ev = json!({ "topic": "logcat", "data": { "device": id, "line": l } });
@@ -394,7 +408,7 @@ impl Daemon {
             }
             stream.stop().await;
         });
-        Ok((json!({ "following": id }), task))
+        Ok((json!({ "following": following }), task))
     }
 }
 

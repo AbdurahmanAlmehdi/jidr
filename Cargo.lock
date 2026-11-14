@@ -3042,6 +3042,7 @@ dependencies = [
  "jidr-core",
  "jidr-daemon",
  "jidr-proto",
+ "png",
  "rmcp",
  "schemars",
  "serde",
@@ -3123,6 +3124,7 @@ version = "0.5.0"
 dependencies = [
  "chrono",
  "dirs",
+ "jidr-adb",
  "jidr-backend",
  "jidr-client",
  "jidr-core",

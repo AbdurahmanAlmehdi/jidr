@@ -12,6 +12,7 @@ publish.workspace = true
 [dependencies]
 jidr-core.workspace = true
 jidr-client.workspace = true
+jidr-adb.workspace = true
 jidr-proto.workspace = true
 slint = { workspace = true, features = ["unstable-winit-030"] }
 tokio.workspace = true

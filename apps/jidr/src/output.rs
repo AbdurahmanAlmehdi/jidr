@@ -159,6 +159,83 @@ pub fn devices(v: &Value) -> String {
     table(&["NAME", "STATUS", "IMAGE", "ROOT", "SERIAL"], rows)
 }
 
+/// `physical.list`.
+pub fn phones(v: &Value) -> String {
+    let rows: Vec<Vec<String>> = v
+        .as_array()
+        .map(|a| a.iter().map(phone_row).collect())
+        .unwrap_or_default();
+    if rows.is_empty() {
+        return "No phones. Plug one in over USB with USB debugging on (Settings › Developer options).".into();
+    }
+    let mut text = table(&["SERIAL", "STATE", "MODEL", "ANDROID", "BATTERY"], rows);
+    for p in v.as_array().into_iter().flatten() {
+        if let Some(h) = p["hint"].as_str() {
+            text.push_str(&format!("\n{}: {h}", s(p, "serial")));
+        }
+    }
+    text
+}
+
+fn phone_row(p: &Value) -> Vec<String> {
+    let model = match (p["manufacturer"].as_str(), p["model"].as_str()) {
+        (Some(m), Some(n)) if !n.starts_with(m) => format!("{m} {n}"),
+        (_, Some(n)) => n.to_string(),
+        _ => String::new(),
+    };
+    let android = match (p["android"].as_str(), p["api"].as_u64()) {
+        (Some(a), Some(api)) => format!("{a} (API {api})"),
+        _ => String::new(),
+    };
+    let battery = match p["battery"]["level"].as_u64() {
+        Some(l) if p["battery"]["charging"] == true => format!("{l}% charging"),
+        Some(l) => format!("{l}%"),
+        None => String::new(),
+    };
+    vec![s(p, "serial"), s(p, "state"), model, android, battery]
+}
+
+/// `physical.details`.
+pub fn phone(p: &Value) -> String {
+    let row = phone_row(p);
+    let mut lines = vec![
+        format!("Serial:   {}", row[0]),
+        format!("State:    {}", row[1]),
+    ];
+    let mut add = |k: &str, v: String| {
+        if !v.is_empty() {
+            lines.push(format!("{k:<9} {v}"));
+        }
+    };
+    add("Model:", row[2].clone());
+    add("Android:", row[3].clone());
+    add("Battery:", row[4].clone());
+    if let (Some(w), Some(h)) = (
+        p["screen"]["width"].as_u64(),
+        p["screen"]["height"].as_u64(),
+    ) {
+        let dpi = p["screen"]["density"]
+            .as_u64()
+            .map(|d| format!(" · {d} dpi"))
+            .unwrap_or_default();
+        add("Screen:", format!("{w}×{h}{dpi}"));
+    }
+    add("ABI:", s(p, "abi"));
+    add(
+        "Via:",
+        match (s(p, "connection").as_str(), p["usb"].as_str()) {
+            ("usb", Some(port)) => format!("USB {port}"),
+            ("usb", None) => "USB".into(),
+            _ => "Wi-Fi".into(),
+        },
+    );
+    if let Some(h) = p["hint"].as_str() {
+        lines.push(String::new());
+        lines.push(h.to_string());
+    }
+    lines.join("\n")
+}
+
 /// `host.budget`.
 pub fn budget(v: &Value) -> String {
     let gb = |key: &Value| key.as_f64().unwrap_or(0.0) / 1024.0;

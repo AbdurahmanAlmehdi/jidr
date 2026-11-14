@@ -65,33 +65,10 @@ pub fn specs() -> Vec<CommandSpec> {
     ]
 }
 
-/// `<dir>/<name> 2026-10-13 at 14.02.07.<ext>`, made unique.
-pub fn default_path(dir: &Path, name: &str, ext: &str) -> PathBuf {
-    let stamp = chrono::Local::now().format("%Y-%m-%d at %H.%M.%S");
-    let safe: String = name
-        .chars()
-        .map(|c| {
-            if matches!(c, '/' | ':' | '\\' | '"') || c.is_control() {
-                '-'
-            } else {
-                c
-            }
-        })
-        .collect();
-    let mut p = dir.join(format!("{safe} {stamp}.{ext}"));
-    let mut n = 2;
-    while p.exists() {
-        p = dir.join(format!("{safe} {stamp} {n}.{ext}"));
-        n += 1;
-    }
-    p
-}
+pub use jidr_core::paths::capture_path as default_path;
 
 fn home_dir(sub: &str) -> PathBuf {
-    dirs::home_dir()
-        .unwrap_or_else(std::env::temp_dir)
-        .join(sub)
-        .join("Jidr")
+    jidr_core::paths::capture_dir(sub)
 }
 
 /// Recording size: the device's, long side capped at 1280, even sides.

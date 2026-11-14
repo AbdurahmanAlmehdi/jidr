@@ -24,6 +24,7 @@ pub mod launcher;
 pub mod model;
 pub mod offscreen;
 pub mod palette;
+pub mod phones;
 pub mod player;
 pub mod recording;
 pub mod root;

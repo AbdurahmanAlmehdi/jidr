@@ -85,6 +85,12 @@ pub enum Cmd {
         #[arg(long, conflicts_with_all = ["follow", "lines"])]
         clear: bool,
     },
+    /// Physical Android phones adb sees (USB debugging on): list them,
+    /// screenshots and recordings, input, apps, files, logcat, a shell.
+    Phone {
+        #[command(subcommand)]
+        cmd: PhoneCmd,
+    },
     /// List and install system images.
     Image {
         #[command(subcommand)]
@@ -370,6 +376,99 @@ pub enum DeviceCmd {
         #[arg(long)]
         zip: Option<PathBuf>,
     },
+}
+
+/// `jidr phone …`: every command takes the phone's adb serial (or its
+/// model, when only one connected phone has it).
+#[derive(Debug, Subcommand)]
+pub enum PhoneCmd {
+    /// Phones adb sees, with their state, model, Android version and battery.
+    #[command(alias = "ls")]
+    List,
+    /// One phone's details, with its screen size.
+    Details { phone: String },
+    /// Save a PNG of the screen (default ~/Pictures/Jidr).
+    Screenshot {
+        phone: String,
+        /// Where to save it.
+        #[arg(long, short)]
+        output: Option<PathBuf>,
+    },
+    /// Record the screen to MP4 until Ctrl-C (Android stops it at 180 s).
+    Record {
+        phone: String,
+        /// Where to save it (default ~/Movies/Jidr).
+        #[arg(long, short)]
+        output: Option<PathBuf>,
+        /// Stop after this many seconds (1–180).
+        #[arg(long)]
+        seconds: Option<u32>,
+    },
+    /// Install an APK.
+    Install {
+        phone: String,
+        apk: PathBuf,
+        /// Fail if the app is already installed (default: replace it).
+        #[arg(long)]
+        no_replace: bool,
+        /// Grant all runtime permissions.
+        #[arg(long)]
+        grant: bool,
+        /// Allow a version downgrade.
+        #[arg(long)]
+        downgrade: bool,
+    },
+    /// Copy a file to the phone (default destination /sdcard/Download/).
+    Push {
+        phone: String,
+        local: PathBuf,
+        remote: Option<String>,
+    },
+    /// Copy a file from the phone.
+    Pull {
+        phone: String,
+        remote: String,
+        local: PathBuf,
+    },
+    /// Show or follow the phone's log.
+    Logcat {
+        phone: String,
+        /// Only the last N lines.
+        #[arg(long, short = 'n')]
+        lines: Option<u32>,
+        /// Filter spec, e.g. `ActivityManager:I` (repeatable).
+        #[arg(long = "filter")]
+        filter: Vec<String>,
+        /// Keep streaming new lines.
+        #[arg(long, short)]
+        follow: bool,
+    },
+    /// Run a shell command, or open an interactive shell without one.
+    Shell {
+        phone: String,
+        /// The command line to run.
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        command: Vec<String>,
+    },
+    /// Reboot the phone.
+    Reboot { phone: String },
+    /// Tap at screen pixels.
+    Tap { phone: String, x: u32, y: u32 },
+    /// Swipe between two points (screen pixels).
+    Swipe {
+        phone: String,
+        x1: u32,
+        y1: u32,
+        x2: u32,
+        y2: u32,
+        /// Duration in milliseconds (default 300).
+        #[arg(long)]
+        ms: Option<u32>,
+    },
+    /// Press a key: back, home, recents, power, volume_up, enter, …
+    Key { phone: String, key: String },
+    /// Type text into the focused field (printable ASCII).
+    Text { phone: String, text: String },
 }
 
 #[derive(Debug, Subcommand)]

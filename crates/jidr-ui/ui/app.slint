@@ -14,6 +14,7 @@ import { Icons } from "icons.slint";
 import { T, Role, Tone, Toast } from "components/base.slint";
 import { TitleBar, Sidebar, MiniSidebar } from "shell.slint";
 import { DeviceDetail, FirstRunEmpty } from "launcher.slint";
+import { PhoneDetail, PhoneView } from "phones.slint";
 import { DeviceSheet } from "device_form.slint";
 import { ConfirmDialog, ExhaustedDialog } from "forms.slint";
 import { Palette } from "palette.slint";
@@ -25,9 +26,9 @@ import { SetupWindow } from "wizard.slint";
 import { SettingsWindow } from "settings.slint";
 import { RootUi, RootLayer, RootSheetState, RootStep, RootStepState, RootStepVm, RootLogLine } from "../src/root/root.slint";
 export { RootUi, RootSheetState, RootStep, RootStepState, RootStepVm, RootLogLine }
-import { DeviceVm, JobVm, TabVm, SnapshotVm, DevState, DevKind, RootKind, FormFactor, JobTone, ConnState, RootChoice, ImageRowVm, OptionVm, DeviceForm, DetectRow, PlanRow, UsageRow, PaletteKind, PaletteItem, LogLine, WidgetsVm, BudgetVm, BudgetLevel, ExhaustedRow } from "types.slint";
+import { DeviceVm, JobVm, TabVm, SnapshotVm, DevState, DevKind, RootKind, FormFactor, JobTone, ConnState, RootChoice, ImageRowVm, OptionVm, DeviceForm, DetectRow, PlanRow, UsageRow, PaletteKind, PaletteItem, LogLine, WidgetsVm, BudgetVm, BudgetLevel, ExhaustedRow, PhoneVm, PhoneLook } from "types.slint";
 
-export { Theme, Icons, DeviceVm, JobVm, TabVm, SnapshotVm, DevState, DevKind, RootKind, FormFactor, JobTone, ConnState, RootChoice, ImageRowVm, OptionVm, DeviceForm, DetectRow, PlanRow, UsageRow, PaletteKind, PaletteItem, LogLine, WidgetsVm, BudgetVm, BudgetLevel, ExhaustedRow, SetupWindow, SettingsWindow }
+export { Theme, Icons, DeviceVm, JobVm, TabVm, SnapshotVm, DevState, DevKind, RootKind, FormFactor, JobTone, ConnState, RootChoice, ImageRowVm, OptionVm, DeviceForm, DetectRow, PlanRow, UsageRow, PaletteKind, PaletteItem, LogLine, WidgetsVm, BudgetVm, BudgetLevel, ExhaustedRow, PhoneVm, PhoneLook, SetupWindow, SettingsWindow }
 
 export component AppWindow inherits Window {
     in-out property <[DeviceVm]> devices;
@@ -129,6 +130,16 @@ export component AppWindow inherits Window {
     in-out property <float> gps-marker-x: 0.5;
     in-out property <float> gps-marker-y: 0.5;
     in-out property <string> gps-route-path;
+    // USB phones (#92).
+    in-out property <[PhoneVm]> phones;
+    in-out property <int> selected-phone: -1;
+    in-out property <bool> phone-open;
+    in-out property <image> phone-frame;
+    in-out property <bool> phone-has-frame;
+    in-out property <int> phone-frame-w: 1080;
+    in-out property <int> phone-frame-h: 2400;
+    in-out property <bool> phone-recording;
+    in-out property <string> phone-rate;
 
     callback select-device(int);
     callback open-device(int);
@@ -182,6 +193,9 @@ export component AppWindow inherits Window {
     callback snapshot-save(string);
     callback snapshot-delete(int);
     callback refuse-act();
+    callback select-phone(int);
+    callback phone-action(string);
+    callback phone-pointer(int, float, float);
 
     title: "Jidr";
     icon: @image-url("../../../apps/jidr-gui/assets/icons/app-icon-256.png");
@@ -248,6 +262,10 @@ export component AppWindow inherits Window {
                 RootUi.open = false;
                 return accept;
             }
+            if (ev.text == Key.Return && root.active-tab < 0 && root.selected-phone >= 0 && !root.phone-open) {
+                root.phone-action("phone-open");
+                return accept;
+            }
             if (ev.text == Key.Return && root.active-tab < 0 && root.selected >= 0) {
                 root.open-device(root.selected);
                 return accept;
@@ -300,6 +318,10 @@ export component AppWindow inherits Window {
             sdk-ready: root.sdk-ready;
             sdk-label: root.sdk-label;
             budget: root.budget;
+            phones: root.phones;
+            selected-phone: root.selected-phone;
+            select-phone(i) => { root.select-phone(i); }
+            open-phone(i) => { root.select-phone(i); root.phone-action("phone-open"); }
             select(i) => { root.select-device(i); }
             open(i) => { root.open-device(i); }
             new-device => { root.new-device(); }
@@ -318,7 +340,27 @@ export component AppWindow inherits Window {
             x: Theme.rtl ? 0px : parent.side-w;
             width: parent.width - parent.side-w;
             height: parent.height;
-            if library && root.devices.length == 0: FirstRunEmpty {
+            property <bool> phone: library && root.selected-phone >= 0 && root.selected-phone < root.phones.length;
+            if phone && !root.phone-open: PhoneDetail {
+                phone: root.phones[root.selected-phone];
+                recording: root.phone-recording;
+                action(a) => { root.phone-action(a); }
+            }
+            if phone && root.phone-open: PhoneView {
+                phone: root.phones[root.selected-phone];
+                frame: root.phone-frame;
+                has-frame: root.phone-has-frame;
+                frame-w: root.phone-frame-w;
+                frame-h: root.phone-frame-h;
+                recording: root.phone-recording;
+                rate: root.phone-rate;
+                drop-hover: root.drop-hover;
+                drop-title: root.drop-title;
+                drop-body: root.drop-body;
+                action(a) => { root.phone-action(a); }
+                pointer(k, x, y) => { root.phone-pointer(k, x, y); }
+            }
+            if library && !phone && root.devices.length == 0: FirstRunEmpty {
                 sdk-label: root.sdk-label;
                 setup-sdk => { root.setup-sdk(); }
                 use-existing => { root.use-existing-sdk(); }
@@ -394,7 +436,7 @@ export component AppWindow inherits Window {
                     }
                 }
             }
-            if library && root.snapshots-open && root.selected >= 0: SnapshotsPage {
+            if library && !phone && root.snapshots-open && root.selected >= 0: SnapshotsPage {
                 device: root.devices[root.selected];
                 snapshots: root.snapshots;
                 banner: root.snap-banner;
@@ -405,7 +447,7 @@ export component AppWindow inherits Window {
                 restore(i) => { root.restore-snapshot(root.selected, i); }
                 delete(i) => { root.snapshot-delete(i); }
             }
-            if library && !root.snapshots-open && root.devices.length > 0 && root.selected >= 0: DeviceDetail {
+            if library && !phone && !root.snapshots-open && root.devices.length > 0 && root.selected >= 0: DeviceDetail {
                 device: root.devices[root.selected];
                 snapshots: root.snapshots;
                 open => { root.open-device(root.selected); }

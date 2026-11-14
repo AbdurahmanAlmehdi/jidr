@@ -98,6 +98,38 @@ impl JidrPaths {
     }
 }
 
+/// `<dir>/<name> 2026-10-13 at 14.02.07.<ext>`, made unique: where
+/// screenshots and recordings go by default. `name` loses `/ : \\ "` and
+/// control characters (file names reach the GUI's pasteboard script).
+pub fn capture_path(dir: &Path, name: &str, ext: &str) -> PathBuf {
+    let stamp = chrono::Local::now().format("%Y-%m-%d at %H.%M.%S");
+    let safe: String = name
+        .chars()
+        .map(|c| {
+            if matches!(c, '/' | ':' | '\\' | '"') || c.is_control() {
+                '-'
+            } else {
+                c
+            }
+        })
+        .collect();
+    let mut p = dir.join(format!("{safe} {stamp}.{ext}"));
+    let mut n = 2;
+    while p.exists() {
+        p = dir.join(format!("{safe} {stamp} {n}.{ext}"));
+        n += 1;
+    }
+    p
+}
+
+/// `~/<sub>/Jidr`, e.g. `~/Pictures/Jidr` for screenshots.
+pub fn capture_dir(sub: &str) -> PathBuf {
+    dirs::home_dir()
+        .unwrap_or_else(std::env::temp_dir)
+        .join(sub)
+        .join("Jidr")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
