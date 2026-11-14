@@ -385,21 +385,43 @@ pub fn audio(v: &Value) -> String {
     )
 }
 
-/// A `network.shaping.*` result: one line when every interface agrees.
-pub fn packet_loss(v: &Value) -> String {
+/// A `network.shaping.*` result: one line when every interface agrees, a
+/// table when they don't.
+pub fn shaping(v: &Value) -> String {
     let ifaces = v["interfaces"].as_array().cloned().unwrap_or_default();
     let names: Vec<&str> = ifaces.iter().filter_map(|i| i["name"].as_str()).collect();
-    match v["loss_pct"].as_f64() {
-        Some(0.0) => format!("No packet loss ({}).", names.join(", ")),
-        Some(p) => format!("{p}% of outgoing packets dropped ({}).", names.join(", ")),
-        None => table(
-            &["INTERFACE", "LOSS", "QDISC"],
+    let dns = |v: &Value| match v["dns"].as_str() {
+        Some("slow") => format!(
+            "DNS queries delayed {} ms",
+            v["dns_delay_ms"].as_u64().unwrap_or(0)
+        ),
+        Some("fail") => "DNS failing (no answers)".to_string(),
+        _ => String::new(),
+    };
+    if ifaces.is_empty() {
+        return "No packet loss or bad DNS.".to_string();
+    }
+    match (v["loss_pct"].as_f64(), v["dns"].as_str()) {
+        (Some(p), Some(_)) => {
+            let loss = if p == 0.0 {
+                "No packet loss".to_string()
+            } else {
+                format!("{p}% of outgoing packets dropped")
+            };
+            let dns = dns(v);
+            let sep = if dns.is_empty() { "" } else { ", " };
+            format!("{loss}{sep}{dns} ({}).", names.join(", "))
+        }
+        _ => table(
+            &["INTERFACE", "LOSS", "DNS", "QDISC"],
             ifaces
                 .iter()
                 .map(|i| {
+                    let d = dns(i);
                     vec![
                         i["name"].as_str().unwrap_or("?").to_string(),
                         format!("{}%", i["loss_pct"].as_f64().unwrap_or(0.0)),
+                        if d.is_empty() { "normal".into() } else { d },
                         i["qdisc"].as_str().unwrap_or("").to_string(),
                     ]
                 })
@@ -437,21 +459,36 @@ mod tests {
     }
 
     #[test]
-    fn packet_loss_results() {
-        let i = |name: &str, loss: f64| json!({ "name": name, "loss_pct": loss, "qdisc": "netem" });
-        let v = json!({ "loss_pct": 10.0, "interfaces": [i("radio0", 10.0), i("wlan0", 10.0)] });
+    fn shaping_results() {
+        let i = |name: &str, loss: f64| json!({ "name": name, "loss_pct": loss, "qdisc": "netem", "dns": "normal" });
+        let v = json!({ "loss_pct": 10.0, "dns": "normal",
+            "interfaces": [i("radio0", 10.0), i("wlan0", 10.0)] });
         assert_eq!(
-            packet_loss(&v),
+            shaping(&v),
             "10% of outgoing packets dropped (radio0, wlan0)."
         );
-        let v = json!({ "loss_pct": 0.0, "interfaces": [i("wlan0", 0.0)] });
-        assert_eq!(packet_loss(&v), "No packet loss (wlan0).");
-        let v = json!({ "loss_pct": null, "interfaces": [i("radio0", 0.0), i("wlan0", 2.5)] });
-        assert!(
-            packet_loss(&v).contains("wlan0      2.5%"),
-            "{}",
-            packet_loss(&v)
+        let v = json!({ "loss_pct": 0.0, "dns": "normal", "interfaces": [i("wlan0", 0.0)] });
+        assert_eq!(shaping(&v), "No packet loss (wlan0).");
+        let v = json!({ "loss_pct": 0.0, "dns": "slow", "dns_delay_ms": 3000,
+            "interfaces": [i("wlan0", 0.0)] });
+        assert_eq!(
+            shaping(&v),
+            "No packet loss, DNS queries delayed 3000 ms (wlan0)."
         );
+        let v = json!({ "loss_pct": 5.0, "dns": "fail", "interfaces": [i("wlan0", 5.0)] });
+        assert_eq!(
+            shaping(&v),
+            "5% of outgoing packets dropped, DNS failing (no answers) (wlan0)."
+        );
+        let v = json!({ "loss_pct": null, "dns": "normal",
+            "interfaces": [i("radio0", 0.0), i("wlan0", 2.5)] });
+        assert!(
+            shaping(&v).contains("wlan0      2.5%  normal"),
+            "{}",
+            shaping(&v)
+        );
+        let v = json!({ "loss_pct": 0.0, "dns": "normal", "interfaces": [] });
+        assert_eq!(shaping(&v), "No packet loss or bad DNS.");
     }
 
     #[test]

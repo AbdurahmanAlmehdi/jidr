@@ -22,7 +22,7 @@ const rows: { feature: string; genymotion: string; source?: string; jidr: Status
   { feature: "Full root with Magisk, verified", genymotion: "Not offered", jidr: { kind: "yes", note: "one click, revertible" } },
   { feature: "GPS and GPX/KML route replay", genymotion: "Paid plan (routes)", jidr: { kind: "yes" } },
   { feature: "Network speed and delay profiles", genymotion: "Paid plan", jidr: { kind: "yes" } },
-  { feature: "Network packet loss and bad DNS", genymotion: "Paid plan", jidr: { kind: "planned", issue: 17 } },
+  { feature: "Network packet loss and bad DNS", genymotion: "Paid plan", jidr: { kind: "yes", note: "Shell or Full root, Android 12+" } },
   { feature: "Calls, SMS and signal bars", genymotion: "Free / Paid plan", jidr: { kind: "yes" } },
   { feature: "Operator and SIM identity", genymotion: "Paid plan", jidr: { kind: "planned", issue: 16 } },
   { feature: "Device identifiers (Android ID, IMEI)", genymotion: "Free", jidr: { kind: "planned", issue: 19 } },
@@ -44,7 +44,7 @@ const faq: [string, string][] = [
   ["Which Android images does Jidr use?", "Google's official Android Emulator system images (API 29 to 36, arm64), downloaded on your Mac under the Android SDK License. Jidr runs them with the AOSP emulator and never modifies Android Studio's SDK."],
   ["Can Jidr root a device like Genymotion's root toggle?", "Yes, two ways: Shell root (adb root) on images that allow it, and Full root, which patches Magisk into a per-device copy of the ramdisk and verifies it with su -c id. Both revert in one step."],
   ["Can I use Jidr in CI or from an AI agent?", "Yes. Every action is a jidr CLI command with --json output and stable exit codes, and jidr mcp is an MCP server that lets Claude and other agents see and drive a device."],
-  ["What does Genymotion do that Jidr doesn't?", "Today: Windows and Linux support, operator and SIM identity, IMEI changes, disk I/O limits, network packet loss and bad-DNS profiles, gamepad passthrough, Device Link and file-based camera injection. Most of these are planned; the issue links in the table track them."],
+  ["What does Genymotion do that Jidr doesn't?", "Today: Windows and Linux support, operator and SIM identity, IMEI changes, disk I/O limits, gamepad passthrough, Device Link and file-based camera injection. Most of these are planned; the issue links in the table track them."],
 ];
 const faqLd = {
   "@context": "https://schema.org",

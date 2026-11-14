@@ -33,7 +33,7 @@ Tests named `*_emulator` run on a real emulator: on Linux KVM in CI (API 30, 33,
 | Baseband gsm signal/data/voice | Paid | ✅ | `widgets_core_commands` (signal level 0 and ≥ 3 on any radio via `phone.gsm`); data and voice registration via `phone.gsm` |
 | Baseband operator & SIM identity | Paid | ⏭️ | [#16](https://github.com/AbdurahmanAlmehdi/jidr/issues/16); the phone number alone works natively |
 | Network Wi-Fi / mobile toggles, speed/delay profiles | Paid | ✅ | `widgets_core_commands` (Wi-Fi via `settings`, mobile data via the emulated radio and `network.get`, speed via `adb emu network status`) |
-| Network packet loss / bad DNS | Paid | ⏭️ | [#17](https://github.com/AbdurahmanAlmehdi/jidr/issues/17) |
+| Network packet loss / bad DNS | Paid | ✅ | `crates/jidr-root/tests/helper_emulator.rs` `helper_starts_as_root_and_drops_packets` (netem loss, slow and failing DNS lookups, both back after a cold boot; API 33 and 35 in CI, `unsupported` on API 30); offline `crates/jidr-widgets/tests/shaping.rs` `shaping_is_reapplied_after_a_cold_boot`. Needs Shell or Full root and API 31+ ([#17](https://github.com/AbdurahmanAlmehdi/jidr/issues/17)) |
 | Identifiers (Android ID, IMEI) | Free | ⏭️ | [#19](https://github.com/AbdurahmanAlmehdi/jidr/issues/19) |
 | Build props | Free | ✅ | `crates/jidr-root/tests/props_emulator.rs:61` `props_spoof_after_cold_boot_and_stock_after_revert` (Full-root devices only) |
 | Disk I/O limit | Free | ⏭️ | [#20](https://github.com/AbdurahmanAlmehdi/jidr/issues/20) |
@@ -55,7 +55,7 @@ Tests named `*_emulator` run on a real emulator: on Linux KVM in CI (API 30, 33,
 | MCP server for AI agents | — (Jidr only) | ✅ | `crates/jidr-mcp/tests/mcp.rs:25` `tools_are_listed_with_annotations`, `mcp.rs:163` `destructive_policy_d5`; `crates/jidr-mcp/tests/agent_tasks.rs:175` `five_agent_tasks` (real emulator) |
 | Shell REPL (Genymotion Shell) | Free | ✅ | `jidr shell` ([#73](https://github.com/AbdurahmanAlmehdi/jidr/issues/73)): `apps/jidr/tests/shell.rs` `piped_lines_run_with_the_current_device`, `a_script_stops_at_its_first_failure`, `source_runs_a_file_inside_the_shell`; device context and completion: `apps/jidr/src/shell/line.rs` `fills_in_the_current_device`, `apps/jidr/src/shell/complete.rs` `completes_commands_devices_and_methods` |
 
-**Breadth:** 28 / 43 ✅ (65%). Of the other 15: 8 🚧, 6 ⏭️, 1 ❌. Five rows are Jidr-only (not in Genymotion); three of them are ✅.
+**Breadth:** 30 / 43 ✅ (70%). Of the other 13: 7 🚧, 5 ⏭️, 1 ❌. Five rows are Jidr-only (not in Genymotion); three of them are ✅.
 
 **Ready for real work: about 70% for the core use case, lower for Genymotion power users.**
 

@@ -585,11 +585,39 @@ pub enum ProxyCmd {
 pub enum NetworkCmd {
     /// Drop PERCENT % of the device's outgoing packets on Wi-Fi and mobile
     /// data (0 removes it); without PERCENT, show the current loss. Needs
-    /// Shell or Full root; a cold boot clears it.
+    /// Shell or Full root; kept across cold boots.
     Loss {
         device: String,
         percent: Option<f64>,
     },
+    /// Make DNS slow or fail on Wi-Fi and mobile data: `slow` delays each
+    /// query (--delay-ms, default 3000), `fail` drops them all so lookups
+    /// time out, `normal` undoes it; without MODE, show it. Needs Shell or
+    /// Full root; kept across cold boots.
+    Dns {
+        device: String,
+        mode: Option<DnsArg>,
+        /// The delay of each DNS query in ms (1–30000); implies `slow`.
+        #[arg(long, value_name = "MS")]
+        delay_ms: Option<u32>,
+    },
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum DnsArg {
+    Normal,
+    Slow,
+    Fail,
+}
+
+impl DnsArg {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Normal => "normal",
+            Self::Slow => "slow",
+            Self::Fail => "fail",
+        }
+    }
 }
 
 #[derive(Debug, Subcommand)]

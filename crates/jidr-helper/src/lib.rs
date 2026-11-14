@@ -9,9 +9,12 @@
 //!
 //! - [`rpc`]: the wire types, shared by both sides;
 //! - [`server`]: the request loop, independent of the socket;
-//! - [`netem`]: packet loss with `tc … netem` (#17);
-//! - [`testing`]: a fake guest for offline tests.
+//! - [`netem`]: packet loss and bad DNS with `tc` (#17);
+//! - [`testing`]: a fake guest for offline tests, on the fake kernel in
+//!   `fake`.
 
+#[cfg(any(test, feature = "host"))]
+pub mod fake;
 pub mod netem;
 pub mod rpc;
 pub mod server;

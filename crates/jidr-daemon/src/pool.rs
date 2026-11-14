@@ -321,6 +321,7 @@ impl PoolProvider {
             agent_owned: false,
             base: true,
             pool_base: None,
+            network_shaping: Default::default(),
             auto_hibernate_minutes: None,
             ..src.clone()
         };
@@ -420,6 +421,7 @@ impl PoolProvider {
             agent_owned: true,
             base: false,
             pool_base: Some(base.id),
+            network_shaping: Default::default(),
             // Throwaway: never hibernated, never resumed from its own state.
             auto_hibernate_minutes: Some(0),
             ..base.clone()

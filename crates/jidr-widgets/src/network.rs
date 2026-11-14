@@ -1,7 +1,8 @@
 //! Network widget: Wi-Fi on/off (`svc wifi`), mobile data on/off (console
 //! `gsm data`), speed and delay profiles (console `network speed/delay`)
 //! the global HTTP proxy (`settings global http_proxy`, [`proxy`]) and packet
-//! loss through the rooted on-device helper ([`shaping`], ADR-0003).
+//! loss and bad DNS through the rooted on-device helper ([`shaping`],
+//! ADR-0003).
 //!
 //! Mobile data is switched at the emulated radio, not with Android's own
 //! switch: `svc data` / `cmd phone data` exit 0 and change nothing on the
@@ -90,11 +91,11 @@ pub fn specs() -> Vec<CommandSpec> {
         ),
         CommandSpec::new::<DeviceParams>(
             "network.shaping.get",
-            "Packet loss on the device's networks (needs Shell or Full root; through the on-device helper)",
+            "Packet loss and bad DNS on the device's networks (needs Shell or Full root; through the on-device helper)",
         ),
         CommandSpec::new::<shaping::SetParams>(
             "network.shaping.set",
-            "Drop a percentage of the device's outgoing packets on Wi-Fi and mobile data (netem; needs Shell or Full root; a cold boot clears it)",
+            "Drop a percentage of the device's outgoing packets and make DNS slow or fail, on Wi-Fi and mobile data (netem; needs Shell or Full root; kept across cold boots)",
         )
         .locks_device(),
     ]

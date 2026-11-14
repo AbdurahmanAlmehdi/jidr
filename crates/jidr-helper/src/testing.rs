@@ -4,42 +4,22 @@
 //! answers until `jidr-helper start` has run through `adb shell`, and a
 //! "reboot" stops the helper again.
 
-use std::collections::HashMap;
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
-use crate::netem::{IP, Output, Run, TC};
+use crate::fake::Kernel;
+use crate::netem::{Output, Run};
 use crate::rpc::{PROTOCOL, Pong};
 use crate::server::{Next, Server};
 
 /// What the fake guest's kernel and helper look like.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct GuestState {
-    /// Root qdisc line per interface, as `tc qdisc show` prints it.
-    pub qdiscs: HashMap<String, String>,
-    /// `ip -4 route show table all`.
-    pub routes: String,
-    /// Whether the kernel has netem.
-    pub netem: bool,
+    /// Routes, qdiscs and filters, as `ip` and `tc` see them.
+    pub kernel: Kernel,
     /// The running helper's uid (0 when started as root).
     pub uid: u32,
-}
-
-impl Default for GuestState {
-    fn default() -> Self {
-        Self {
-            qdiscs: HashMap::from([
-                ("wlan0".into(), "qdisc mq 0: root".into()),
-                ("radio0".into(), "qdisc pfifo_fast 0: root refcnt 2".into()),
-            ]),
-            routes: "default via 10.0.2.2 dev wlan0 table wlan0 proto static\n\
-                     default via 10.0.2.2 dev radio0 table 1022 proto static\n"
-                .into(),
-            netem: true,
-            uid: 0,
-        }
-    }
 }
 
 #[derive(Clone, Default)]
@@ -53,36 +33,7 @@ impl Shared {
 
 impl Run for Shared {
     fn run(&self, program: &str, args: &[&str]) -> std::io::Result<Output> {
-        let mut s = self.lock();
-        let ok = |stdout: String| Output {
-            stdout,
-            ..Output::default()
-        };
-        Ok(match (program, args) {
-            (IP, _) => ok(s.routes.clone()),
-            (TC, ["qdisc", "show", "dev", dev]) => {
-                ok(s.qdiscs.get(*dev).cloned().unwrap_or_default())
-            }
-            (TC, ["qdisc", "replace", "dev", dev, "root", "netem", "loss", pct]) if s.netem => {
-                let line = format!("qdisc netem 8001: root refcnt 2 limit 1000 loss {pct}");
-                s.qdiscs.insert(dev.to_string(), line);
-                ok(String::new())
-            }
-            (TC, ["qdisc", "replace", ..]) => Output {
-                status: 2,
-                stderr: "Unknown qdisc \"netem\", hence option \"loss\" is unparsable".into(),
-                ..Output::default()
-            },
-            (TC, ["qdisc", "del", "dev", dev, "root"]) => {
-                s.qdiscs.insert(dev.to_string(), "qdisc mq 0: root".into());
-                ok(String::new())
-            }
-            _ => Output {
-                status: 1,
-                stderr: format!("fake guest: no {program} {}", args.join(" ")),
-                ..Output::default()
-            },
-        })
+        Ok(self.lock().kernel.run(program, args))
     }
 }
 
