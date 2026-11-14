@@ -1,6 +1,6 @@
 ---
 name: jidr-root
-description: "Root a Jidr Android emulator and work with root: choose a root mode (none, adb, magisk), switch with `jidr root set` and check uid 0 with `jidr root verify`, install Magisk modules, handle Magisk's su prompt and the opt-in auto-grant, revert to stock, trust a proxy's CA as a system certificate (`jidr cert`) route traffic through Burp or mitmproxy (`jidr proxy`), and drop a share of the device's packets (`jidr network loss`). Use when the user asks for a rooted emulator, su, Magisk, a Magisk module, intercepting an app's HTTPS traffic, testing an app on a lossy network, or asks why Play Integrity fails. Load jidr for the basics."
+description: "Root a Jidr Android emulator and work with root: choose a root mode (none, adb, magisk), switch with `jidr root set` and check uid 0 with `jidr root verify`, install Magisk modules with `jidr flash`, handle Magisk's su prompt and the opt-in auto-grant, revert to stock, trust a proxy's CA as a system certificate (`jidr cert`) route traffic through Burp or mitmproxy (`jidr proxy`), and drop a share of the device's packets (`jidr network loss`). Use when the user asks for a rooted emulator, su, Magisk, a Magisk or Zygisk module, flashing a zip (TWRP, GApps), intercepting an app's HTTPS traffic, testing an app on a lossy network, or asks why Play Integrity fails. Load jidr for the basics."
 ---
 
 # Root on a Jidr device
@@ -66,15 +66,18 @@ jidr call root.auto_grant '{"device":"Phone","enabled":false}'   # back to the p
 
 Leaving `magisk` mode resets auto-grant to off.
 
-## Magisk modules
+## Magisk modules and other zips
 
-On a running `magisk` device, install a module zip from this machine; the device reboots to load it (D35):
+On a running `magisk` device, flash a module zip from this machine; the device reboots and Jidr checks that Magisk loaded it (D35, ADR-0004):
 
 ```bash
-jidr call root.module.install '{"device":"Phone","path":"/Users/me/Downloads/module.zip"}'
+jidr --json flash Phone /Users/me/Downloads/module.zip
 ```
 
-Use an absolute path. Other modes refuse it (exit 2). Install only modules the user gave you or named: a module runs as root at every boot. It is flagged destructive, so through MCP it needs an agent-owned device or `--allow-destructive`.
+- Use an absolute path. Zygisk modules (LSPosed and similar) install the same way; Magisk has Zygisk on by default on emulators. If the result has a `note`, tell the user.
+- Recovery (TWRP, GApps), Riru and OTA/factory image zips are refused with exit 2 and the reason in `error.message` (`error.data.kind` says which). Don't try to work around it: the emulator has no recovery or fastboot. Explain it to the user.
+- On a device without Full root, a module zip is only copied to `/sdcard/Download` (`"action": "pushed"`). Switch to `magisk` first if the user wants it installed.
+- Install only modules the user gave you or named: a module runs as root at every boot. `file.flash` is flagged destructive, so through MCP it needs an agent-owned device or `--allow-destructive`.
 
 ## Intercept HTTPS: CA certificate and proxy
 

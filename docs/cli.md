@@ -34,7 +34,7 @@ jidr --json device start Phone --timeout 300 || exit $?
 | `install <name> <apk> [--no-replace] [--grant] [--downgrade]` | Install an APK. A signature mismatch fails with `details.signature_mismatch = true`. |
 | `push <name> <local> [remote]`, `pull <name> <remote> <local>` | Copy files (push defaults to `/sdcard/Download/`). |
 | `logcat <name> [-n N] [--filter spec…] [-f] [--clear]` | Dump, follow (`-f`) or clear the log. |
-| `flash <name> <zip>` | Not available yet (open research item). |
+| `flash <name> <zip>` | Flash a zip (`file.flash`, ADR-0004). A Magisk or Zygisk module installs on a running Full-root device, which reboots; Jidr then checks that Magisk loaded it. Recovery (TWRP, GApps), Riru and OTA/factory image zips are refused with exit 2 and the reason; a module zip with `module.prop` in a subfolder or an invalid id is refused with the fix. A module on a device without Full root, and any other zip, is copied to `/sdcard/Download`. See [root.md](root.md#flashable-zips). |
 | `image list [--installed]`, `image install <img> [--accept-licenses]` | System images. |
 | `profile list` | Built-in hardware profiles (D24). `agent-lean` (720×1280, 2 GB, 2 cores, no audio or cameras) costs ~4 GB of host RAM instead of ~7.6 GB. |
 | `budget` | Host RAM, the device budget (`settings set --budget-percent`, 75% by default) and what each running device is expected to use and uses now (D42). |

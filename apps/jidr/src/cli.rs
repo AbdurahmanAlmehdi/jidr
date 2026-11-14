@@ -64,7 +64,10 @@ pub enum Cmd {
         remote: String,
         local: PathBuf,
     },
-    /// Flash a zip onto /system (not available yet).
+    /// Flash a zip (ADR-0004): a Magisk or Zygisk module installs and
+    /// reboots a Full-root device; recovery (TWRP), Riru and OTA/factory
+    /// image zips are refused (exit 2); anything else, or a module on a device
+    /// without Full root, is copied to /sdcard/Download.
     Flash { device: String, zip: PathBuf },
     /// Show, follow or clear the device log.
     Logcat {
