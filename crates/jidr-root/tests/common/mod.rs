@@ -30,7 +30,7 @@ case "$1" in
   devices) printf 'List of devices attached\nemulator-5556\tdevice\nemulator-5558\tdevice\nemulator-5560\tdevice\n';;
   push)
     # Keep what was pushed: the CA certificate scripts read it back.
-    rm -rf "$dir/pushed"; cp -R "$2" "$dir/pushed"; echo "pushed";;
+    rm -rf "$dir/pushed"; cp -R "$2" "$dir/pushed"; echo "$3" >> "$dir/push-dests"; echo "pushed";;
   # Writable /system (#25): the first remount turns verity off and asks for
   # a reboot; after it, remount makes /system writable through an overlay.
   remount)
@@ -104,6 +104,14 @@ case "$1" in
       "grep -qE '^overlay"*)
         if [ -f "$dir/overlay" ]; then echo overlay; else exit 1; fi;;
       "[ -e /dev/.jidr-reboot-pending ]"*) echo 1;;
+      # Module installs (D35, ADR-0004): `magisk --install-module` stages the
+      # module; after it, Magisk reports it loaded. `zygisk-off` stores 0.
+      "su -c 'magisk --install-module "*)
+        echo 1 >> "$dir/module-installs"; echo "- Done";;
+      "su -c 'test -f /data/adb/modules/"*)
+        if [ -f "$dir/module-installs" ]; then echo loaded; fi;;
+      *"SELECT value FROM settings WHERE key='zygisk'"*)
+        if [ -f "$dir/zygisk-off" ]; then echo "value=0"; fi;;
       "am force-stop com.topjohnwu.magisk")
         echo 1 >> "$dir/force-stopped"; echo "ok";;
       "svc power shutdown") echo 1 >> "$dir/shutdowns";;
@@ -389,4 +397,43 @@ fn write_exec(path: &Path, body: &str) {
         use std::os::unix::fs::PermissionsExt;
         std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).unwrap();
     }
+}
+
+/// Writes a zip of `entries` (`name`, contents; a name ending in `/` is a
+/// folder) at `dir/name`.
+pub fn zip_of(dir: &Path, name: &str, entries: &[(&str, &[u8])]) -> PathBuf {
+    use std::io::Write;
+    let path = dir.join(name);
+    let mut zip = zip::ZipWriter::new(std::fs::File::create(&path).unwrap());
+    let opts = zip::write::SimpleFileOptions::default();
+    for (entry, body) in entries {
+        if entry.ends_with('/') {
+            zip.add_directory(*entry, opts).unwrap();
+        } else {
+            zip.start_file(*entry, opts).unwrap();
+            zip.write_all(body).unwrap();
+        }
+    }
+    zip.finish().unwrap();
+    path
+}
+
+/// Jidr's own test module (`tests/fixtures/jidrtest-module`), zipped the way
+/// Magisk expects: its files at the root of the zip.
+pub fn test_module_zip(dir: &Path) -> PathBuf {
+    let src = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/jidrtest-module");
+    let mut files: Vec<(String, Vec<u8>)> = std::fs::read_dir(&src)
+        .unwrap()
+        .map(|e| {
+            let e = e.unwrap();
+            let name = e.file_name().into_string().unwrap();
+            (name, std::fs::read(e.path()).unwrap())
+        })
+        .collect();
+    files.sort();
+    let entries: Vec<(&str, &[u8])> = files
+        .iter()
+        .map(|(n, b)| (n.as_str(), b.as_slice()))
+        .collect();
+    zip_of(dir, "jidrtest-module.zip", &entries)
 }

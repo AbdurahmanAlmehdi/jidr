@@ -193,14 +193,18 @@ pub fn decode(png: &[u8]) -> jidr_core::JidrResult<(Vec<u8>, u32, u32)> {
             buf
         }
         3 => buf
-            .chunks_exact(3)
+            .as_chunks::<3>()
+            .0
+            .iter()
             .take(n)
-            .flat_map(|p| [p[0], p[1], p[2], 255])
+            .flat_map(|&[r, g, b]| [r, g, b, 255])
             .collect(),
         2 => buf
-            .chunks_exact(2)
+            .as_chunks::<2>()
+            .0
+            .iter()
             .take(n)
-            .flat_map(|p| [p[0], p[0], p[0], p[1]])
+            .flat_map(|&[g, a]| [g, g, g, a])
             .collect(),
         _ => buf.iter().take(n).flat_map(|g| [*g, *g, *g, 255]).collect(),
     };

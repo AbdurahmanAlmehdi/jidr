@@ -1,4 +1,4 @@
-//! Physical phones over plain `adb` (#92, D45 proposed): `physical.*`.
+//! Physical phones over plain `adb` (#92, D46 proposed): `physical.*`.
 //!
 //! A phone isn't a Jidr device: it has no AVD, no id and no root modes,
 //! snapshots or sensor widgets, so it gets its own command family instead
