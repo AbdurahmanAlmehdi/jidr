@@ -53,8 +53,10 @@ export component T inherits Text {
 /// A Lucide icon, tinted.
 export component Icon inherits Image {
     in property <length> size: Theme.icon-md;
-    /// Arrows, chevrons, back/forward and progress mirror in RTL; everything else never does.
-    in property <bool> directional: false;
+    // Arrows, chevrons, back/forward, undo and skip mirror in RTL by
+    // swapping to their mirrored twin (`Theme.rtl ? Icons.panel-right :
+    // Icons.panel-left`, `undo-2-rtl.svg`): the software renderer the goldens
+    // use ignores transforms. Everything else never mirrors.
     width: size;
     height: size;
     colorize: Theme.text-secondary;

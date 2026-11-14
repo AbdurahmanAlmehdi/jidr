@@ -282,7 +282,7 @@ export component DeviceDetail inherits Rectangle {
                     small: true;
                     kind: ButtonKind.tertiary;
                     has-icon: true;
-                    icon: Icons.undo-2;
+                    icon: Theme.rtl ? Icons.undo-2-rtl : Icons.undo-2;
                     text: @tr("Revert to unrooted…");
                     clicked => { root.revert-root(); }
                 }

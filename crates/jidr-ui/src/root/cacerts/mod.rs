@@ -13,6 +13,7 @@ use slint::{ComponentHandle, ModelRc, VecModel};
 use uuid::Uuid;
 
 use crate::app::{Ctx, toast};
+use crate::i18n::tr;
 use crate::model::DeviceInfo;
 use crate::{CertRow, RootUi};
 
@@ -171,7 +172,7 @@ fn run(ctx: &Rc<Ctx>, id: Uuid, method: &'static str, params: Value) {
         let mut s = s.borrow_mut();
         s.working = Some(id);
         s.failed = false;
-        s.status = "Starting…".into();
+        s.status = tr!("Starting…");
     });
     rerender();
     let w = ctx.app.as_weak();
@@ -188,16 +189,15 @@ fn run(ctx: &Rc<Ctx>, id: Uuid, method: &'static str, params: Value) {
         move |r: JidrResult<Value>| {
             let note = match &r {
                 Ok(v) if method == "root.cacert.install" && v["changed"] == false => {
-                    "That certificate is already trusted".to_string()
+                    tr!("That certificate is already trusted")
                 }
-                Ok(_) if method == "root.cacert.install" => format!(
-                    "{} is now a trusted system certificate",
-                    r.as_ref()
-                        .ok()
-                        .and_then(|v| v["cert"]["subject"].as_str())
-                        .unwrap_or("The certificate")
-                ),
-                Ok(_) => "Certificate removed".to_string(),
+                Ok(_) if method == "root.cacert.install" => {
+                    match r.as_ref().ok().and_then(|v| v["cert"]["subject"].as_str()) {
+                        Some(subject) => tr!("{} is now a trusted system certificate", subject),
+                        None => tr!("The certificate is now a trusted system certificate"),
+                    }
+                }
+                Ok(_) => tr!("Certificate removed"),
                 Err(e) => e.message.clone(),
             };
             toast(&w, note.clone());
@@ -217,10 +217,13 @@ fn run(ctx: &Rc<Ctx>, id: Uuid, method: &'static str, params: Value) {
 
 /// The macOS file picker for a certificate.
 fn choose_file() -> Option<PathBuf> {
+    let prompt = crate::i18n::applescript_string(&tr!(
+        "Choose a CA certificate (PEM or DER), e.g. Burp's cacert.der"
+    ));
     let out = std::process::Command::new("osascript")
         .args([
             "-e",
-            "POSIX path of (choose file with prompt \"Choose a CA certificate (PEM or DER), e.g. Burp's cacert.der\")",
+            &format!("POSIX path of (choose file with prompt {prompt})"),
         ])
         .output()
         .ok()?;

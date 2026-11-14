@@ -11,6 +11,7 @@ use slint::{ComponentHandle, ModelRc, VecModel, Weak};
 use uuid::Uuid;
 
 use crate::bridge::{Bridge, Conn, Data, Update};
+use crate::i18n::tr;
 use crate::model::{self, Clock};
 use crate::{AppWindow, ConnState, Theme};
 
@@ -103,13 +104,13 @@ fn job_title(j: &jidr_core::Job) -> String {
     match j.kind.as_str() {
         "image.install" | "sdk.install" => {
             if j.message.is_empty() {
-                "Downloading".into()
+                tr!("Downloading")
             } else {
                 j.message.clone()
             }
         }
-        k if k.starts_with("root.") => "Setting up root".into(),
-        "base.create" => "Saving a base".into(),
+        k if k.starts_with("root.") => tr!("Setting up root"),
+        "base.create" => tr!("Saving a base"),
         k => k.to_string(),
     }
 }
@@ -200,6 +201,22 @@ impl Ctx {
         crate::root::sync(self);
     }
 
+    /// Applies the Language pref everywhere, live: Slint re-translates its
+    /// strings, the Rust-built ones are rendered again, and every window
+    /// mirrors for right-to-left.
+    pub fn apply_language(self: &Rc<Self>) {
+        crate::i18n::set(crate::i18n::Lang::resolve(&self.prefs.borrow().language));
+        crate::i18n::theme(&self.app);
+        for w in self.windows.borrow().iter() {
+            if let Some(w) = w.downcast_ref::<crate::SettingsWindow>() {
+                crate::i18n::theme(w);
+            } else if let Some(w) = w.downcast_ref::<crate::SetupWindow>() {
+                crate::i18n::theme(w);
+            }
+        }
+        self.rerender();
+    }
+
     /// Applies the Appearance pref (System follows macOS).
     pub fn apply_appearance(&self) {
         let dark = match self.prefs.borrow().appearance {
@@ -242,10 +259,9 @@ pub fn sink(weak: Weak<AppWindow>) -> impl Fn(Update) + Send + Sync + 'static {
                         crate::settings::sync_from_daemon(&c);
                     }
                     let (s, text) = match conn {
-                        Conn::Connecting => (
-                            ConnState::Connecting,
-                            "Connecting to the daemon…".to_string(),
-                        ),
+                        Conn::Connecting => {
+                            (ConnState::Connecting, tr!("Connecting to the daemon…"))
+                        }
                         Conn::Online => (ConnState::Online, String::new()),
                         Conn::Reconnecting(t) => (ConnState::Reconnecting, t),
                     };
@@ -303,6 +319,8 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     });
     CTX.with(|c| *c.borrow_mut() = Some(ctx.clone()));
     ctx.apply_appearance();
+    // After the first component exists, so Slint's bundled translations are loaded.
+    ctx.apply_language();
     crate::launcher::wire(&ctx);
     crate::player::wire(&ctx);
     crate::widgets::wire(&ctx);

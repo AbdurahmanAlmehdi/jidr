@@ -1,6 +1,7 @@
 //! What a file dropped on the device does (plan 7c, D35, ADR-0004).
 
 use std::path::{Path, PathBuf};
+use crate::i18n::tr;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DropAction {
@@ -45,24 +46,25 @@ pub fn hover_text(action: &DropAction, device: &str) -> (String, String) {
     };
     match action {
         DropAction::InstallApk(p) => (
-            format!("Release to install {}", name(p)),
-            format!(
-                "adb install -r on {device}. Replaces the installed version and keeps its data."
+            tr!("Release to install {}", name(p)),
+            tr!(
+                "adb install -r on {}. Replaces the installed version and keeps its data.",
+                device
             ),
         ),
         DropAction::FlashZip { path, full_root } => (
-            format!("Release to flash {}", name(path)),
+            tr!("Release to flash {}", name(path)),
             if *full_root {
-                "A Magisk module installs and reboots the device (about 40 s). Recovery and image zips can't be flashed; other zips go to Download.".into()
+                tr!("A Magisk module installs and reboots the device (about 40 s). Recovery and image zips can't be flashed; other zips go to Download.")
             } else {
-                "Magisk modules need Full root, so a module is copied to Download. Recovery and image zips can't be flashed.".into()
+                tr!("Magisk modules need Full root, so a module is copied to Download. Recovery and image zips can't be flashed.")
             },
         ),
         DropAction::Push { path, note } => (
-            format!("Release to copy {}", name(path)),
+            tr!("Release to copy {}", name(path)),
             match note {
                 Some(n) => (*n).to_string(),
-                None => format!("Goes to /sdcard/Download on {device}."),
+                None => tr!("Goes to /sdcard/Download on {}.", device),
             },
         ),
     }

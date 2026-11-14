@@ -5,6 +5,7 @@
 use jidr_core::{HardwareProfile, Job, Support, SystemImage};
 use serde_json::{Map, Value, json};
 
+use crate::i18n::tr;
 use crate::model::{self, DeviceInfo};
 use crate::{DeviceForm, ImageRowVm, OptionVm, RootChoice};
 
@@ -55,16 +56,16 @@ pub fn image_rows(images: &[SystemImage], jobs: &[Job]) -> Vec<ImageRowVm> {
             let installed = img.installed_in.is_some();
             let job = install_job(img, jobs);
             let status = match (installed, job) {
-                (true, _) => format!("Installed · {}", size_or_dash(img.size)),
+                (true, _) => tr!("Installed · {}", size_or_dash(img.size)),
                 (false, Some(j)) => match j.progress {
-                    Some(p) if img.size > 0 => format!(
-                        "Downloading · {:.1} / {}",
-                        f64::from(p) * img.size as f64 / 1e9,
+                    Some(p) if img.size > 0 => tr!(
+                        "Downloading · {} / {}",
+                        format!("{:.1}", f64::from(p) * img.size as f64 / 1e9),
                         model::gb(img.size)
                     ),
-                    _ => "Downloading…".into(),
+                    _ => tr!("Downloading…"),
                 },
-                (false, None) => format!("Download · {}", size_or_dash(img.size)),
+                (false, None) => tr!("Download · {}", size_or_dash(img.size)),
             };
             ImageRowVm {
                 package: img.image.package().into(),
@@ -82,7 +83,7 @@ fn size_or_dash(bytes: u64) -> String {
     if bytes > 0 {
         model::gb(bytes)
     } else {
-        "size unknown".into()
+        tr!("size unknown")
     }
 }
 
@@ -179,7 +180,7 @@ pub fn apply_lean(form: &mut DeviceForm, profiles: &[HardwareProfile]) -> Result
     let i = profiles
         .iter()
         .position(|p| p.id == LEAN_PROFILE)
-        .ok_or_else(|| "This daemon has no lean profile; update Jidr.".to_string())?;
+        .ok_or_else(|| tr!("This daemon has no lean profile; update Jidr."))?;
     if form.edit {
         fill_hardware(form, &profiles[i]);
         form.lean = true;
@@ -202,9 +203,9 @@ const HIBERNATE_MINUTES: [u32; 4] = [15, 30, 60, 120];
 /// "After 30 min idle", "After 2 h idle".
 pub fn idle_after(minutes: u32) -> String {
     if minutes >= 60 && minutes.is_multiple_of(60) {
-        format!("After {}\u{a0}h idle", minutes / 60)
+        tr!("After {}\u{a0}h idle", minutes / 60)
     } else {
-        format!("After {minutes}\u{a0}min idle")
+        tr!("After {}\u{a0}min idle", minutes)
     }
 }
 
@@ -222,12 +223,12 @@ impl HibernateChoices {
     pub fn device(global: u32, current: Option<u32>) -> Self {
         let mut c = Self::default();
         let setting = if global == 0 {
-            "Off".to_string()
+            tr!("Off")
         } else {
             idle_after(global).to_lowercase()
         };
-        c.push(format!("Same as Settings ({setting})"), None);
-        c.push("Never".into(), Some(0));
+        c.push(tr!("Same as Settings ({})", setting), None);
+        c.push(tr!("Never"), Some(0));
         for m in HIBERNATE_MINUTES {
             c.push(idle_after(m), Some(m));
         }
@@ -240,7 +241,7 @@ impl HibernateChoices {
     /// The global choices (Settings › General); `0` is off.
     pub fn global(current: u32) -> Self {
         let mut c = Self::default();
-        c.push("Off".into(), Some(0));
+        c.push(tr!("Off"), Some(0));
         for m in HIBERNATE_MINUTES {
             c.push(idle_after(m), Some(m));
         }
@@ -318,17 +319,17 @@ fn parse_hardware(form: &DeviceForm) -> Result<Hardware, String> {
         .ram_gb
         .trim()
         .parse()
-        .map_err(|_| "RAM must be a number of GB, like 4.".to_string())?;
+        .map_err(|_| tr!("RAM must be a number of GB, like 4."))?;
     if !(0.5..=64.0).contains(&ram) {
-        return Err("RAM must be between 0.5 and 64 GB.".into());
+        return Err(tr!("RAM must be between 0.5 and 64 GB."));
     }
     let cpus: u32 = form
         .cpus
         .trim()
         .parse()
-        .map_err(|_| "CPU cores must be a whole number.".to_string())?;
+        .map_err(|_| tr!("CPU cores must be a whole number."))?;
     if !(1..=16).contains(&cpus) {
-        return Err("CPU cores must be between 1 and 16.".into());
+        return Err(tr!("CPU cores must be between 1 and 16."));
     }
     let (w, h) = form
         .screen
@@ -340,9 +341,9 @@ fn parse_hardware(form: &DeviceForm) -> Result<Hardware, String> {
             [w, h] => Some((*w, *h)),
             _ => None,
         })
-        .ok_or_else(|| "Screen must look like 1080×2400.".to_string())?;
+        .ok_or_else(|| tr!("Screen must look like 1080×2400."))?;
     if !(240..=4096).contains(&w) || !(240..=4096).contains(&h) {
-        return Err("Screen sides must be between 240 and 4096 pixels.".into());
+        return Err(tr!("Screen sides must be between 240 and 4096 pixels."));
     }
     Ok(Hardware {
         ram_mb: (ram * 1024.0).round() as u32,
@@ -356,7 +357,7 @@ fn parse_hardware(form: &DeviceForm) -> Result<Hardware, String> {
 fn check_name(name: &str) -> Result<String, String> {
     let name = name.trim();
     if name.is_empty() {
-        return Err("Give the device a name.".into());
+        return Err(tr!("Give the device a name."));
     }
     Ok(name.to_string())
 }
@@ -379,9 +380,9 @@ pub fn create_params(
     let img = usize::try_from(form.image)
         .ok()
         .and_then(|i| images.get(i))
-        .ok_or_else(|| "Pick an Android version.".to_string())?;
+        .ok_or_else(|| tr!("Pick an Android version."))?;
     if form.root == RootChoice::Shell && !img.image.allows_adb_root() {
-        return Err("Play Store images don't allow adb root.".into());
+        return Err(tr!("Play Store images don't allow adb root."));
     }
     let hw = parse_hardware(form)?;
     let profile = usize::try_from(form.profile)

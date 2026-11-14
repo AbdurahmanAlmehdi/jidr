@@ -11,15 +11,12 @@ use slint::{ComponentHandle, Image, ModelRc, Rgba8Pixel, SharedPixelBuffer, VecM
 use uuid::Uuid;
 
 use crate::app::{Ctx, report, toast};
+use crate::i18n::{tr, trn};
 use crate::model::{self, Clock};
 use crate::{RootKind, SnapshotVm};
 
-pub fn mode_name(m: RootMode) -> &'static str {
-    match m {
-        RootMode::None => "Not rooted",
-        RootMode::Adb => "Shell root",
-        RootMode::Magisk => "Full root",
-    }
+pub fn mode_name(m: RootMode) -> String {
+    model::root_mode_name(m)
 }
 
 fn root_kind(m: RootMode) -> RootKind {
@@ -91,13 +88,13 @@ pub fn vm(e: &Entry, clock: &Clock) -> SnapshotVm {
     let thumb = e.thumbnail.as_deref().and_then(thumbnail);
     SnapshotVm {
         name: if e.quick_boot {
-            "Quick boot".into()
+            tr!("Quick boot").into()
         } else {
             e.name.clone().into()
         },
         tag: match e.root_mode {
-            Some(m) => format!("Taken with: {}", mode_name(m)),
-            None => "Not tagged".into(),
+            Some(m) => tr!("Taken with: {}", mode_name(m)),
+            None => tr!("Not tagged"),
         }
         .into(),
         root: e.root_mode.map(root_kind).unwrap_or(RootKind::None),
@@ -110,7 +107,7 @@ pub fn vm(e: &Entry, clock: &Clock) -> SnapshotVm {
         .into(),
         when: e
             .created_at
-            .map(|t| clock.local(t).format("%b %-d, %H:%M").to_string())
+            .map(|t| model::short_date(clock.local(t)))
             .unwrap_or_default()
             .into(),
         refused: !e.restorable,
@@ -125,11 +122,16 @@ pub fn banner(device: &str, mode: RootMode, entries: &[Entry]) -> (String, bool)
     let refused: Vec<&Entry> = named.iter().copied().filter(|e| !e.restorable).collect();
     let total: u64 = named.iter().map(|e| e.size).sum();
     if let Some(r) = refused.first() {
-        let other = r.root_mode.map(mode_name).unwrap_or("another root mode");
+        let other = r
+            .root_mode
+            .map(mode_name)
+            .unwrap_or_else(|| tr!("another root mode"));
         return (
-            format!(
-                "{device} is {} now. Snapshots taken with {other} can't be restored until {other} is set up again.",
-                mode_name(mode)
+            tr!(
+                "{0} is {1} now. Snapshots taken with {2} can't be restored until {2} is set up again.",
+                device,
+                mode_name(mode),
+                other
             ),
             true,
         );
@@ -137,14 +139,12 @@ pub fn banner(device: &str, mode: RootMode, entries: &[Entry]) -> (String, bool)
     if named.is_empty() {
         return (String::new(), false);
     }
-    let all = if named.len() == 1 {
-        "it".to_string()
-    } else {
-        format!("all {}", named.len())
-    };
     (
-        format!(
-            "Every snapshot remembers the root mode it was taken with. {device} is {} now, so {all} can be restored. {} in total.",
+        trn!(
+            "Every snapshot remembers the root mode it was taken with. {} is {} now, so it can be restored. {} in total.",
+            "Every snapshot remembers the root mode it was taken with. {} is {} now, so all {n} can be restored. {} in total.",
+            named.len(),
+            device,
             mode_name(mode),
             model::gb(total)
         ),
@@ -221,7 +221,7 @@ pub fn wire(ctx: &Rc<Ctx>) {
             let other = e.root_mode.unwrap_or(RootMode::None);
             c.app.set_refuse_name(e.name.clone().into());
             c.app.set_refuse_snapshot_line(
-                format!(
+                tr!(
                     "Taken with: {}{}",
                     mode_name(other),
                     e.magisk.as_ref().map(|v| format!(" · Magisk {v}")).unwrap_or_default()
@@ -230,36 +230,37 @@ pub fn wire(ctx: &Rc<Ctx>) {
             );
             c.app.set_refuse_device_line(mode_name(mode).into());
             c.app.set_refuse_body(
-                format!(
-                    "It was taken with {}. {name} is {} now, so restoring it would bring back a root setup Jidr hasn't verified on this device.",
+                tr!(
+                    "It was taken with {}. {} is {} now, so restoring it would bring back a root setup Jidr hasn't verified on this device.",
                     mode_name(other),
+                    name,
                     mode_name(mode)
                 )
                 .into(),
             );
             c.app.set_refuse_hint(
-                format!(
+                tr!(
                     "Set up {} first, then restore. Snapshots taken while {} restore as usual.",
                     mode_name(other),
                     mode_name(mode)
                 )
                 .into(),
             );
-            c.app.set_refuse_action(format!("Set up {}…", mode_name(other)).into());
+            c.app.set_refuse_action(tr!("Set up {}…", mode_name(other)).into());
             c.app.set_refuse_open(true);
             return;
         }
         if !running {
-            toast(&c.app.as_weak(), format!("Start {name} to restore a snapshot"));
+            toast(&c.app.as_weak(), tr!("Start {} to restore a snapshot", name));
             return;
         }
         let w = c.app.as_weak();
-        let label = if e.quick_boot { "Quick boot".to_string() } else { e.name.clone() };
+        let label = if e.quick_boot { tr!("Quick boot") } else { e.name.clone() };
         c.bridge.run(
             "snapshot.load",
             json!({ "device": id, "name": e.name }),
             |_| {},
-            report(&w, &format!("Restored “{label}”")),
+            report(&w, &tr!("Restored “{}”", label)),
         );
     });
 
@@ -283,7 +284,7 @@ pub fn wire(ctx: &Rc<Ctx>) {
             "root.set",
             json!({ "device": id, "mode": mode }),
             |_| {},
-            report(&w, "Root set up; the snapshot can be restored now"),
+            report(&w, tr!("Root set up; the snapshot can be restored now")),
         );
     });
 
@@ -293,7 +294,7 @@ pub fn wire(ctx: &Rc<Ctx>) {
             return;
         };
         if !running {
-            toast(&c.app.as_weak(), format!("Start {name} to save a snapshot"));
+            toast(&c.app.as_weak(), tr!("Start {} to save a snapshot", name));
             return;
         }
         let sizes: Vec<String> = ENTRIES.with(|e| {
@@ -311,7 +312,7 @@ pub fn wire(ctx: &Rc<Ctx>) {
         );
         c.app.set_save_root_kind(root_kind(mode));
         c.app.set_save_root_tag(
-            format!(
+            tr!(
                 "Taken with: {}{}",
                 mode_name(mode),
                 magisk
@@ -322,9 +323,9 @@ pub fn wire(ctx: &Rc<Ctx>) {
             .into(),
         );
         c.app.set_save_hint(match sizes.len() {
-            0 => "Snapshots take about as much disk as the device's data.".into(),
-            1 => format!("Its other snapshot is {} GB.", sizes[0]).into(),
-            _ => format!(
+            0 => tr!("Snapshots take about as much disk as the device's data.").into(),
+            1 => tr!("Its other snapshot is {} GB.", sizes[0]).into(),
+            _ => tr!(
                 "Its other snapshots are {} and {} GB.",
                 sizes[..sizes.len() - 1].join(", "),
                 sizes[sizes.len() - 1]
@@ -346,7 +347,7 @@ pub fn wire(ctx: &Rc<Ctx>) {
                 }
             }
         });
-        toast(&w, format!("Saving “{name}”…"));
+        toast(&w, tr!("Saving “{}”…", name));
         let w2 = w.clone();
         let n = name.to_string();
         c.bridge.run(
@@ -355,7 +356,7 @@ pub fn wire(ctx: &Rc<Ctx>) {
             |_| {},
             move |r| {
                 if r.is_ok() {
-                    toast(&w2, format!("Saved snapshot “{n}”"));
+                    toast(&w2, tr!("Saved snapshot “{}”", n));
                 }
                 crate::app::fire(token, r);
             },
@@ -369,22 +370,22 @@ pub fn wire(ctx: &Rc<Ctx>) {
         let c2 = c.clone();
         crate::launcher::confirm(
             &c,
-            &format!("Delete “{}”?", e.name),
-            &format!(
+            &tr!("Delete “{}”?", e.name),
+            &tr!(
                 "Frees {}. The device itself doesn't change. This can't be undone.",
                 if e.size > 0 {
                     model::gb(e.size)
                 } else {
-                    "its disk space".into()
+                    tr!("its disk space")
                 }
             ),
-            "Delete",
+            &tr!("Delete"),
             move || {
                 let token = crate::app::defer(move |r: jidr_core::JidrResult<Value>| {
                     if let Some(c) = crate::app::ctx() {
                         load(&c);
                         match r {
-                            Ok(_) => toast(&c.app.as_weak(), "Deleted the snapshot".into()),
+                            Ok(_) => toast(&c.app.as_weak(), tr!("Deleted the snapshot")),
                             Err(e) => toast(&c.app.as_weak(), e.message),
                         }
                     }

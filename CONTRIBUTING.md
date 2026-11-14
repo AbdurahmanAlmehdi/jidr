@@ -17,7 +17,7 @@ brew install protobuf                     # protoc, for the gRPC bindings
 curl https://sh.rustup.rs -sSf | sh       # rustup installs the pinned toolchain on first build
 cargo install cargo-nextest --locked      # the test runner
 git clone https://github.com/AbdurahmanAlmehdi/jidr && cd jidr
-cargo xtask ci                            # fmt, clippy, tests, licence check, skills check
+cargo xtask ci                            # fmt, clippy, tests, licence check, skills check, translation check
 ```
 
 For the emulator tests you need an Android SDK with the emulator and one system image. Android Studio's SDK works and is only read, never modified. The tests use `system-images;android-31;google_apis;arm64-v8a` by default; override it with `JIDR_TEST_SDK`, `JIDR_TEST_IMAGE` and `JIDR_TEST_API`.
@@ -41,6 +41,7 @@ For the site: `cd site && npm ci && npm run dev`.
 - **Clean room.** Use only Genymotion's public docs, the public AOSP emulator protos and docs, and behaviour you observe by running the SDK tools. Never decompile or inspect Genymotion binaries, never copy GPL code (Magisk, rootAVD), never bundle Google's SDK, system images or Magisk. Details in [docs/clean-room.md](docs/clean-room.md).
 - **Protocol changes** that touch the wire format, an existing command, error codes or events need a row in the changelog of [docs/control-protocol.md](docs/control-protocol.md). Regenerate the command reference with `JIDR_UPDATE_DOCS=1 cargo nextest run -p jidr-daemon protocol_doc`.
 - **Android Studio's SDK and AVDs stay read-only.** Tests create AVDs in temporary directories.
+- **Every app string is translatable.** `.slint` text goes through `@tr("…")`, and strings the GUI's Rust code shows go through `tr!` / `trn!` (`crates/jidr-ui/src/i18n.rs`). After adding or changing one, run `cargo xtask i18n` to update the catalogs. A new string shows in English until it's translated. `cargo xtask ci` lists what's missing and fails until every language has it. Rules and glossary: [crates/jidr-ui/i18n/README.md](crates/jidr-ui/i18n/README.md).
 
 ## Pull requests
 

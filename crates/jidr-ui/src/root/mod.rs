@@ -22,6 +22,7 @@ use slint::{ComponentHandle, ModelRc, SharedString, Timer, TimerMode, VecModel};
 use uuid::Uuid;
 
 use crate::app::{Ctx, report, toast};
+use crate::i18n::tr;
 use crate::model::{DeviceInfo, ago, root_labels};
 use crate::{RootLogLine, RootSheetState, RootStep, RootStepState, RootStepVm, RootUi};
 use steps::{Failure, LogEntry, STEPS};
@@ -132,16 +133,16 @@ pub fn start(ctx: &Rc<Ctx>, device: Uuid, mode: RootMode) {
         RootMode::Magisk => full_root(ctx, device),
         RootMode::None | RootMode::Adb => {
             let name = name_of(ctx, device);
-            let label = if mode == RootMode::Adb {
-                "Shell root (adb)"
+            let done = if mode == RootMode::Adb {
+                tr!("{} is now Shell root (adb)", name)
             } else {
-                "unrooted"
+                tr!("{} is now unrooted", name)
             };
             ctx.bridge.run(
                 "root.set",
                 json!({ "device": device, "mode": mode_name(mode) }),
                 |_| {},
-                report(&ctx.app.as_weak(), format!("{name} is now {label}")),
+                report(&ctx.app.as_weak(), done),
             );
         }
     }
@@ -313,8 +314,8 @@ fn finished(device: Uuid, r: JidrResult<Value>) {
             FAILED.with(|f| f.borrow_mut().remove(&device));
             if !open {
                 let text = match magisk {
-                    Some(v) => format!("{name} is rooted · Magisk {v}"),
-                    None => format!("{name} is rooted"),
+                    Some(v) => tr!("{} is rooted · Magisk {}", name, v),
+                    None => tr!("{} is rooted", name),
                 };
                 toast(&ctx.app.as_weak(), text);
             }
@@ -327,9 +328,10 @@ fn finished(device: Uuid, r: JidrResult<Value>) {
             } else if !open {
                 toast(
                     &ctx.app.as_weak(),
-                    format!(
-                        "Root failed: {}. Open {name} to revert or try again.",
-                        failure.reason
+                    tr!(
+                        "Root failed: {}. Open {} to revert or try again.",
+                        failure.reason,
+                        name
                     ),
                 );
             }
@@ -364,8 +366,10 @@ fn detail(name: &str, e: &JidrError) -> String {
             .and_then(|r| r.split(" s").next())
             .and_then(|n| n.trim().parse::<u64>().ok());
         return match waited {
-            Some(n) => format!(
-                "{name} didn't finish booting after the reboot (waited {n} s). Your data is intact and the original boot image is kept, so you can revert."
+            Some(n) => tr!(
+                "{} didn't finish booting after the reboot (waited {} s). Your data is intact and the original boot image is kept, so you can revert.",
+                name,
+                n
             ),
             None => String::new(),
         };
@@ -646,7 +650,7 @@ fn sheet_action(ctx: &Rc<Ctx>, action: &str) {
                     .join("\n")
             });
             crate::settings::copy_text(&text);
-            toast(&ctx.app.as_weak(), "Copied the root setup log".into());
+            toast(&ctx.app.as_weak(), tr!("Copied the root setup log"));
         }
         "save-snapshot" => {
             ui.set_open(false);
@@ -685,8 +689,8 @@ fn tools_action(ctx: &Rc<Ctx>, action: &str, value: &str) {
                     toast(
                         &w,
                         match r {
-                            Ok(_) if enabled => "Apps now get root without asking".into(),
-                            Ok(_) => "Apps ask before they get root".into(),
+                            Ok(_) if enabled => tr!("Apps now get root without asking"),
+                            Ok(_) => tr!("Apps ask before they get root"),
                             Err(e) => e.message,
                         },
                     );
@@ -789,7 +793,7 @@ pub fn tools_vm(
     let root = &info.device.root;
     let (kind, mut badge, _) = root_labels(info);
     if let Some(f) = failure.filter(|_| root.health == RootHealth::Failed && !info.root_job) {
-        badge = format!("Root failed: {}", f.reason);
+        badge = tr!("Root failed: {}", f.reason);
     }
     let full = root.mode == RootMode::Magisk;
     let verified = match root.verified_at {

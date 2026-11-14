@@ -46,6 +46,7 @@ See [docs/clean-room.md](docs/clean-room.md). In short: use only Genymotion's pu
 - Never crash: `unwrap`, `expect`, `panic!`, `todo!`, `unimplemented!` and `dbg!` are denied outside tests (workspace lints and `clippy.toml`). Return typed errors (`jidr_core::JidrError`). Integration-test files (`tests/*.rs`) start with `#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]`, because clippy's test allowance only covers `#[test]` fns and `#[cfg(test)]` modules.
 - `unsafe` is denied by default. A crate that truly needs it allows it locally with a comment explaining why.
 - Every bug fix gets a regression test.
+- Every string the app shows is translatable (issue #29): `@tr("…")` in `.slint`, `tr!` / `trn!` from `crate::i18n` in the GUI's Rust code, never a bare literal. Run `cargo xtask i18n` after changing strings, then add the translations (`crates/jidr-ui/i18n/README.md` has the rules and glossary). Arabic placeholders sit inside U+2068 … U+2069. The CLI, the daemon and MCP stay English.
 - Emulators launch with `-gpu host` on macOS (ADR-0001: `auto` falls back to software rendering under `-no-window`); CI on Linux KVM uses `swiftshader_indirect`.
 - Android Studio's SDK and AVDs are read-only (D3). Jidr's own SDK lives in `~/Library/Application Support/Jidr/sdk`. Tests create AVDs in temp dirs, never in `~/.android/avd`.
 - Never accept a Google SDK license on a user's behalf outside a test context.
@@ -65,7 +66,7 @@ The control protocol is frozen at the tag `protocol-v0.1` ([docs/control-protoco
 
 ## Before you open a pull request
 
-1. `cargo xtask ci` passes: fmt, clippy, tests, the licence check and the skills check.
+1. `cargo xtask ci` passes: fmt, clippy, tests, the licence check, the skills check and the translation check.
 2. If you touched a crate with emulator tests, run them for that crate if you have an image.
 3. Docs that describe the change are updated (`docs/cli.md`, `docs/mcp.md`, `docs/root.md`, the protocol changelog, and `skills/` when a command an agent uses changes).
 4. One conventional commit per logical change (`feat(daemon): …`, `fix(widgets): …`, `docs: …`). Release notes are generated from them.
@@ -74,9 +75,10 @@ The control protocol is frozen at the tag `protocol-v0.1` ([docs/control-protoco
 ## Useful commands
 
 ```bash
-cargo xtask ci                                   # fmt, clippy, tests, license-check, skills-check
+cargo xtask ci                                   # fmt, clippy, tests, license-check, skills-check, i18n --check
 cargo xtask license-check                        # D18 split-licensing guard
 cargo xtask skills-check                         # skills' frontmatter and jidr commands (D43)
+cargo xtask i18n                                 # extract the app's strings into crates/jidr-ui/i18n (--check: verify)
 cargo nextest run -p <crate>                     # unit + integration tests
 cargo nextest run -p <crate> --features emulator # needs an emulator image
 cargo xtask e2e-mac                              # release gate on Apple Silicon (D28)

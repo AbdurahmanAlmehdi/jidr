@@ -4,6 +4,7 @@
 
 use std::path::Path;
 
+use crate::i18n::tr;
 use serde::Deserialize;
 
 /// The brew command shown to people who installed the cask.
@@ -70,23 +71,27 @@ pub fn evaluate(body: &str, current: &str) -> Check {
 pub fn view(check: &Check, current: &str, homebrew: bool, repo: &str) -> (String, String, String) {
     match check {
         Check::UpToDate => (
-            format!("You're up to date ({current})"),
+            tr!("You're up to date ({})", current),
             String::new(),
             String::new(),
         ),
         Check::Available { version, .. } if homebrew => (
-            format!("Jidr {version} is available. Update with {BREW_UPGRADE}"),
-            "Copy command".into(),
+            tr!(
+                "Jidr {} is available. Update with {}",
+                version,
+                BREW_UPGRADE
+            ),
+            tr!("Copy command"),
             String::new(),
         ),
         Check::Available { version, url } => (
-            format!("Jidr {version} is available"),
-            "Download".into(),
+            tr!("Jidr {} is available", version),
+            tr!("Download"),
             url.clone(),
         ),
         Check::Failed => (
-            "Couldn't reach GitHub".into(),
-            "Open releases page".into(),
+            tr!("Couldn't reach GitHub"),
+            tr!("Open releases page"),
             format!("{repo}/releases"),
         ),
     }

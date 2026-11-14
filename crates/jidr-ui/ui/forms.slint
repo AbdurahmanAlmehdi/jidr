@@ -381,7 +381,7 @@ export component ExhaustedDialog inherits Sheet {
                 go-b := Button {
                     visible: i == 2;
                     kind: ButtonKind.primary;
-                    text: root.picks == 1 ? @tr("Hibernate {} and start", root.first-pick) : @tr("Hibernate {} devices and start", root.picks);
+                    text: root.picks == 1 ? @tr("Hibernate {} and start", root.first-pick) : @tr("Hibernate {n} device and start" | "Hibernate {n} devices and start" % root.picks);
                     clicked => { root.hibernate(); }
                 }
             }

@@ -1,6 +1,7 @@
 //! Command palette (⌘K): every launcher action plus one entry per device,
 //! fuzzy-filtered (letters in order, case-insensitive).
 
+use crate::i18n::tr;
 use crate::{DevKind, DevState, DeviceVm, PaletteItem, PaletteKind};
 
 fn item(kind: PaletteKind, title: &str, subtitle: &str, kbd: &str, action: String) -> PaletteItem {
@@ -20,7 +21,7 @@ pub fn items(devices: &[DeviceVm], sdk_ready: bool) -> Vec<PaletteItem> {
     for d in devices {
         let mut open = item(
             PaletteKind::Device,
-            &format!("Open {}", d.name),
+            &tr!("Open {}", d.name),
             &d.status,
             "",
             format!("open:{}", d.id),
@@ -31,16 +32,16 @@ pub fn items(devices: &[DeviceVm], sdk_ready: bool) -> Vec<PaletteItem> {
     if !sdk_ready {
         v.push(item(
             PaletteKind::Action,
-            "Set up Android SDK",
-            "Find or install the emulator and an image",
+            &tr!("Set up Android SDK"),
+            &tr!("Find or install the emulator and an image"),
             "⌘↵",
             "setup".into(),
         ));
     }
     v.push(item(
         PaletteKind::Action,
-        "New device",
-        "Create a device from a profile",
+        &tr!("New device"),
+        &tr!("Create a device from a profile"),
         "⌘N",
         "new".into(),
     ));
@@ -52,22 +53,22 @@ pub fn items(devices: &[DeviceVm], sdk_ready: bool) -> Vec<PaletteItem> {
         match d.state {
             DevState::Hibernated => v.push(item(
                 PaletteKind::Action,
-                &format!("Resume {}", d.name),
-                "Back where it was, in seconds",
+                &tr!("Resume {}", d.name),
+                &tr!("Back where it was, in seconds"),
                 "",
                 format!("start:{}", d.id),
             )),
             DevState::Stopped | DevState::Crashed => v.push(item(
                 PaletteKind::Action,
-                &format!("Start {}", d.name),
+                &tr!("Start {}", d.name),
                 &d.android,
                 "",
                 format!("start:{}", d.id),
             )),
             DevState::Running | DevState::Booting | DevState::Starting => v.push(item(
                 PaletteKind::Action,
-                &format!("Stop {}", d.name),
-                "Saves a quick-boot snapshot",
+                &tr!("Stop {}", d.name),
+                &tr!("Saves a quick-boot snapshot"),
                 "",
                 format!("stop:{}", d.id),
             )),
@@ -76,8 +77,8 @@ pub fn items(devices: &[DeviceVm], sdk_ready: bool) -> Vec<PaletteItem> {
         if d.state == DevState::Running && d.kind == DevKind::Device {
             v.push(item(
                 PaletteKind::Action,
-                &format!("Hibernate {}", d.name),
-                "Saves its whole state and frees its RAM",
+                &tr!("Hibernate {}", d.name),
+                &tr!("Saves its whole state and frees its RAM"),
                 "",
                 format!("hibernate:{}", d.id),
             ));
@@ -85,8 +86,8 @@ pub fn items(devices: &[DeviceVm], sdk_ready: bool) -> Vec<PaletteItem> {
         if d.can_base {
             v.push(item(
                 PaletteKind::Action,
-                &format!("Save {} as a base…", d.name),
-                "For agents' throwaway clones (pool.get)",
+                &tr!("Save {} as a base…", d.name),
+                &tr!("For agents' throwaway clones (pool.get)"),
                 "",
                 format!("base:{}", d.id),
             ));
@@ -94,8 +95,8 @@ pub fn items(devices: &[DeviceVm], sdk_ready: bool) -> Vec<PaletteItem> {
         if d.state == DevState::Stopped && d.kind == DevKind::Device {
             v.push(item(
                 PaletteKind::Action,
-                &format!("Edit {}", d.name),
-                "Name, RAM, CPU, screen",
+                &tr!("Edit {}", d.name),
+                &tr!("Name, RAM, CPU, screen"),
                 "",
                 format!("edit:{}", d.id),
             ));
@@ -103,22 +104,22 @@ pub fn items(devices: &[DeviceVm], sdk_ready: bool) -> Vec<PaletteItem> {
     }
     v.push(item(
         PaletteKind::Setting,
-        "Settings",
-        "SDK, storage, agents, about",
+        &tr!("Settings"),
+        &tr!("SDK, storage, agents, about"),
         "⌘,",
         "settings".into(),
     ));
     v.push(item(
         PaletteKind::Setting,
-        "Add Jidr to Claude",
-        "MCP setup",
+        &tr!("Add Jidr to Claude"),
+        &tr!("MCP setup"),
         "",
         "settings:agents".into(),
     ));
     v.push(item(
         PaletteKind::Setting,
-        "Toggle light and dark",
-        "Appearance",
+        &tr!("Toggle light and dark"),
+        &tr!("Appearance"),
         "",
         "appearance".into(),
     ));

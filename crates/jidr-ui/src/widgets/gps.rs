@@ -9,6 +9,7 @@ use serde_json::{Value, json};
 use slint::{ComponentHandle, Image, Rgba8Pixel, SharedPixelBuffer};
 
 use crate::app::{Ctx, toast};
+use crate::i18n::tr;
 
 pub const ZOOM: u32 = 15;
 /// Map image size in pixels (the panel shows it at ~292×150 logical).
@@ -218,7 +219,7 @@ pub fn set_location(ctx: &Rc<Ctx>, device: uuid::Uuid) {
     let (Some(lat), Some(lon)) = (parse(&vm.gps_lat), parse(&vm.gps_lon)) else {
         toast(
             &ctx.app.as_weak(),
-            "Latitude and longitude must be numbers".into(),
+            tr!("Latitude and longitude must be numbers"),
         );
         return;
     };
@@ -256,10 +257,13 @@ pub fn map_click(ctx: &Rc<Ctx>, device: uuid::Uuid, nx: f32, ny: f32) {
 
 /// Asks for a GPX/KML file with the macOS file chooser.
 pub fn choose_file() -> Option<PathBuf> {
+    let prompt = crate::i18n::applescript_string(&tr!("Choose a GPX or KML route"));
     let out = std::process::Command::new("osascript")
         .args([
             "-e",
-            "POSIX path of (choose file with prompt \"Choose a GPX or KML route\" of type {\"gpx\", \"kml\", \"public.xml\", \"com.topografix.gpx\"})",
+            &format!(
+                "POSIX path of (choose file with prompt {prompt} of type {{\"gpx\", \"kml\", \"public.xml\", \"com.topografix.gpx\"}})"
+            ),
         ])
         .output()
         .ok()?;
@@ -278,7 +282,7 @@ pub fn start_route(ctx: &Rc<Ctx>, device: uuid::Uuid, path: PathBuf) {
     vm.route_active = true;
     vm.route_paused = false;
     vm.route_progress = 0.0;
-    vm.route_text = "Starting…".into();
+    vm.route_text = tr!("Starting…").into();
     let speed = SPEEDS
         .get(usize::try_from(vm.route_speed).unwrap_or(0))
         .copied()
