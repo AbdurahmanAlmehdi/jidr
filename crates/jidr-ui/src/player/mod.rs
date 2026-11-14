@@ -380,8 +380,8 @@ fn tool_action(ctx: &Rc<Ctx>, tool: &str) {
     }
 }
 
-use crate::i18n::{tr, trn};
 use crate::recording::file_name;
+use crate::i18n::{tr, trn};
 
 fn toggle_overlay(ctx: &Rc<Ctx>) {
     let on = !ctx.app.get_player_overlay();
@@ -558,40 +558,24 @@ pub fn handle_drop(ctx: &Rc<Ctx>, path: &Path) {
     };
     let w = ctx.app.as_weak();
     if !running {
-        toast(&w, tr!("Start the device first, then drop the file again"));
+        toast(
+            &w,
+            tr!("Start the device first, then drop the file again"),
+        );
         return;
     }
     let name = file_name(&path.to_string_lossy());
     match drop::classify(path, mode == RootMode::Magisk) {
         drop::DropAction::InstallApk(apk) => install_apk(ctx, id, apk, false),
-        drop::DropAction::MagiskModule(zip) => {
-            let b = ctx.bridge.clone();
+        drop::DropAction::FlashZip { path, .. } => {
             let w2 = w.clone();
-            let zip2 = zip.clone();
+            toast(&w, tr!("Flashing {}…", name));
             ctx.bridge.run(
-                "root.module.install",
-                json!({ "device": id, "path": zip }),
+                "file.flash",
+                json!({ "device": id, "path": path }),
                 |_| {},
                 move |r| match r {
-                    Ok(_) => toast(&w2, tr!("Installed {}; the device is rebooting", name)),
-                    Err(e)
-                        if e.message.contains("Unknown method")
-                            || e.message.contains("unknown method")
-                            || e.message.contains("Method not found") =>
-                    {
-                        // Magisk modules arrive with Stream C's 9d; until then copy it.
-                        b.call(
-                            "file.push",
-                            json!({ "device": id, "local": zip2 }),
-                            report(
-                                &w2,
-                                &tr!(
-                                    "Copied {} to Download (module install isn't available yet)",
-                                    name
-                                ),
-                            ),
-                        );
-                    }
+                    Ok(v) => toast(&w2, flash_message(&v, &name)),
                     Err(e) => toast(&w2, e.message),
                 },
             );
@@ -607,6 +591,20 @@ pub fn handle_drop(ctx: &Rc<Ctx>, path: &Path) {
                 report(&w, &msg),
             );
         }
+    }
+}
+
+/// The toast for a finished `file.flash` (ADR-0004).
+fn flash_message(v: &serde_json::Value, name: &str) -> String {
+    let done = if v["action"] == "module_installed" {
+        let id = v["module"]["id"].as_str().unwrap_or(name);
+        tr!("Installed the Magisk module {}; the device rebooted", id)
+    } else {
+        tr!("Copied {} to Download", name)
+    };
+    match v["note"].as_str() {
+        Some(note) => format!("{done}. {note}"),
+        None => done,
     }
 }
 
@@ -626,9 +624,7 @@ fn install_apk(ctx: &Rc<Ctx>, id: Uuid, apk: PathBuf, reinstall: bool) {
                 crate::launcher::confirm(
                     &c,
                     &tr!("Reinstall {}?", file_name(&apk2.to_string_lossy())),
-                    &tr!(
-                        "The installed app was signed with a different key. Reinstalling uninstalls it first, which deletes its data."
-                    ),
+                    &tr!("The installed app was signed with a different key. Reinstalling uninstalls it first, which deletes its data."),
                     &tr!("Reinstall"),
                     move || install_apk(&c2, id, apk3.clone(), true),
                 );

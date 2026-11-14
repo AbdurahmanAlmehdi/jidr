@@ -524,10 +524,6 @@ msgid "Appearance"
 msgstr "外观"
 
 #: src/player/drop.rs
-msgid "Magisk modules need Full root, so it was copied to Download."
-msgstr "Magisk 模块需要完整 Root，因此已将其复制到 Download 文件夹。"
-
-#: src/player/drop.rs
 msgid "Release to install {}"
 msgstr "松开以安装 {}"
 
@@ -536,12 +532,16 @@ msgid "adb install -r on {}. Replaces the installed version and keeps its data."
 msgstr "在 {} 上执行 adb install -r。替换已安装的版本并保留其数据。"
 
 #: src/player/drop.rs
-msgid "Release to install {} as a Magisk module"
-msgstr "松开以将 {} 安装为 Magisk 模块"
+msgid "Release to flash {}"
+msgstr "松开以刷入 {}"
 
 #: src/player/drop.rs
-msgid "Installs the module and reboots the device (about 40 s)."
-msgstr "安装模块并重启设备（约 40 秒）。"
+msgid "A Magisk module installs and reboots the device (about 40 s). Recovery and image zips can't be flashed; other zips go to Download."
+msgstr "Magisk 模块会安装并重启设备（约 40 秒）。Recovery 和镜像 zip 无法刷入；其他 zip 会放到 Download。"
+
+#: src/player/drop.rs
+msgid "Magisk modules need Full root, so a module is copied to Download. Recovery and image zips can't be flashed."
+msgstr "Magisk 模块需要完整 Root，因此模块会复制到 Download。Recovery 和镜像 zip 无法刷入。"
 
 #: src/player/drop.rs
 msgid "Release to copy {}"
@@ -568,12 +568,8 @@ msgid "Start the device first, then drop the file again"
 msgstr "请先启动设备，然后再次拖放文件"
 
 #: src/player/mod.rs
-msgid "Installed {}; the device is rebooting"
-msgstr "已安装 {}，设备正在重启"
-
-#: src/player/mod.rs
-msgid "Copied {} to Download (module install isn't available yet)"
-msgstr "已将 {} 复制到 Download 文件夹（暂不支持安装模块）"
+msgid "Flashing {}…"
+msgstr "正在刷入 {}…"
 
 #: src/player/mod.rs
 msgid "Copied {} to Download. {}"
@@ -582,6 +578,14 @@ msgstr "已将 {} 复制到 Download 文件夹。{}"
 #: src/player/mod.rs
 msgid "Copied {} to /sdcard/Download"
 msgstr "已将 {} 复制到 /sdcard/Download"
+
+#: src/player/mod.rs
+msgid "Installed the Magisk module {}; the device rebooted"
+msgstr "已安装 Magisk 模块 {}，设备已重启"
+
+#: src/player/mod.rs
+msgid "Copied {} to Download"
+msgstr "已将 {} 复制到 Download"
 
 #: src/player/mod.rs
 msgid "Installing {}…"

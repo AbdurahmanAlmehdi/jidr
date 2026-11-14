@@ -564,11 +564,6 @@ msgstr "التبديل بين الفاتح والداكن"
 msgid "Appearance"
 msgstr "المظهر"
 
-# unsure: 'Download' (the /sdcard folder) kept as «مجلد Download»; alternative «التنزيلات».
-#: src/player/drop.rs
-msgid "Magisk modules need Full root, so it was copied to Download."
-msgstr "تحتاج وحدات Magisk إلى جذر كامل، لذا نُسخ الملف إلى مجلد Download."
-
 #: src/player/drop.rs
 msgid "Release to install {}"
 msgstr "أفلِت لتثبيت ⁨{}⁩"
@@ -578,12 +573,16 @@ msgid "adb install -r on {}. Replaces the installed version and keeps its data."
 msgstr "يُنفَّذ adb install -r على ⁨{}⁩. يستبدل الإصدار المثبَّت ويحتفظ ببياناته."
 
 #: src/player/drop.rs
-msgid "Release to install {} as a Magisk module"
-msgstr "أفلِت لتثبيت ⁨{}⁩ كوحدة Magisk"
+msgid "Release to flash {}"
+msgstr "أفلت لتثبيت ⁨{}⁩ بالفلاش"
 
 #: src/player/drop.rs
-msgid "Installs the module and reboots the device (about 40 s)."
-msgstr "يثبّت الوحدة ويعيد تشغيل الجهاز (نحو 40 ث)."
+msgid "A Magisk module installs and reboots the device (about 40 s). Recovery and image zips can't be flashed; other zips go to Download."
+msgstr "تُثبَّت وحدة Magisk ويُعاد تشغيل الجهاز (نحو 40 ث). لا يمكن تثبيت ملفات zip الخاصة بالاسترداد أو بالصور؛ وتُنسخ ملفات zip الأخرى إلى مجلد Download."
+
+#: src/player/drop.rs
+msgid "Magisk modules need Full root, so a module is copied to Download. Recovery and image zips can't be flashed."
+msgstr "تتطلب وحدات Magisk جذرًا كاملًا، لذا تُنسخ الوحدة إلى مجلد Download. لا يمكن تثبيت ملفات zip الخاصة بالاسترداد أو بالصور."
 
 #: src/player/drop.rs
 msgid "Release to copy {}"
@@ -610,12 +609,8 @@ msgid "Start the device first, then drop the file again"
 msgstr "شغّل الجهاز أولًا، ثم أفلت الملف مجددًا"
 
 #: src/player/mod.rs
-msgid "Installed {}; the device is rebooting"
-msgstr "ثُبّت ⁨{}⁩؛ يُعاد تشغيل الجهاز"
-
-#: src/player/mod.rs
-msgid "Copied {} to Download (module install isn't available yet)"
-msgstr "نُسخ ⁨{}⁩ إلى مجلد Download (تثبيت الوحدات غير متاح بعد)"
+msgid "Flashing {}…"
+msgstr "جارٍ تثبيت ⁨{}⁩…"
 
 #: src/player/mod.rs
 msgid "Copied {} to Download. {}"
@@ -624,6 +619,14 @@ msgstr "نُسخ ⁨{}⁩ إلى مجلد Download. ⁨{}⁩"
 #: src/player/mod.rs
 msgid "Copied {} to /sdcard/Download"
 msgstr "نُسخ ⁨{}⁩ إلى /sdcard/Download"
+
+#: src/player/mod.rs
+msgid "Installed the Magisk module {}; the device rebooted"
+msgstr "ثُبِّتت وحدة Magisk ⁨{}⁩؛ وأُعيد تشغيل الجهاز"
+
+#: src/player/mod.rs
+msgid "Copied {} to Download"
+msgstr "نُسخ ⁨{}⁩ إلى مجلد Download"
 
 #: src/player/mod.rs
 msgid "Installing {}…"

@@ -1,16 +1,21 @@
-//! What a file dropped on the device does (plan 7c, D35).
+//! What a file dropped on the device does (plan 7c, D35, ADR-0004).
 
-use crate::i18n::tr;
 use std::path::{Path, PathBuf};
+use crate::i18n::tr;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DropAction {
     /// `file.install` (replace, keep data), then launch it.
     InstallApk(PathBuf),
-    /// Full-root device: `root.module.install` + reboot (D35).
-    MagiskModule(PathBuf),
-    /// Anything else, or a zip without Full root: `file.push` to Download.
-    Push { path: PathBuf, note: Option<String> },
+    /// Any zip: `file.flash`, which looks inside it (ADR-0004). A module
+    /// installs on a Full-root device and is copied to Download otherwise;
+    /// recovery and image zips are refused; other zips are copied.
+    FlashZip { path: PathBuf, full_root: bool },
+    /// Anything else: `file.push` to Download.
+    Push {
+        path: PathBuf,
+        note: Option<&'static str>,
+    },
 }
 
 pub fn classify(path: &Path, full_root: bool) -> DropAction {
@@ -21,12 +26,9 @@ pub fn classify(path: &Path, full_root: bool) -> DropAction {
         .unwrap_or_default();
     match ext.as_str() {
         "apk" => DropAction::InstallApk(path.to_path_buf()),
-        "zip" if full_root => DropAction::MagiskModule(path.to_path_buf()),
-        "zip" => DropAction::Push {
+        "zip" => DropAction::FlashZip {
             path: path.to_path_buf(),
-            note: Some(tr!(
-                "Magisk modules need Full root, so it was copied to Download."
-            )),
+            full_root,
         },
         _ => DropAction::Push {
             path: path.to_path_buf(),
@@ -50,14 +52,18 @@ pub fn hover_text(action: &DropAction, device: &str) -> (String, String) {
                 device
             ),
         ),
-        DropAction::MagiskModule(p) => (
-            tr!("Release to install {} as a Magisk module", name(p)),
-            tr!("Installs the module and reboots the device (about 40 s)."),
+        DropAction::FlashZip { path, full_root } => (
+            tr!("Release to flash {}", name(path)),
+            if *full_root {
+                tr!("A Magisk module installs and reboots the device (about 40 s). Recovery and image zips can't be flashed; other zips go to Download.")
+            } else {
+                tr!("Magisk modules need Full root, so a module is copied to Download. Recovery and image zips can't be flashed.")
+            },
         ),
         DropAction::Push { path, note } => (
             tr!("Release to copy {}", name(path)),
             match note {
-                Some(n) => n.clone(),
+                Some(n) => (*n).to_string(),
                 None => tr!("Goes to /sdcard/Download on {}.", device),
             },
         ),
@@ -82,14 +88,21 @@ mod tests {
             classify(Path::new("/x/shop.APK"), false),
             DropAction::InstallApk("/x/shop.APK".into())
         );
+        // Every zip goes to `file.flash`, which decides from its contents.
         assert_eq!(
-            classify(Path::new("/x/m.zip"), true),
-            DropAction::MagiskModule("/x/m.zip".into())
+            classify(Path::new("/x/m.ZIP"), true),
+            DropAction::FlashZip {
+                path: "/x/m.ZIP".into(),
+                full_root: true
+            }
         );
-        assert!(matches!(
+        assert_eq!(
             classify(Path::new("/x/m.zip"), false),
-            DropAction::Push { note: Some(_), .. }
-        ));
+            DropAction::FlashZip {
+                path: "/x/m.zip".into(),
+                full_root: false
+            }
+        );
         assert!(matches!(
             classify(Path::new("/x/a.png"), true),
             DropAction::Push { note: None, .. }
@@ -107,6 +120,19 @@ mod tests {
             b,
             "adb install -r on Pixel-ish 6.1. Replaces the installed version and keeps its data."
         );
+    }
+
+    #[test]
+    fn zip_hover_says_what_flashing_does() {
+        let zip = |full_root| DropAction::FlashZip {
+            path: "/x/lsposed.zip".into(),
+            full_root,
+        };
+        let (t, b) = hover_text(&zip(true), "Phone");
+        assert_eq!(t, "Release to flash lsposed.zip");
+        assert!(b.contains("reboots"), "{b}");
+        let (_, b) = hover_text(&zip(false), "Phone");
+        assert!(b.contains("need Full root"), "{b}");
     }
 
     #[test]

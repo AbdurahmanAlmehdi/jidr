@@ -7,6 +7,8 @@
 //! - `root.writable_system`: a writable `/system` on an adb-root device
 //!   (#25, [`writable`]);
 //! - `root.module.install`: installs a Magisk module zip on a Magisk device;
+//! - `file.flash`: routes any zip by its type (ADR-0004, [`flash`]): a module
+//!   installs, recovery/Riru/image zips are refused, the rest is copied;
 //! - `device.props.get` / `device.props.set`: a Full-root device's build
 //!   props (Phase 9f, [`props`]);
 //! - `root.cacert.install` / `.list` / `.verify` / `.remove`: CA
@@ -20,6 +22,7 @@
 mod adb_mode;
 mod adb_ready;
 pub mod cacerts;
+pub mod flash;
 mod magisk;
 pub mod props;
 mod verify;
@@ -133,6 +136,13 @@ impl CommandProvider for RootProvider {
             .locks_device()
             .long_running()
             .destructive(),
+            CommandSpec::new::<flash::FlashParams>(
+                "file.flash",
+                "Flash a zip: a Magisk or Zygisk module installs and reboots a Full-root device; recovery, Riru and image zips are refused; anything else is copied to /sdcard/Download",
+            )
+            .locks_device()
+            .long_running()
+            .destructive(),
             CommandSpec::new::<AutoGrantParams>(
                 "root.auto_grant",
                 "Grant every app root without a prompt on a Full-root device (D22, off by default)",
@@ -194,8 +204,15 @@ impl CommandProvider for RootProvider {
                 let p: ModuleInstallParams = parse_params(params)?;
                 let device = ctx.daemon.device(&p.device).await?;
                 ensure_running(&device)?;
-                magisk::install_module(ctx, &device, &p.path).await
+                if device.root.mode != RootMode::Magisk {
+                    return Err(JidrError::usage(
+                        "root.module.install needs a Full-root (Magisk) device",
+                    ));
+                }
+                let module = flash::module_to_install(&p.path)?;
+                magisk::install_module(ctx, &device, &p.path, &module).await
             }
+            "file.flash" => flash::flash(ctx, parse_params(params)?).await,
             "root.auto_grant" => auto_grant(ctx, parse_params(params)?).await,
             "device.props.get" => {
                 props::get(ctx, &parse_params::<DeviceParams>(params)?.device).await

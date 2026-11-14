@@ -528,10 +528,6 @@ msgid "Appearance"
 msgstr ""
 
 #: src/player/drop.rs
-msgid "Magisk modules need Full root, so it was copied to Download."
-msgstr ""
-
-#: src/player/drop.rs
 msgid "Release to install {}"
 msgstr ""
 
@@ -540,11 +536,15 @@ msgid "adb install -r on {}. Replaces the installed version and keeps its data."
 msgstr ""
 
 #: src/player/drop.rs
-msgid "Release to install {} as a Magisk module"
+msgid "Release to flash {}"
 msgstr ""
 
 #: src/player/drop.rs
-msgid "Installs the module and reboots the device (about 40 s)."
+msgid "A Magisk module installs and reboots the device (about 40 s). Recovery and image zips can't be flashed; other zips go to Download."
+msgstr ""
+
+#: src/player/drop.rs
+msgid "Magisk modules need Full root, so a module is copied to Download. Recovery and image zips can't be flashed."
 msgstr ""
 
 #: src/player/drop.rs
@@ -572,11 +572,7 @@ msgid "Start the device first, then drop the file again"
 msgstr ""
 
 #: src/player/mod.rs
-msgid "Installed {}; the device is rebooting"
-msgstr ""
-
-#: src/player/mod.rs
-msgid "Copied {} to Download (module install isn't available yet)"
+msgid "Flashing {}…"
 msgstr ""
 
 #: src/player/mod.rs
@@ -585,6 +581,14 @@ msgstr ""
 
 #: src/player/mod.rs
 msgid "Copied {} to /sdcard/Download"
+msgstr ""
+
+#: src/player/mod.rs
+msgid "Installed the Magisk module {}; the device rebooted"
+msgstr ""
+
+#: src/player/mod.rs
+msgid "Copied {} to Download"
 msgstr ""
 
 #: src/player/mod.rs
