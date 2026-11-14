@@ -34,7 +34,7 @@ Tests named `*_emulator` run on a real emulator: on Linux KVM in CI (API 30, 33,
 | Baseband operator & SIM identity | Paid | ⏭️ | [#16](https://github.com/AbdurahmanAlmehdi/jidr/issues/16); the phone number alone works natively |
 | Network Wi-Fi / mobile toggles, speed/delay profiles | Paid | ✅ | `widgets_core_commands` (Wi-Fi via `settings`, mobile data via the emulated radio and `network.get`, speed via `adb emu network status`) |
 | Network packet loss / bad DNS | Paid | ⏭️ | [#17](https://github.com/AbdurahmanAlmehdi/jidr/issues/17) |
-| Identifiers (Android ID, IMEI) | Free | ⏭️ | [#19](https://github.com/AbdurahmanAlmehdi/jidr/issues/19) |
+| Identifiers (Android ID, IMEI) | Free | 🚧 | Android ID: `identity.set` gives every installed app the new ID (its SSAID) and sets the global value, through the on-device helper: `crates/jidr-widgets/tests/identity.rs` offline, `crates/jidr-root/tests/identity_emulator.rs` `android_id_reaches_apps_and_survives_a_cold_boot` (an app reads it, before and after a cold boot) (not run on CI yet). IMEI: shown by `identity.get`, but it can't be changed without modifying the image: the modem's IMEI is a constant and SELinux leaves no way to relay the radio's modem port (tried on API 35, see [root.md](root.md#identifiers-android-id-and-imei-19)), [#19](https://github.com/AbdurahmanAlmehdi/jidr/issues/19) stays open for it |
 | Build props | Free | ✅ | `crates/jidr-root/tests/props_emulator.rs:61` `props_spoof_after_cold_boot_and_stock_after_revert` (Full-root devices only) |
 | Disk I/O limit | Free | ⏭️ | [#20](https://github.com/AbdurahmanAlmehdi/jidr/issues/20) |
 | Camera / media injection | Paid | 🚧 | Host webcam as a camera at the next start: `widgets_core_commands` (`camera.set` → `-camera-back webcam0` in the launch args). Image and video files: ⏭️ [#21](https://github.com/AbdurahmanAlmehdi/jidr/issues/21) |
@@ -64,5 +64,5 @@ Tests named `*_emulator` run on a real emulator: on Linux KVM in CI (API 30, 33,
   - There's no signed release yet; v0.1.0 is in preparation.
   - Quick boot is slower than its target.
   - A few emulator tests are still flaky on shared CI runners.
-  - Several paid-tier niches are partial or post-MVP: motion presets, file-based camera, microphone injection (not yet run on an emulator), biometric scenarios, network loss and DNS, identifiers, disk limits, gamepad.
+  - Several paid-tier niches are partial or post-MVP: motion presets, file-based camera, microphone injection (not yet run on an emulator), biometric scenarios, network loss and DNS, identifiers (the IMEI can't be changed), disk limits, gamepad.
   - Clipboard sharing in the player isn't finished.

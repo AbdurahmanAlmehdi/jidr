@@ -1,6 +1,6 @@
 ---
 name: jidr-root
-description: "Root a Jidr Android emulator and work with root: choose a root mode (none, adb, magisk), switch with `jidr root set` and check uid 0 with `jidr root verify`, install Magisk modules, handle Magisk's su prompt and the opt-in auto-grant, revert to stock, trust a proxy's CA as a system certificate (`jidr cert`) route traffic through Burp or mitmproxy (`jidr proxy`), and drop a share of the device's packets (`jidr network loss`). Use when the user asks for a rooted emulator, su, Magisk, a Magisk module, intercepting an app's HTTPS traffic, testing an app on a lossy network, or asks why Play Integrity fails. Load jidr for the basics."
+description: "Root a Jidr Android emulator and work with root: choose a root mode (none, adb, magisk), switch with `jidr root set` and check uid 0 with `jidr root verify`, install Magisk modules, handle Magisk's su prompt and the opt-in auto-grant, revert to stock, trust a proxy's CA as a system certificate (`jidr cert`) route traffic through Burp or mitmproxy (`jidr proxy`), drop a share of the device's packets (`jidr network loss`), and change the device's Android ID (`jidr identity`). Use when the user asks for a rooted emulator, su, Magisk, a Magisk module, intercepting an app's HTTPS traffic, testing an app on a lossy network, giving a device a new Android ID, or asks why Play Integrity fails. Load jidr for the basics."
 ---
 
 # Root on a Jidr device
@@ -119,6 +119,19 @@ jidr root helper Phone                  # the rooted helper that does it: versio
 - It needs API 31 or later: on API 30 the kernel has no netem and the command exits 2 without changing anything.
 - A cold boot clears the loss; remove it when you're done anyway.
 - Through MCP: `command_run` with `network.shaping.set {device, loss_pct}` and `network.shaping.get {device}`.
+
+## Identifiers: Android ID (IMEI read only)
+
+```bash
+jidr identity Phone                                  # Android ID and IMEI (no root needed)
+jidr identity Phone --android-id 0123456789abcdef    # 16 hex digits; restarts Android
+```
+
+- Setting goes through the on-device helper, so the device needs root mode `adb` or `magisk` (exit 2 on `none`).
+- The new ID is what every installed app reads (its SSAID), not only `settings get secure android_id`. An app installed afterwards gets its own derived ID again: install the app first, then set the ID. It survives cold boots and is part of snapshots.
+- It restarts the whole Android framework (about a boot's worth of waiting), so the app under test is killed; start it again afterwards.
+- The IMEI can't be changed on the emulator; don't promise it.
+- Through MCP: `command_run` with `identity.get {device}` and `identity.set {device, android_id}` (a job).
 
 ## Revert
 
